@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35527.113 d17.12
+VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YtDlpWrapper", "src\YtDlpWrapper\YtDlpWrapper.csproj", "{97F0262B-8CE0-4BD9-A137-C586E2B0FC7B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp.Test", "src\ConsoleApp.Test\ConsoleApp.Test.csproj", "{75579413-4D4F-4CC4-8603-D64D13D85312}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDownloader", "src\VideoDownloader\VideoDownloader.csproj", "{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{75579413-4D4F-4CC4-8603-D64D13D85312}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{75579413-4D4F-4CC4-8603-D64D13D85312}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{75579413-4D4F-4CC4-8603-D64D13D85312}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
