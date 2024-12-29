@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<NoWarn>CS0649,CS8600,CS8601,CS8604,CS8618,CS8625</NoWarn>
+	<AssemblyName>YtDlpWrapper</AssemblyName>
+	<RootNamespace>YtDlpWrapper</RootNamespace>
+	<PackageId>YtDlpWrapper.dotNet</PackageId>
+	<Description>YtDlpWrapper is a video and audio downloader utility for C# applications.</Description>
+	<Copyright>Copyright © 2025 ManuHub</Copyright>
+	<Authors>Manojbabu</Authors>
+	<PackageTags>youtube;download;yt-dlp;fast;audio;video</PackageTags>
+	<PackageProjectUrl>https://github.com/manusoft/yt-dlp-wrapper</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/manusoft/yt-dlp-wrapper</RepositoryUrl>
+	<!--<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+	<Icon>icon.png</Icon>
+	<PackageIcon>icon.png</PackageIcon>
+	<PackageReadmeFile>README.md</PackageReadmeFile>-->
+	<Version>1.0.0</Version>
+	<IsPackable>true</IsPackable>
+	<AotAssemblies>true</AotAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="yt-dlp.exe" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="yt-dlp.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
