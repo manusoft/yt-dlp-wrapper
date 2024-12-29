@@ -89,6 +89,14 @@ public partial class frmMain : Form
             return;
         }
 
+        if(!textUrl.Text.Contains("https://") || !textUrl.Text.Contains("http://"))
+        {
+            comboQuality.Enabled = false;
+            buttonDownload.Enabled = false;
+            textUrl.Clear();
+            return;
+        }
+
         progressDownload.Style = ProgressBarStyle.Marquee;
         progressDownload.MarqueeAnimationSpeed = 10;
 
@@ -102,6 +110,12 @@ public partial class frmMain : Form
 
             comboQuality.Enabled = true;
             buttonDownload.Enabled = true;
+        }
+        else
+        {
+            comboQuality.DataSource = null;
+            comboQuality.Items.Add("Best");
+            comboQuality.Items.Add("Worst");
         }
 
         progressDownload.Style = ProgressBarStyle.Blocks;

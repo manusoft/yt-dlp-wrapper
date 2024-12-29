@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmMain));
             pictureBox1 = new PictureBox();
             textUrl = new TextBox();
             textOutput = new TextBox();
@@ -125,6 +126,7 @@
             Controls.Add(textUrl);
             Controls.Add(pictureBox1);
             Font = new Font("Segoe UI", 10F);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             MinimumSize = new Size(700, 430);
             Name = "frmMain";
