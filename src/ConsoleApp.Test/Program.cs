@@ -1,5 +1,6 @@
 ﻿using YtDlpWrapper;
-using static System.Net.Mime.MediaTypeNames;
+
+Console.Clear();
 
 string outputDirectory = @"C:\Downloads";
 
@@ -37,7 +38,7 @@ if (string.IsNullOrEmpty(videoUrl))
 //}
 
 //Start downloading the video
-await ytDlpEngine.DownloadVideoAsync(videoUrl, outputDirectory, VideoQuality.All);
+await ytDlpEngine.DownloadVideoAsync(videoUrl, outputDirectory, VideoQuality.Worst);
 
 // Start downloading the playlist
 // await ytDlpEngine.DownloadPlaylistAsync(videoUrl, outputDirectory);
