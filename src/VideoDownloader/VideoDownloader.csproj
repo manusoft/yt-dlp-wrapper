@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="YTDLP-Wrapper" Version="1.0.0" />
+    <ProjectReference Include="..\YtDlpWrapper\YtDlpWrapper.csproj" />
   </ItemGroup>
 
   <ItemGroup>

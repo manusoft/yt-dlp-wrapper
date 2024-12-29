@@ -33,18 +33,21 @@ public partial class frmMain : Form
         var engine = new YtDlpEngine();
 
         // Subscribe to the download progress event
-        engine.OnProgressMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
+        engine.OnErrorMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
 
         // Subscribe to the download progress event
-        engine.OnErrorMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
+        engine.OnProgressMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
 
         // Subscribe to the download progress event
         engine.OnProgressDownload += (sender, e) => textDetail.AppendText($"Downloading: {e.Percent}% of {e.Size} ETA:{e.ETA}" + Environment.NewLine);
 
-        switch(quality)
+        // Subscribe to the download complete event
+        engine.OnCompleteDownload += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);        
+
+        switch (quality)
         {
             case 0:
-                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
+                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.MergeAll);
                 break;
             case 1:
                 await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Worst);
