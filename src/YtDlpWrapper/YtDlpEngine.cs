@@ -21,7 +21,7 @@ public class YtDlpEngine
     /// <summary>
     /// Constructor to initialize the YtDlpEngine
     /// </summary>
-    /// <param name="ytDlpPath"></param>
+    /// <param name="ytDlpPath">Provide the yt-dlp.exe path</param>
     /// <exception cref="FileNotFoundException"></exception>
     public YtDlpEngine(string ytDlpPath = "yt-dlp.exe")
     {
