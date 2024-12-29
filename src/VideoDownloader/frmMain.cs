@@ -89,11 +89,10 @@ public partial class frmMain : Form
             return;
         }
 
-        if(!textUrl.Text.Contains("https://") || !textUrl.Text.Contains("http://"))
+        if(!textUrl.Text.StartsWith("http", StringComparison.InvariantCultureIgnoreCase))
         {
             comboQuality.Enabled = false;
             buttonDownload.Enabled = false;
-            textUrl.Clear();
             return;
         }
 
