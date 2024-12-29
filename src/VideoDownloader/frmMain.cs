@@ -16,16 +16,16 @@ public partial class frmMain : Form
 
     private async void buttonDownload_Click(object sender, EventArgs e)
     {
-        if(string.IsNullOrEmpty(textUrl.Text))
+        if (string.IsNullOrEmpty(textUrl.Text))
         {
             MessageBox.Show("Please enter the video URL", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        await DownloadVideoAsync(textUrl.Text, comboQuality.Text);
+        await DownloadVideoAsync(textUrl.Text, comboQuality.SelectedIndex);
     }
 
-    private async Task DownloadVideoAsync(string url, string quality)
+    private async Task DownloadVideoAsync(string url, int quality)
     {
         textUrl.Clear();
         textDetail.Clear();
@@ -41,13 +41,14 @@ public partial class frmMain : Form
         // Subscribe to the download progress event
         engine.OnProgressDownload += (sender, e) => textDetail.AppendText($"Downloading: {e.Percent}% of {e.Size} ETA:{e.ETA}" + Environment.NewLine);
 
-        if(quality == "Best")
+        switch(quality)
         {
-            await engine.DownloadVideoAsync(url, textOutput.Text.Trim());
+            case 0:
+                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
+                break;
+            case 1:
+                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Worst);
+                break;
         }
-        else
-        {
-            await engine.DownloadVideoAsync(url, Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),  VideoQuality.Worst);
-        }       
     }
 }
