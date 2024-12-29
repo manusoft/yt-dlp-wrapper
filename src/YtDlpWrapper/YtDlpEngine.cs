@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -9,6 +8,8 @@ public class YtDlpEngine
 {
     // Event to notify progress updates
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
+    // Event to notify download completion
+    public event EventHandler<string>? OnCompleteDownload;
     // Event to notify message updates
     public event EventHandler<string>? OnProgressMessage;
     // Event to notify message updates
@@ -84,7 +85,7 @@ public class YtDlpEngine
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="Exception"></exception>
-    public async Task DownloadVideoAsync(string videoUrl, string outputDirectory, VideoQuality quality = VideoQuality.Best)
+    public async Task DownloadVideoAsync(string videoUrl, string outputDirectory, VideoQuality quality = VideoQuality.Best, string customFormat = "")
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
             throw new ArgumentException("Video URL cannot be null or empty.", nameof(videoUrl));
@@ -94,9 +95,19 @@ public class YtDlpEngine
 
         try
         {
-            var format = StringExtensions.GetVideoFormatCode(quality);
-            var outputPath = Path.Combine(outputDirectory, "%(title)s.%(ext)s");
-            await RunCommandAsync($"-f \"{format}\" -o \"{outputPath}\" {videoUrl}");
+            if (quality == VideoQuality.Custom)
+            {
+                if (string.IsNullOrWhiteSpace(customFormat))
+                    throw new ArgumentException("Custom format cannot be null or empty.", nameof(customFormat));
+
+                await RunCommandAsync($"-f {customFormat} -o \"{outputDirectory}/%(title)s.%(ext)s\" {videoUrl}");
+            }
+            else
+            {
+                var format = StringExtensions.GetVideoFormatCode(quality);
+                var outputPath = Path.Combine(outputDirectory, "%(title)s.%(ext)s");
+                await RunCommandAsync($"-f \"{format}\" -o \"{outputPath}\" {videoUrl}");
+            }
         }
         catch (Exception ex)
         {
@@ -113,7 +124,7 @@ public class YtDlpEngine
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="Exception"></exception>
-    public async Task DownloadPlaylistAsync(string playlistUrl, string outputDirectory, VideoQuality quality = VideoQuality.Best)
+    public async Task DownloadPlaylistAsync(string playlistUrl, string outputDirectory, VideoQuality quality = VideoQuality.Best, string customFormat = "")
     {
         if (string.IsNullOrWhiteSpace(playlistUrl))
             throw new ArgumentException("Playlist URL cannot be null or empty.", nameof(playlistUrl));
@@ -123,9 +134,19 @@ public class YtDlpEngine
 
         try
         {
-            var format = StringExtensions.GetVideoFormatCode(quality);
-            var outputPath = Path.Combine(outputDirectory, "%(playlist_title)s/%(title)s.%(ext)s");
-            await RunCommandAsync($"-f \"{format}\" -o \"{outputPath}\" {playlistUrl}");
+            if (quality == VideoQuality.Custom)
+            {
+                if (string.IsNullOrWhiteSpace(customFormat))
+                    throw new ArgumentException("Custom format cannot be null or empty.", nameof(customFormat));
+
+                await RunCommandAsync($"-f {customFormat} -o \"{outputDirectory}/%(playlist_title)s/%(title)s.%(ext)s\" {playlistUrl}");
+            }
+            else
+            {
+                var format = StringExtensions.GetVideoFormatCode(quality);
+                var outputPath = Path.Combine(outputDirectory, "%(playlist_title)s/%(title)s.%(ext)s");
+                await RunCommandAsync($"-f \"{format}\" -o \"{outputPath}\" {playlistUrl}");
+            }
         }
         catch (Exception ex)
         {
@@ -140,7 +161,7 @@ public class YtDlpEngine
     /// <param name="outputDirectory"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task DownloadAudioAsync(string videoUrl, string outputDirectory, AudioQuality quality = AudioQuality.BestAudio)
+    public async Task DownloadAudioAsync(string videoUrl, string outputDirectory, AudioQuality quality = AudioQuality.BestAudio, string customFormat = "")
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
             throw new ArgumentException("Video URL cannot be null or empty.", nameof(videoUrl));
@@ -150,9 +171,19 @@ public class YtDlpEngine
 
         try
         {
-            var format = StringExtensions.GetAudioFormatCode(quality);
-            var outputPath = Path.Combine(outputDirectory, "%(title)s.%(ext)s");           
-            await RunCommandAsync($"-f {format} -o \"{outputPath}\" --extract-audio --audio-format mp3 {videoUrl}");
+            if (quality == AudioQuality.Custom)
+            {
+                if (string.IsNullOrWhiteSpace(customFormat))
+                    throw new ArgumentException("Custom format cannot be null or empty.", nameof(customFormat));
+
+                await RunCommandAsync($"-f {customFormat} -o \"{outputDirectory}/%(title)s.%(ext)s\" --extract-audio --audio-format mp3 {videoUrl}");
+            }
+            else
+            {
+                var format = StringExtensions.GetAudioFormatCode(quality);
+                var outputPath = Path.Combine(outputDirectory, "%(title)s.%(ext)s");
+                await RunCommandAsync($"-f {format} -o \"{outputPath}\" --extract-audio --audio-format mp3 {videoUrl}");
+            }
         }
         catch (Exception ex)
         {
@@ -546,10 +577,10 @@ public class YtDlpEngine
     private void ParseProgress(string output)
     {
         // Regex patterns for different stages of the process
-        var extractingUrlPattern = @"\[youtube\] Extracting URL: (?<url>https?://\S+)";
-        var downloadingWebpagePattern = @"\[youtube\] (?<id>\S+): Downloading webpage";
-        var downloadingJsonPattern = @"\[youtube\] (?<id>\S+): Downloading (ios|mweb) player API JSON";
-        var downloadingM3u8Pattern = @"\[youtube\] (?<id>\S+): Downloading m3u8 information";
+        var extractingUrlPattern = @"\[(?<source>\w+)\] Extracting URL: (?<url>https?://\S+)";
+        var downloadingWebpagePattern = @"\[(?<source>\w+)\] (?<id>\S+): Downloading webpage";
+        var downloadingJsonPattern = @"\[(?<source>\w+)\] (?<id>\S+): Downloading (ios|mweb) player API JSON";
+        var downloadingM3u8Pattern = @"\[(?<source>\w+)\] (?<id>\S+): Downloading m3u8 information";
         var downloadingFormatPattern = @"\[info\] (?<id>\S+): Downloading (\d+) format\(s\): (?<format>\d+)";
         var downloadDestinationPattern = @"\[download\]\s*Destination:\s*(?<path>.+)";
         var resumeDownloadPattern = @"\[download\]\s*Resuming download at byte (?<byte>\d+)";
@@ -558,6 +589,7 @@ public class YtDlpEngine
         var downloadProgressPattern = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
         var downloadProgressPatternComplete = @"\[download\] (?<percent>100)% of (?<size>\S+)";
         var progressPattern = @"\[download\]\s+(?<Percentage>\d+%)\s+of\s+(?<FileSize>[\d.]+\w+)\s+in\s+(?<Time>[\d:]+)\s+at\s+(?<Speed>[\d.]+\w+/s)";
+        var progressCompletePattern = @"\[download\]\s*\d{1,3}\.\d+% of\s+[\d.]+[KMGT]?iB at\s+[\d.]+[KMGT]?iB/s ETA \d{2}:\d{2}";
 
         // Match each pattern and display the appropriate progress message
         if (Regex.IsMatch(output, extractingUrlPattern))
@@ -703,11 +735,13 @@ public class YtDlpEngine
                 ETA = "Unknown",
                 Message = $"Download complete: {percent}% of {size}"
             });
+
+            OnCompleteDownload?.Invoke(this, "Download completed successfully.");
         }
         else if (Regex.IsMatch(output, progressPattern))
         {
             var match = Regex.Match(output, progressPattern);
-            var percentage = match.Groups["Percentage"].Value;
+            var percent = match.Groups["Percentage"].Value;
             var fileSize = match.Groups["FileSize"].Value;
             var time = match.Groups["Time"].Value;
             var speed = match.Groups["Speed"].Value;
@@ -715,11 +749,19 @@ public class YtDlpEngine
             // Trigger progress event with extracted details
             OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
             {
-                Percent = percentage,
+                Percent = percent,
                 Size = fileSize,
                 Speed = speed,
                 ETA = time
             });
+        }
+        else if (Regex.IsMatch(output, progressCompletePattern))
+        {
+            var match = Regex.Match(output, progressPattern);
+            var percent = match.Groups["Percentage"].Value;
+            var fileSize = match.Groups["FileSize"].Value;
+
+            OnCompleteDownload?.Invoke(this, $"Download completed successfully. FileSize: {fileSize}.");
         }
         else
         {
@@ -728,11 +770,11 @@ public class YtDlpEngine
                 return;
             }
 
-            if (output.Contains("ERROR"))
+            if (output.Contains("ERROR", StringComparison.InvariantCultureIgnoreCase))
             {
                 LogToFile(LogType.Error, output);
             }
-            else if (output.Contains("WARNING"))
+            else if (output.Contains("WARNING", StringComparison.InvariantCultureIgnoreCase))
             {
                 LogToFile(LogType.Warning, output);
             }
@@ -740,8 +782,15 @@ public class YtDlpEngine
             {
                 LogToFile(LogType.Info, output);
 
-                // Notify the UI about the progress
-                OnProgressMessage?.Invoke(this, output);
+                if (output.Contains("100%"))
+                {
+                    OnCompleteDownload?.Invoke(this, "Download completed successfully.");
+                }
+                else
+                {
+                    // Notify the UI about the progress
+                    OnProgressMessage?.Invoke(this, output);
+                }
             }
         }
     }

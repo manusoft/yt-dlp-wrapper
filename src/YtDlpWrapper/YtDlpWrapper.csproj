@@ -23,17 +23,16 @@
 	<AotAssemblies>true</AotAssemblies>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="yt-dlp.exe" />
-  </ItemGroup>
-
 	<ItemGroup>
 		<Content Include="icon.png" Pack="true" PackagePath="" />
 		<Content Include="README.md" Pack="true" PackagePath="" />
 		<Content Include="LICENSE.txt" Pack="true" PackagePath="" />
-		<Content Include="yt-dlp.exe">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="yt-dlp.exe">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </None>
 	</ItemGroup>
 
 </Project>

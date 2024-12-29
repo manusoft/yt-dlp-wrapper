@@ -1,6 +1,4 @@
-﻿using System.ComponentModel;
-
-namespace YtDlpWrapper;
+﻿namespace YtDlpWrapper;
 
 public enum VideoQuality
 {
@@ -10,4 +8,5 @@ public enum VideoQuality
     BestVideo,     // Best video-only quality (no audio)
     Worst,         // Worst available quality    
     WorstVideo,    // Worst video-only quality (no audio)   
+    Custom         // Custom quality
 }
