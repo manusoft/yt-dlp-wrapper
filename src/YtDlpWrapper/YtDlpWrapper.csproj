@@ -8,8 +8,7 @@
 	<AssemblyName>YtDlpWrapper</AssemblyName>
 	<RootNamespace>YtDlpWrapper</RootNamespace>
 	<PackageId>YTDLP-Wrapper</PackageId>
-	<Description>YtDlpWrapper is a C# wrapper for yt-dlp, an audio and video downloader with support for thousands of sites. 
-		Easily download videos, audio, subtitles, and thumbnails, or fetch video/playlist information with a simple API.</Description>
+	<Description>YtDlpWrapper is a C# wrapper for yt-dlp, an audio and video downloader with support for thousands of sites. Easily download videos, audio, subtitles, and thumbnails, or fetch video/playlist information with a simple API.</Description>
 	<Copyright>Copyright © 2025 ManuHub</Copyright>
 	<Authors>Manojbabu</Authors>
 	<PackageTags>youtube;download;yt-dlp;fast;audio;video</PackageTags>
