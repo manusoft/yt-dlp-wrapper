@@ -1,6 +1,6 @@
-![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Wrapper) ![Static Badge](https://img.shields.io/badge/ytdlp_wrapper-green)
-![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Wrapper) ![Static Badge](https://img.shields.io/badge/ytdlp_executable-red)
- ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Executable)
+![Static Badge](https://img.shields.io/badge/ytdlp_wrapper-green) ![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Wrapper) ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Wrapper) 
+
+![Static Badge](https://img.shields.io/badge/ytdlp_executable-red) ![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Executable)  ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Executable)
 
 
 # YTDLP-Wrapper
