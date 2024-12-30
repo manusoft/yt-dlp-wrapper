@@ -65,7 +65,7 @@ public static class StringExtensions
         }       
         else
         {
-            return "Unknown error";
+            return message;
         }
     }
 }

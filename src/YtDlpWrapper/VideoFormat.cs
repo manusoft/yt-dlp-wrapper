@@ -1,4 +1,6 @@
-﻿namespace YtDlpWrapper;
+﻿using System.Text.RegularExpressions;
+
+namespace YtDlpWrapper;
 
 public class VideoFormat
 {
