@@ -1,4 +1,5 @@
-![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Wrapper) ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Wrapper)
+![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Wrapper) ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Wrapper) ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Executable)
+
 
 # YTDLP-Wrapper
 
