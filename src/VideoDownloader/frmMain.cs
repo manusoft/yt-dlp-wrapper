@@ -1,3 +1,4 @@
+using System.Drawing;
 using YtDlpWrapper;
 
 namespace VideoDownloader;
@@ -36,8 +37,10 @@ public partial class frmMain : Form
 
     private async Task DownloadVideoAsync(string url, VideoFormat quality)
     {
+        DisableControls();
         textUrl.Clear();
         textDetail.Clear();
+        textDetail.AppendText($"Downloading video from: {url}" + Environment.NewLine);
 
         int progress = 0;
         progressDownload.Value = progress;
@@ -48,9 +51,11 @@ public partial class frmMain : Form
         // Subscribe to the download progress event
         engine.OnProgressMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
 
+        engine.OnCompleteDownload += (sender, e) => textDetail.AppendText($"Completed {e}" + Environment.NewLine);
+
         // Subscribe to the download progress event
         engine.OnProgressDownload += (sender, e) =>
-        {  
+        {
             try
             {
                 // Parse e.Percent as a double
@@ -59,11 +64,6 @@ public partial class frmMain : Form
                 // Convert the double to an integer for progress (if needed)
                 progress = (int)Math.Round(percent); // Rounds to the nearest integer
                 progressDownload.Value = progress;
-
-                if(progress == 100)
-                {
-                    textDetail.AppendText($"Download completed. FileSize: {e.Size}");
-                }
             }
             catch (Exception ex)
             {
@@ -74,22 +74,24 @@ public partial class frmMain : Form
 
         // Subscribe to the download complete event
         engine.OnCompleteDownload += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
-               
+
         var selectedFormat = quality;
 
         await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, quality.ID);
+
+        EnableControls();
     }
 
     private async void textUrl_TextChanged(object sender, EventArgs e)
     {
-        if(string.IsNullOrEmpty(textUrl.Text))
+        if (string.IsNullOrEmpty(textUrl.Text))
         {
             comboQuality.Enabled = false;
             buttonDownload.Enabled = false;
             return;
         }
 
-        if(!textUrl.Text.StartsWith("http", StringComparison.InvariantCultureIgnoreCase))
+        if (!textUrl.Text.StartsWith("http", StringComparison.InvariantCultureIgnoreCase))
         {
             comboQuality.Enabled = false;
             buttonDownload.Enabled = false;
@@ -98,11 +100,12 @@ public partial class frmMain : Form
 
         progressDownload.Style = ProgressBarStyle.Marquee;
         progressDownload.MarqueeAnimationSpeed = 10;
+        textDetail.Text = "Analyzing video URL..." + Environment.NewLine;
 
         var formats = await GetVideoFormatsAsync(textUrl.Text);
 
-        if (formats != null) 
-        { 
+        if (formats != null)
+        {
             comboQuality.DataSource = formats;
             comboQuality.ValueMember = "ID";
             comboQuality.DisplayMember = "Resolution";
@@ -119,5 +122,20 @@ public partial class frmMain : Form
 
         progressDownload.Style = ProgressBarStyle.Blocks;
         progressDownload.MarqueeAnimationSpeed = 100;
+        textDetail.Text = "Video URL analyzed." + Environment.NewLine;
+    }
+
+    private void DisableControls()
+    {
+        comboQuality.Enabled = false;
+        buttonDownload.Enabled = false;
+        textOutput.Enabled = false;
+        textUrl.Enabled = false;
+    }
+
+    private void EnableControls()
+    {
+        textOutput.Enabled = true;
+        textUrl.Enabled = true;
     }
 }
