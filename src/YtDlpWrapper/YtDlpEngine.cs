@@ -4,8 +4,13 @@ using System.Text.RegularExpressions;
 
 namespace YtDlpWrapper;
 
+/// <summary>
+/// YtDlpEngine class to interact with yt-dlp executable
+/// </summary>
 public class YtDlpEngine
 {
+    private readonly ProgressParser progressParser;
+
     // Event to notify progress updates
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
     // Event to notify download completion
@@ -17,7 +22,7 @@ public class YtDlpEngine
 
     private readonly string ytDlpExecutable;
     private readonly string logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs");
-    private readonly string logPath = Path.Combine(AppContext.BaseDirectory, "Logs", $"EngineLog_{DateTime.Today.ToString("yyyy_MM_dd")}.log");
+    private readonly string logPath = Path.Combine(AppContext.BaseDirectory, "logs", $"EngineLog_{DateTime.Today.ToString("yyyy_MM_dd")}.log");
 
     /// <summary>
     /// Constructor to initialize the YtDlpEngine
@@ -26,15 +31,23 @@ public class YtDlpEngine
     /// <exception cref="FileNotFoundException"></exception>
     public YtDlpEngine(string ytDlpPath = "yt-dlp.exe")
     {
-        Initialize();
+        Logger.SetLogFilePath(logPath);
 
         // Log initialization
-        LogToFile(LogType.Info, "Initializing YtDlpEngine...");
+        Logger.Log(LogType.Info, "Initializing YtDlpEngine...");
 
         // Validate the path
         ytDlpExecutable = ValidateExecutablePath(ytDlpPath);
 
-        LogToFile(LogType.Info, "Engine started successfully.");
+        Logger.Log(LogType.Info, "Engine started successfully.");
+
+        // Inititalize progress parser
+        progressParser = new ProgressParser();
+
+        // Subscribe events
+        progressParser.OnProgressDownload += (sender, e) => OnProgressDownload?.Invoke(this, e);
+        progressParser.OnCompleteDownload += (sender, e) => OnCompleteDownload?.Invoke(this, e);
+        progressParser.OnProgressMessage += (sender, e) => OnProgressMessage?.Invoke(this, e);
     }
 
     /// <summary>
@@ -53,27 +66,12 @@ public class YtDlpEngine
         // Check if the file exists
         if (!File.Exists(absolutePath))
         {
-            LogToFile(LogType.Error, $"yt-dlp executable not found at: {absolutePath}");
+            Logger.Log(LogType.Error, $"yt-dlp executable not found at: {absolutePath}");
             throw new FileNotFoundException($"yt-dlp executable not found at: {absolutePath}");
         }
 
-        LogToFile(LogType.Info, $"yt-dlp executable found at: {absolutePath}");
+        Logger.Log(LogType.Info, $"yt-dlp executable found at: {absolutePath}");
         return absolutePath;
-    }
-
-    /// <summary>
-    /// Initialize the log directory
-    /// </summary>
-    private void Initialize()
-    {
-        if (!Directory.Exists(logDirectory))
-        {
-            try
-            {
-                Directory.CreateDirectory(logDirectory);
-            }
-            catch (Exception) { }
-        }
     }
 
     /// <summary>
@@ -321,7 +319,7 @@ public class YtDlpEngine
 
             var videoInfo = JsonSerializer.Deserialize<VideoInfo>(output);
 
-            LogToFile(LogType.Info, $"Video Info: Successfully fetch video info.");
+            Logger.Log(LogType.Info, $"Video Info: Successfully fetch video info.");
             return videoInfo;
         }
         catch (Exception)
@@ -357,7 +355,7 @@ public class YtDlpEngine
             var output = await process.StandardOutput.ReadToEndAsync();
             process.WaitForExit();
 
-            LogToFile(LogType.Info, $"Playlist Info: Successfully fetch Playlist info.");
+            Logger.Log(LogType.Info, $"Playlist Info: Successfully fetch Playlist info.");
             return output;
         }
         catch (Exception ex)
@@ -393,7 +391,7 @@ public class YtDlpEngine
             var output = await process.StandardOutput.ReadToEndAsync();
             process.WaitForExit();
 
-            LogToFile(LogType.Info, $"Subtitle Info: Successfully fetch subtitle info.");
+            Logger.Log(LogType.Info, $"Subtitle Info: Successfully fetch subtitle info.");
             return output;
         }
         catch (Exception ex)
@@ -431,7 +429,7 @@ public class YtDlpEngine
             var output = await process.StandardOutput.ReadToEndAsync();
             process.WaitForExit();
 
-            LogToFile(LogType.Info, $"Thumbnail: {output}");
+            Logger.Log(LogType.Info, $"Thumbnail: {output}");
             return output;
         }
         catch (Exception ex)
@@ -465,7 +463,7 @@ public class YtDlpEngine
             var output = await process.StandardOutput.ReadToEndAsync();
             process.WaitForExit();
 
-            LogToFile(LogType.Info, $"Get Format: {output}");
+            Logger.Log(LogType.Info, $"Get Format: {output}");
 
             // Parse the result and extract format details (ID, resolution, codec, etc.)
             var formats = ParseFormats(output);
@@ -551,7 +549,7 @@ public class YtDlpEngine
                 while ((output = await reader.ReadLineAsync()) != null)
                 {
                     // Output includes progress information in a specific format
-                    ParseProgress(output);
+                    progressParser.ParseProgress(output);
                 }
             }
 
@@ -562,256 +560,11 @@ public class YtDlpEngine
                 if (!string.IsNullOrEmpty(errorOutput))
                 {
                     OnErrorMessage?.Invoke(this, StringExtensions.GetErrorMessage(errorOutput));
-                    LogToFile(LogType.Error, errorOutput);
+                    Logger.Log(LogType.Error, errorOutput);
                 }
             }
 
             await process.WaitForExitAsync();
         }
-    }
-
-    /// <summary>
-    /// Parse the progress output and notify the UI
-    /// </summary>
-    /// <param name="output"></param>
-    private void ParseProgress(string output)
-    {
-        // Regex patterns for different stages of the process
-        var extractingUrlPattern = @"\[(?<source>\w+)\] Extracting URL: (?<url>https?://\S+)";
-        var downloadingWebpagePattern = @"\[(?<source>\w+)\] (?<id>\S+): Downloading webpage";
-        var downloadingJsonPattern = @"\[(?<source>\w+)\] (?<id>\S+): Downloading (ios|mweb) player API JSON";
-        var downloadingM3u8Pattern = @"\[(?<source>\w+)\] (?<id>\S+): Downloading m3u8 information";
-        var downloadingFormatPattern = @"\[info\] (?<id>\S+): Downloading (\d+) format\(s\): (?<format>\d+)";
-        var downloadDestinationPattern = @"\[download\]\s*Destination:\s*(?<path>.+)";
-        var resumeDownloadPattern = @"\[download\]\s*Resuming download at byte (?<byte>\d+)";
-        var downloadCompletedPattern = @"\[download\]\s*(?<path>.+?)\s*has already been downloaded";
-        var downloadProgressPatternWithUnknown = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>Unknown)\s*B/s\s*ETA\s*(?<eta>Unknown)";
-        var downloadProgressPattern = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
-        var downloadProgressPatternComplete = @"\[download\] (?<percent>100)% of (?<size>\S+)";
-        var progressPattern = @"\[download\]\s+(?<Percentage>\d+%)\s+of\s+(?<FileSize>[\d.]+\w+)\s+in\s+(?<Time>[\d:]+)\s+at\s+(?<Speed>[\d.]+\w+/s)";
-        var progressCompletePattern = @"\[download\]\s*\d{1,3}\.\d+% of\s+[\d.]+[KMGT]?iB at\s+[\d.]+[KMGT]?iB/s ETA \d{2}:\d{2}";
-
-        // Match each pattern and display the appropriate progress message
-        if (Regex.IsMatch(output, extractingUrlPattern))
-        {
-            var match = Regex.Match(output, extractingUrlPattern);
-            string url = match.Groups["url"].Value;
-
-            LogToFile(LogType.Info, $"Extracting URL: {url}");
-
-            // Notify the UI about URL extraction
-            OnProgressMessage?.Invoke(this, $"Extracting URL: {url}");
-        }
-        else if (Regex.IsMatch(output, downloadingWebpagePattern))
-        {
-            var match = Regex.Match(output, downloadingWebpagePattern);
-            string id = match.Groups["id"].Value;
-
-            LogToFile(LogType.Info, $"Downloading webpage for video ID: {id}");
-
-            // Notify the UI that the webpage for the video is being downloaded
-            OnProgressMessage?.Invoke(this, $"Downloading webpage for video ID: {id}");
-        }
-        else if (Regex.IsMatch(output, downloadingJsonPattern))
-        {
-            var match = Regex.Match(output, downloadingJsonPattern);
-            string id = match.Groups["id"].Value;
-
-            LogToFile(LogType.Info, $"Downloading player API JSON for video ID: {id}");
-
-            // Notify the UI about downloading the player API JSON
-            OnProgressMessage?.Invoke(this, $"Downloading player API JSON for video ID: {id}");
-        }
-        else if (Regex.IsMatch(output, downloadingM3u8Pattern))
-        {
-            var match = Regex.Match(output, downloadingM3u8Pattern);
-            string id = match.Groups["id"].Value;
-
-            LogToFile(LogType.Info, $"Downloading m3u8 information for video ID: {id}");
-
-            // Notify the UI about downloading m3u8 info
-            OnProgressMessage?.Invoke(this, $"Downloading m3u8 information for video ID: {id}");
-        }
-        else if (Regex.IsMatch(output, downloadingFormatPattern))
-        {
-            var match = Regex.Match(output, downloadingFormatPattern);
-            string format = match.Groups["format"].Value;
-            string id = match.Groups["id"].Value;
-
-            LogToFile(LogType.Info, $"Downloading format {format} for video ID: {id}");
-
-            // Notify the UI about downloading a specific format
-            OnProgressMessage?.Invoke(this, $"Downloading format {format} for video ID: {id}");
-        }
-        else if (Regex.IsMatch(output, downloadDestinationPattern))
-        {
-            // Extract the file path from the match
-            var match = Regex.Match(output, downloadDestinationPattern);
-            string path = match.Groups["path"].Value;
-
-            LogToFile(LogType.Info, $"Download destination: {path}");
-
-            // Notify the UI about the download destination path
-            OnProgressMessage?.Invoke(this, $"Download destination: {path}");
-        }
-        else if (Regex.IsMatch(output, resumeDownloadPattern))
-        {
-            // Extract the byte position from the match
-            var match = Regex.Match(output, resumeDownloadPattern);
-            string bytePosition = match.Groups["byte"].Value;
-
-            LogToFile(LogType.Info, $"Resuming download at byte {bytePosition}");
-
-            // Notify the UI that the download is resuming from a specific byte
-            OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
-            {
-                Message = $"Resuming download at byte {bytePosition}"
-            });
-        }
-        else if (Regex.IsMatch(output, downloadCompletedPattern))
-        {
-            var match = Regex.Match(output, downloadCompletedPattern);
-            string path = match.Groups["path"].Value;
-
-            LogToFile(LogType.Info, $"Download completed: {path} has already been downloaded.");
-
-            // Notify the UI that the download has completed
-            OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
-            {
-                Message = $"Download completed: {path} has already been downloaded."
-            });
-        }
-        else if (Regex.IsMatch(output, downloadProgressPatternWithUnknown))
-        {
-            // Handle the download progress (percentage, size, speed, ETA)
-            var match = Regex.Match(output, downloadProgressPatternWithUnknown);
-            string percent = match.Groups["percent"].Value;
-            string size = match.Groups["size"].Value;
-            string speed = match.Groups["speed"].Value;
-            string eta = match.Groups["eta"].Value;
-
-            // Notify the UI with download progress
-            OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
-            {
-                Percent = percent,
-                Size = size,
-                Speed = speed,
-                ETA = eta,
-                Message = $"Downloading: {percent}% of {size}, Speed: {speed}, ETA: {eta}"
-            });
-        }
-        else if (Regex.IsMatch(output, downloadProgressPattern))
-        {
-            var match = Regex.Match(output, downloadProgressPattern);
-            var percent = match.Groups["percent"].Value;
-            var size = match.Groups["size"].Value;
-            var speed = match.Groups["speed"].Value;
-            var eta = match.Groups["eta"].Value;
-
-            // Trigger the event
-            OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
-            {
-                Percent = percent,
-                Size = size,
-                Speed = speed,
-                ETA = eta,
-                Message = $"Downloading: {percent}% of {size}, Speed: {speed}, ETA: {eta}"
-            });
-        }
-        else if (Regex.IsMatch(output, downloadProgressPatternComplete))
-        {
-            var match = Regex.Match(output, downloadProgressPatternComplete);
-            string percent = match.Groups["percent"].Value;
-            string size = match.Groups["size"].Value;
-
-            LogToFile(LogType.Info, $"Download complete: {percent}% of {size}");
-
-            // Notify the UI when download reaches 100%
-            OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
-            {
-                Percent = "100",
-                Size = size,
-                Speed = "Unknown",
-                ETA = "Unknown",
-                Message = $"Download complete: {percent}% of {size}"
-            });
-
-            OnCompleteDownload?.Invoke(this, "Download completed successfully.");
-        }
-        else if (Regex.IsMatch(output, progressPattern))
-        {
-            var match = Regex.Match(output, progressPattern);
-            var percent = match.Groups["Percentage"].Value;
-            var fileSize = match.Groups["FileSize"].Value;
-            var time = match.Groups["Time"].Value;
-            var speed = match.Groups["Speed"].Value;
-
-            // Trigger progress event with extracted details
-            OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
-            {
-                Percent = percent,
-                Size = fileSize,
-                Speed = speed,
-                ETA = time
-            });
-        }
-        else if (Regex.IsMatch(output, progressCompletePattern))
-        {
-            var match = Regex.Match(output, progressPattern);
-            var percent = match.Groups["Percentage"].Value;
-            var fileSize = match.Groups["FileSize"].Value;
-
-            OnCompleteDownload?.Invoke(this, $"Download completed successfully. FileSize: {fileSize}.");
-        }
-        else
-        {
-            if (string.IsNullOrEmpty(output))
-            {
-                return;
-            }
-
-            if (output.Contains("ERROR", StringComparison.InvariantCultureIgnoreCase))
-            {
-                LogToFile(LogType.Error, output);
-            }
-            else if (output.Contains("WARNING", StringComparison.InvariantCultureIgnoreCase))
-            {
-                LogToFile(LogType.Warning, output);
-            }
-            else
-            {
-                LogToFile(LogType.Info, output);
-
-                if (output.Contains("100%"))
-                {
-                    OnCompleteDownload?.Invoke(this, "Download completed successfully.");
-                }
-                else
-                {
-                    // Notify the UI about the progress
-                    OnProgressMessage?.Invoke(this, output);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Log messages to a file
-    /// </summary>
-    /// <param name="logType"></param>
-    /// <param name="message"></param>
-    private void LogToFile(LogType logType, string message)
-    {
-        try
-        {
-            message = $"{DateTime.Now} - {logType.ToString().ToUpper()}: {message}";
-            File.AppendAllText(logPath, message + Environment.NewLine);
-        }
-        catch (Exception)
-        {
-        }
-    }
-
-
-
+    }    
 }
