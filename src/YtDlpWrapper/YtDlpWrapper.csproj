@@ -29,10 +29,4 @@
 		<Content Include="LICENSE.txt" Pack="true" PackagePath="" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <None Update="yt-dlp.exe">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </None>
-	</ItemGroup>
-
 </Project>
