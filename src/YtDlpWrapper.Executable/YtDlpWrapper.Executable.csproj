@@ -26,7 +26,9 @@
 	<Content Include="icon.png" Pack="true" PackagePath="" />
 	<Content Include="README.md" Pack="true" PackagePath="" />
 	<Content Include="LICENSE.txt" Pack="true" PackagePath="" />
-	<Content Include="yt-dlp.exe" Pack="true" PackagePath="" />
+	<Content Include="yt-dlp.exe" Pack="true" PackagePath="">
+	  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	</Content>
   </ItemGroup>
 
 </Project>

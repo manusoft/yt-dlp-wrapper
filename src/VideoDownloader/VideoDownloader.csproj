@@ -10,16 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="yt-dlp.exe" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="yt-dlp.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
+    <ProjectReference Include="..\YtDlpWrapper.Executable\YtDlpWrapper.Executable.csproj" />
     <ProjectReference Include="..\YtDlpWrapper\YtDlpWrapper.csproj" />
   </ItemGroup>
 

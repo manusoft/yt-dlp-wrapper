@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\YtDlpWrapper.Executable\YtDlpWrapper.Executable.csproj" />
     <ProjectReference Include="..\YtDlpWrapper\YtDlpWrapper.csproj" />
   </ItemGroup>
 
