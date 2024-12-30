@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<TargetFrameworks>net6.0;net8.0;net9.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<AssemblyName>YtDlpExecutable</AssemblyName>
+	<RootNamespace>YtDlpExecutable</RootNamespace>
+	<PackageId>YTDLP-Executable</PackageId>
+	<Description>A NuGet package that provides the latest version of `yt-dlp.exe`.</Description>
+	<Copyright>Copyright © 2025 ManuHub</Copyright>
+	<Authors>Manojbabu</Authors>
+	<PackageTags>yt-dlp;yt-dlp.exe;ytdlp;ytdlp.exe</PackageTags>
+	<PackageProjectUrl>https://github.com/yt-dlp/yt-dlp</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/manusoft/yt-dlp-wrapper</RepositoryUrl>
+	<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+	<Icon>icon.png</Icon>
+	<PackageIcon>icon.png</PackageIcon>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<Version>2024.12.23</Version>
+	<IsPackable>true</IsPackable>
+	<AotAssemblies>true</AotAssemblies>
+  </PropertyGroup>
+	
+  <ItemGroup>
+	<Content Include="icon.png" Pack="true" PackagePath="" />
+	<Content Include="README.md" Pack="true" PackagePath="" />
+	<Content Include="LICENSE.txt" Pack="true" PackagePath="" />
+	<Content Include="yt-dlp.exe" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
