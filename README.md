@@ -141,7 +141,3 @@ public enum AudioQuality
 ## License
 
 This library is licensed under the MIT License. See LICENSE for more information.
-
----
-
-This README provides an overview of the functionality in your `YtDlpWrapper` library and guides users on how to get started with it.
