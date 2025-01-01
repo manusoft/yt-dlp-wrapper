@@ -8,14 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ProductName>Video Downloader</ProductName>
     <Title>Video Downlaoder</Title>
-    <PackageIcon>icon.PNG</PackageIcon>
+    <ApplicationIcon>iconvideo (Custom).ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="C:\Users\manua\OneDrive\Desktop\icon.PNG">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
+    <Content Include="iconvideo (Custom).ico" />
   </ItemGroup>
 
   <ItemGroup>
