@@ -6,6 +6,7 @@ public class ProgressParser
 {
     private readonly Dictionary<string, Action<Match>> _regexHandlers;
     private readonly List<Regex> _compiledRegex;
+    private bool isDownloadComplted = false;
 
     public ProgressParser()
     {
@@ -17,21 +18,22 @@ public class ProgressParser
             { RegexPatterns.DownloadingM3u8, HandleDownloadingM3u8 },
             { RegexPatterns.DownloadingManifest, HandleDownloadingManifest },
             { RegexPatterns.TotalFragments, HandleTotalFragments },
+            { RegexPatterns.TestingFormat, HandleTestingFormat },
             { RegexPatterns.DownloadingFormat, HandleDownloadingFormat },
             { RegexPatterns.DownloadDestination, HandleDownloadDestination },
             { RegexPatterns.ResumeDownload, HandleResumeDownload },
             { RegexPatterns.DownloadAlreadyDownloaded,  HandleDownloadAlreadyCompleted },
+            { RegexPatterns.DownloadCompleted, HandleDownloadProgressComplete },
+            { RegexPatterns.DownloadProgressComplete, HandleDownloadProgressComplete },
             { RegexPatterns.DownloadProgress, HandleDownloadProgress },
             { RegexPatterns.DownloadProgressWithFrag, HandleDownloadProgressWithFrag },
-            { RegexPatterns.DownloadProgressComplete, HandleDownloadProgressComplete },
-            { RegexPatterns.DownloadCompleted, HandleDownloadCompleted },
             { RegexPatterns.UnknownError, HandleUnknownError }
         };
 
         _compiledRegex = _regexHandlers.Keys
-            .Select(pattern => new Regex(pattern, RegexOptions.Compiled))
+            .Select(pattern => new Regex(pattern, options: RegexOptions.Compiled | RegexOptions.IgnoreCase))
             .ToList();
-    }  
+    }
 
     public void ParseProgress(string output)
     {
@@ -80,13 +82,20 @@ public class ProgressParser
         OnProgressMessage?.Invoke(this, $"Downloading m3u8 information for video ID: {id}");
     }
 
+    private void HandleTestingFormat(Match match)
+    {
+        string format = match.Groups["format"].Value;
+        Logger.Log(LogType.Info, $"Testing format {format}");
+        OnProgressMessage?.Invoke(this, $"Testing format {format}");
+    }
+
     private void HandleDownloadingFormat(Match match)
     {
         string format = match.Groups["format"].Value;
         string id = match.Groups["id"].Value;
         Logger.Log(LogType.Info, $"Downloading format {format} for video ID: {id}");
         OnProgressMessage?.Invoke(this, $"Downloading format {format} for video ID: {id}");
-    }      
+    }
 
     private void HandleDownloadingManifest(Match match)
     {
@@ -149,9 +158,15 @@ public class ProgressParser
         double percent = 0;
         double.TryParse(percentString, out percent);
 
+        if (sizeString != "~" && !isDownloadComplted && percentString == "100.00")
+        {
+            HandleDownloadProgressComplete(match);
+        }
+
         // Convert frag to int
         int frag = 0;
         int.TryParse(fragString, out frag);
+        Console.WriteLine(match);
 
         OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
         {
@@ -168,21 +183,16 @@ public class ProgressParser
     {
         string percent = match.Groups["percent"].Value;
         string size = match.Groups["size"].Value;
-        Logger.Log(LogType.Info, $"Download complete: {percent}% of {size}");
-        OnCompleteDownload?.Invoke(this, "Download completed successfully.");
+
+        if (size != "~" && !isDownloadComplted)
+        {
+            isDownloadComplted = true;
+            Logger.Log(LogType.Info, $"Download complete: {percent}% of {size}");
+            OnCompleteDownload?.Invoke(this, $"Download completed successfully.");
+        }
     }
 
     private void HandleDownloadAlreadyCompleted(Match match)
-    {
-        string path = match.Groups["path"].Value;
-        Logger.Log(LogType.Info, $"Download completed: {path} has already been downloaded.");
-        OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs
-        {
-            Message = $"Download completed: {path} has already been downloaded."
-        });
-    }
-
-    private void HandleDownloadCompleted(Match match)
     {
         string path = match.Groups["path"].Value;
         Logger.Log(LogType.Info, $"Download completed: {path} has already been downloaded.");
