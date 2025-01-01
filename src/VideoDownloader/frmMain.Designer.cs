@@ -172,6 +172,7 @@
             Controls.Add(textOutput);
             Controls.Add(textUrl);
             Font = new Font("Segoe UI", 10F);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             MinimumSize = new Size(700, 450);
