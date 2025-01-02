@@ -4,6 +4,8 @@
 
 ![icon](https://github.com/user-attachments/assets/3848b748-ef25-4e28-9163-b7dba7e42315)
 
+[Download the latest App](https://github.com/manusoft/yt-dlp-wrapper/releases/download/v1.0.0/gui-app.zip)
+
 ![Screenshot 2025-01-03 013123](https://github.com/user-attachments/assets/24231e54-6a4d-45fb-8237-be022bbb516a)
 
 
