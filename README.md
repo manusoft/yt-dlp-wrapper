@@ -4,6 +4,9 @@
 
 ![icon](https://github.com/user-attachments/assets/3848b748-ef25-4e28-9163-b7dba7e42315)
 
+![Screenshot 2025-01-03 013123](https://github.com/user-attachments/assets/24231e54-6a4d-45fb-8237-be022bbb516a)
+
+
 `YTDLP-Wrapper` is a C# wrapper around the popular `yt-dlp` command-line tool for downloading videos, audio, subtitles, thumbnails, and more from various video-sharing platforms. This wrapper provides a simple and easy-to-use API for interacting with `yt-dlp` in your C# projects.
 
 ## Features
