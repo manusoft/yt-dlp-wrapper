@@ -96,7 +96,7 @@ public partial class frmMain : Form
 
         var selectedFormat = quality;
 
-        await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, quality.ID);
+        await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
 
         EnableControls();
     }
