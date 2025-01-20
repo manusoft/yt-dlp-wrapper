@@ -7,6 +7,7 @@ namespace YtDlpWrapper;
 /// <summary>
 /// YtDlpEngine class to interact with yt-dlp executable
 /// </summary>
+[Obsolete("YtdlpEngine() is deprecated. Use ytdlp() instead.")]
 public class YtDlpEngine
 {
     private readonly ProgressParser progressParser;
@@ -82,7 +83,7 @@ public class YtDlpEngine
     /// <param name="quality"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    /// <exception cref="Exception"></exception>
+    /// <exception cref="Exception"></exception>    
     public async Task DownloadVideoAsync(string videoUrl, string outputDirectory, VideoQuality quality = VideoQuality.Best, string customFormat = "")
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
@@ -507,10 +508,10 @@ public class YtDlpEngine
                 Type = parts[1],
                 Resolution = parts[2],
                 FPS = parts[3],
-                CH = parts[4],
-                FileSize = parts.Length > 5 ? parts[5] : null, // FileSize can vary
-                Codec = parts.Length > 6 ? parts[6] : null, // Codec info can vary
-                AdditionalInfo = parts.Length > 7 ? string.Join(" ", parts.Skip(6)) : null
+                //CH = parts[4],
+                //FileSize = parts.Length > 5 ? parts[5] : null, // FileSize can vary
+                //Codec = parts.Length > 6 ? parts[6] : null, // Codec info can vary
+                //AdditionalInfo = parts.Length > 7 ? string.Join(" ", parts.Skip(6)) : null
             };
 
             formats.Add(format);
