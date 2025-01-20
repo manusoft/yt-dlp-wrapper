@@ -29,34 +29,31 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frmMain));
-            pictureBox1 = new PictureBox();
             textUrl = new TextBox();
             textOutput = new TextBox();
             comboQuality = new ComboBox();
             textDetail = new TextBox();
             buttonDownload = new Button();
             progressDownload = new ProgressBar();
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            statusStrip1 = new StatusStrip();
+            toolStripLabelStatus = new ToolStripStatusLabel();
+            toolStripLabelProgress = new ToolStripStatusLabel();
+            toolStripLabelSize = new ToolStripStatusLabel();
+            toolStripLabelSpeed = new ToolStripStatusLabel();
+            toolStripLabelETA = new ToolStripStatusLabel();
+            buttonBrowseFolder = new Button();
+            folderBrowserDialog1 = new FolderBrowserDialog();
+            statusStrip1.SuspendLayout();
             SuspendLayout();
-            // 
-            // pictureBox1
-            // 
-            pictureBox1.Image = Properties.Resources.icon;
-            pictureBox1.Location = new Point(12, 2);
-            pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(82, 80);
-            pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
-            pictureBox1.TabIndex = 0;
-            pictureBox1.TabStop = false;
             // 
             // textUrl
             // 
             textUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textUrl.Font = new Font("Segoe UI", 12F);
-            textUrl.Location = new Point(100, 12);
+            textUrl.Location = new Point(12, 12);
             textUrl.Name = "textUrl";
             textUrl.PlaceholderText = "Enter video URL here ...";
-            textUrl.Size = new Size(572, 29);
+            textUrl.Size = new Size(660, 29);
             textUrl.TabIndex = 1;
             textUrl.TextChanged += textUrl_TextChanged;
             // 
@@ -64,9 +61,9 @@
             // 
             textOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textOutput.Font = new Font("Segoe UI", 12F);
-            textOutput.Location = new Point(100, 53);
+            textOutput.Location = new Point(12, 53);
             textOutput.Name = "textOutput";
-            textOutput.Size = new Size(327, 29);
+            textOutput.Size = new Size(373, 29);
             textOutput.TabIndex = 2;
             textOutput.Text = "C:\\downloads";
             // 
@@ -90,7 +87,7 @@
             textDetail.Name = "textDetail";
             textDetail.ReadOnly = true;
             textDetail.ScrollBars = ScrollBars.Vertical;
-            textDetail.Size = new Size(660, 265);
+            textDetail.Size = new Size(660, 261);
             textDetail.TabIndex = 4;
             // 
             // buttonDownload
@@ -112,39 +109,96 @@
             progressDownload.Size = new Size(660, 15);
             progressDownload.TabIndex = 6;
             // 
+            // statusStrip1
+            // 
+            statusStrip1.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripLabelStatus, toolStripLabelProgress, toolStripLabelSize, toolStripLabelSpeed, toolStripLabelETA });
+            statusStrip1.Location = new Point(0, 389);
+            statusStrip1.Name = "statusStrip1";
+            statusStrip1.Size = new Size(684, 22);
+            statusStrip1.TabIndex = 7;
+            statusStrip1.Text = "statusStrip1";
+            // 
+            // toolStripLabelStatus
+            // 
+            toolStripLabelStatus.Name = "toolStripLabelStatus";
+            toolStripLabelStatus.Size = new Size(669, 17);
+            toolStripLabelStatus.Spring = true;
+            toolStripLabelStatus.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // toolStripLabelProgress
+            // 
+            toolStripLabelProgress.Name = "toolStripLabelProgress";
+            toolStripLabelProgress.Size = new Size(0, 17);
+            // 
+            // toolStripLabelSize
+            // 
+            toolStripLabelSize.Name = "toolStripLabelSize";
+            toolStripLabelSize.Size = new Size(0, 17);
+            // 
+            // toolStripLabelSpeed
+            // 
+            toolStripLabelSpeed.Name = "toolStripLabelSpeed";
+            toolStripLabelSpeed.Size = new Size(0, 17);
+            // 
+            // toolStripLabelETA
+            // 
+            toolStripLabelETA.Name = "toolStripLabelETA";
+            toolStripLabelETA.Size = new Size(0, 17);
+            // 
+            // buttonBrowseFolder
+            // 
+            buttonBrowseFolder.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            buttonBrowseFolder.Location = new Point(391, 53);
+            buttonBrowseFolder.Name = "buttonBrowseFolder";
+            buttonBrowseFolder.Size = new Size(36, 29);
+            buttonBrowseFolder.TabIndex = 8;
+            buttonBrowseFolder.Text = "...";
+            buttonBrowseFolder.UseVisualStyleBackColor = true;
+            buttonBrowseFolder.Click += buttonBrowseFolder_Click;
+            // 
             // frmMain
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.Window;
-            ClientSize = new Size(684, 391);
+            ClientSize = new Size(684, 411);
+            Controls.Add(buttonBrowseFolder);
+            Controls.Add(statusStrip1);
             Controls.Add(progressDownload);
             Controls.Add(buttonDownload);
             Controls.Add(textDetail);
             Controls.Add(comboQuality);
             Controls.Add(textOutput);
             Controls.Add(textUrl);
-            Controls.Add(pictureBox1);
             Font = new Font("Segoe UI", 10F);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
-            MinimumSize = new Size(700, 430);
+            MinimumSize = new Size(700, 450);
             Name = "frmMain";
-            Text = "Video Downloader v1.0.0 - Manuhub ";
+            Text = "Video Downloader v1.1.0 - Manuhub ";
             Load += frmMain_Load;
-            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            statusStrip1.ResumeLayout(false);
+            statusStrip1.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
 
         #endregion
-
-        private PictureBox pictureBox1;
         private TextBox textUrl;
         private TextBox textOutput;
         private ComboBox comboQuality;
         private TextBox textDetail;
         private Button buttonDownload;
         private ProgressBar progressDownload;
+        private StatusStrip statusStrip1;
+        private ToolStripStatusLabel toolStripLabelStatus;
+        private ToolStripStatusLabel toolStripLabelSpeed;
+        private ToolStripStatusLabel toolStripLabelProgress;
+        private ToolStripStatusLabel toolStripLabelETA;
+        private ToolStripStatusLabel toolStripLabelSize;
+        private Button buttonBrowseFolder;
+        private FolderBrowserDialog folderBrowserDialog1;
     }
 }

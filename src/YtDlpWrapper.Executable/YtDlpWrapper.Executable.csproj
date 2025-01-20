@@ -17,7 +17,7 @@
 	<Icon>icon.png</Icon>
 	<PackageIcon>icon.png</PackageIcon>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<Version>2024.12.23</Version>
+	<Version>2025.01.15</Version>
 	<IsPackable>true</IsPackable>
 	<AotAssemblies>true</AotAssemblies>
   </PropertyGroup>

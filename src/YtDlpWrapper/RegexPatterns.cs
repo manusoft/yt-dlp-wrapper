@@ -9,10 +9,12 @@ public static class RegexPatterns
     public const string ExtractingUrl = @"\[(?<source>\w+)\] Extracting URL: (?<url>https?://\S+)";
 
     // Downloading webpage
-    public const string DownloadingWebpage = @"\[(?<source>\w+)\] (?<id>\S+): Downloading webpage";
+    //public const string DownloadingWebpage = @"\[(?<source>\w+)\] (?<id>\S+): Downloading (pc|mweb|ios|web)? webpage";
+    public const string DownloadingWebpage = @"\[(?<source>\w+)\] (?<id>\S+): Downloading (?<type>pc|mweb|ios|web)?\s*webpage";
 
     // Downloading ios/mweb player API JSON
-    public const string DownloadingJson = @"\[(?<source>\w+)\] (?<id>\S+): Downloading (ios|mweb) player API JSON";
+    //public const string DownloadingJson = @"\[(?<source>\w+)\] (?<id>\S+): Downloading (JSON|ios|mweb|player API JSON) metadata";
+    public const string DownloadingJson = @"\[(?<source>\w+)\] (?<id>\S+): Downloading (?<type>ios|mweb)\s*player API JSON";
 
     // Downloading m3u8 information
     public const string DownloadingM3u8 = @"\[(?<source>\w+)\] (?<id>\S+): Downloading m3u8 information";
@@ -23,8 +25,11 @@ public static class RegexPatterns
     // Total fragments
     public const string TotalFragments = @"\[hlsnative\]\s*Total fragments:\s*(\d+)";
 
+    // Testing format
+    public const string TestingFormat = @"\[info\]\s*Testing format\s*(?<format>\S+)";
+
     // Downloading format
-    public const string DownloadingFormat = @"\[info\] (?<id>\S+): Downloading (\d+) format\(s\): (?<format>\d+)";
+    public const string DownloadingFormat = @"\[info\] (?<id>\S+): (Downloading|Testing) (\d+) format\(s\): (?<format>\d+)";
 
     // Download destination
     public const string DownloadDestination = @"\[download\]\s*Destination:\s*(?<path>.+)";
@@ -39,15 +44,18 @@ public static class RegexPatterns
     public const string DownloadProgressWithFrag = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(~?\s*(?<size>\S+))\s*at\s*(?<speed>\S+)/s*\s*ETA\s*(?<eta>\S+)\s*\(frag\s*(?<frag>\d+/\d+)\)";
 
     // Handle download progress with variable progress
-    //public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
-    //public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(~?\s*(?<size>\S+))\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
-    public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(~?\s*(?<size>\S+))\s*in\s*(?<time>\S+)\s*at\s*(?<speed>\S+)";
+    // public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(~?\s*(?<size>\S+))\s*in\s*(?<time>\S+)\s*at\s*(?<speed>\S+)";
+    public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
 
     // Handle complete download with fixed progress at 100%
-    public const string DownloadProgressComplete = @"\[download\] (?<percent>100)% of (?<size>\S+)";
+    // public const string DownloadProgressComplete = @"\[download\] (?<percent>100)% of (?<size>\S+)";
+    public const string DownloadProgressComplete = @"\[download\]\s*(?<percent>100(\.0)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
 
-    public const string DownloadCompleted = @"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(?<size>\S+)\s*in\s*(?<eta>\S+)\s*at\s*(?<speed>\S+)";
-    
+    // Handle download complete with variable progress
+    //public const string DownloadCompleted = @"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(?<size>\S+)\s*in\s*(?<eta>\S+)\s*at\s*(?<speed>\S+)";
+    public const string DownloadCompleted = @"\[download\]\s*(?<percent>100(\.0)?)%\s*of\s*(?<size>\S+)";
+
+    // Handle unknown error
     public const string UnknownError = @"(?<=\[download\])\s*Unknown error";
 
 }
