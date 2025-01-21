@@ -43,6 +43,9 @@
             toolStripLabelETA = new ToolStripStatusLabel();
             buttonBrowseFolder = new Button();
             folderBrowserDialog1 = new FolderBrowserDialog();
+            radioAuto = new RadioButton();
+            radioCustom = new RadioButton();
+            checkAutoClose = new CheckBox();
             statusStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -61,9 +64,9 @@
             // 
             textOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textOutput.Font = new Font("Segoe UI", 12F);
-            textOutput.Location = new Point(12, 53);
+            textOutput.Location = new Point(12, 47);
             textOutput.Name = "textOutput";
-            textOutput.Size = new Size(373, 29);
+            textOutput.Size = new Size(618, 29);
             textOutput.TabIndex = 2;
             textOutput.Text = "C:\\downloads";
             // 
@@ -73,7 +76,7 @@
             comboQuality.DropDownStyle = ComboBoxStyle.DropDownList;
             comboQuality.Font = new Font("Segoe UI", 12F);
             comboQuality.FormattingEnabled = true;
-            comboQuality.Location = new Point(433, 53);
+            comboQuality.Location = new Point(433, 82);
             comboQuality.Name = "comboQuality";
             comboQuality.Size = new Size(114, 29);
             comboQuality.TabIndex = 3;
@@ -82,18 +85,18 @@
             // 
             textDetail.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textDetail.BackColor = SystemColors.Window;
-            textDetail.Location = new Point(12, 114);
+            textDetail.Location = new Point(12, 138);
             textDetail.Multiline = true;
             textDetail.Name = "textDetail";
             textDetail.ReadOnly = true;
             textDetail.ScrollBars = ScrollBars.Vertical;
-            textDetail.Size = new Size(660, 261);
+            textDetail.Size = new Size(660, 292);
             textDetail.TabIndex = 4;
             // 
             // buttonDownload
             // 
             buttonDownload.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            buttonDownload.Location = new Point(553, 53);
+            buttonDownload.Location = new Point(553, 82);
             buttonDownload.Name = "buttonDownload";
             buttonDownload.Size = new Size(119, 29);
             buttonDownload.TabIndex = 5;
@@ -104,7 +107,7 @@
             // progressDownload
             // 
             progressDownload.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            progressDownload.Location = new Point(12, 93);
+            progressDownload.Location = new Point(12, 117);
             progressDownload.Name = "progressDownload";
             progressDownload.Size = new Size(660, 15);
             progressDownload.TabIndex = 6;
@@ -113,7 +116,7 @@
             // 
             statusStrip1.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
             statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripLabelStatus, toolStripLabelProgress, toolStripLabelSize, toolStripLabelSpeed, toolStripLabelETA });
-            statusStrip1.Location = new Point(0, 389);
+            statusStrip1.Location = new Point(0, 439);
             statusStrip1.Name = "statusStrip1";
             statusStrip1.Size = new Size(684, 22);
             statusStrip1.TabIndex = 7;
@@ -149,7 +152,7 @@
             // buttonBrowseFolder
             // 
             buttonBrowseFolder.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            buttonBrowseFolder.Location = new Point(391, 53);
+            buttonBrowseFolder.Location = new Point(636, 47);
             buttonBrowseFolder.Name = "buttonBrowseFolder";
             buttonBrowseFolder.Size = new Size(36, 29);
             buttonBrowseFolder.TabIndex = 8;
@@ -157,12 +160,47 @@
             buttonBrowseFolder.UseVisualStyleBackColor = true;
             buttonBrowseFolder.Click += buttonBrowseFolder_Click;
             // 
+            // radioAuto
+            // 
+            radioAuto.AutoSize = true;
+            radioAuto.Checked = true;
+            radioAuto.Location = new Point(13, 85);
+            radioAuto.Name = "radioAuto";
+            radioAuto.Size = new Size(57, 23);
+            radioAuto.TabIndex = 9;
+            radioAuto.TabStop = true;
+            radioAuto.Text = "Auto";
+            radioAuto.UseVisualStyleBackColor = true;
+            // 
+            // radioCustom
+            // 
+            radioCustom.AutoSize = true;
+            radioCustom.Location = new Point(76, 85);
+            radioCustom.Name = "radioCustom";
+            radioCustom.Size = new Size(75, 23);
+            radioCustom.TabIndex = 10;
+            radioCustom.Text = "Custom";
+            radioCustom.UseVisualStyleBackColor = true;
+            // 
+            // checkAutoClose
+            // 
+            checkAutoClose.AutoSize = true;
+            checkAutoClose.Location = new Point(197, 86);
+            checkAutoClose.Name = "checkAutoClose";
+            checkAutoClose.Size = new Size(230, 23);
+            checkAutoClose.TabIndex = 11;
+            checkAutoClose.Text = "Close when download completed";
+            checkAutoClose.UseVisualStyleBackColor = true;
+            // 
             // frmMain
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.Window;
-            ClientSize = new Size(684, 411);
+            ClientSize = new Size(684, 461);
+            Controls.Add(checkAutoClose);
+            Controls.Add(radioCustom);
+            Controls.Add(radioAuto);
             Controls.Add(buttonBrowseFolder);
             Controls.Add(statusStrip1);
             Controls.Add(progressDownload);
@@ -200,5 +238,8 @@
         private ToolStripStatusLabel toolStripLabelSize;
         private Button buttonBrowseFolder;
         private FolderBrowserDialog folderBrowserDialog1;
+        private RadioButton radioAuto;
+        private RadioButton radioCustom;
+        private CheckBox checkAutoClose;
     }
 }

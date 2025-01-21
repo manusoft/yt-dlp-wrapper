@@ -47,7 +47,7 @@ public partial class frmMain : Form
         return await engine.GetAvailableFormatsAsync(url);
     }
 
-    private async Task DownloadVideoAsync(string url, VideoFormat quality)
+    private async Task DownloadVideoAsync(string url, VideoFormat? quality)
     {
         UpdateStatus("Preparing to download...");
         DisableControls();
@@ -96,9 +96,30 @@ public partial class frmMain : Form
 
         var selectedFormat = quality;
 
-        await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
+        if (radioAuto.Checked)
+        {
+            await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
+        }
+        else
+        {
+            if(selectedFormat != null)
+            {
+                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, selectedFormat.ID);
+            }
+            else
+            {
+                MessageBox.Show("Please select a video quality", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
-        EnableControls();
+        if(checkAutoClose.Checked)
+        {
+            Application.Exit();
+        }
+        else
+        {
+            EnableControls();
+        }
     }
 
     private async void textUrl_TextChanged(object sender, EventArgs e)
@@ -148,6 +169,8 @@ public partial class frmMain : Form
 
     private void DisableControls()
     {
+        radioAuto.Enabled = false;
+        radioCustom.Enabled = false;
         buttonBrowseFolder.Enabled = false;
         comboQuality.Enabled = false;
         buttonDownload.Enabled = false;
@@ -157,6 +180,8 @@ public partial class frmMain : Form
 
     private void EnableControls()
     {
+        radioAuto.Enabled = true;
+        radioCustom.Enabled = true;
         buttonBrowseFolder.Enabled = true;
         textOutput.Enabled = true;
         textUrl.Enabled = true;
