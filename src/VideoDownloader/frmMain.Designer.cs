@@ -76,9 +76,9 @@
             comboQuality.DropDownStyle = ComboBoxStyle.DropDownList;
             comboQuality.Font = new Font("Segoe UI", 12F);
             comboQuality.FormattingEnabled = true;
-            comboQuality.Location = new Point(433, 82);
+            comboQuality.Location = new Point(157, 82);
             comboQuality.Name = "comboQuality";
-            comboQuality.Size = new Size(114, 29);
+            comboQuality.Size = new Size(206, 29);
             comboQuality.TabIndex = 3;
             // 
             // textDetail
@@ -171,6 +171,7 @@
             radioAuto.TabStop = true;
             radioAuto.Text = "Auto";
             radioAuto.UseVisualStyleBackColor = true;
+            radioAuto.CheckedChanged += radioAuto_CheckedChanged;
             // 
             // radioCustom
             // 
@@ -181,15 +182,16 @@
             radioCustom.TabIndex = 10;
             radioCustom.Text = "Custom";
             radioCustom.UseVisualStyleBackColor = true;
+            radioCustom.CheckedChanged += radioCustom_CheckedChanged;
             // 
             // checkAutoClose
             // 
             checkAutoClose.AutoSize = true;
-            checkAutoClose.Location = new Point(197, 86);
+            checkAutoClose.Location = new Point(401, 86);
             checkAutoClose.Name = "checkAutoClose";
-            checkAutoClose.Size = new Size(230, 23);
+            checkAutoClose.Size = new Size(146, 23);
             checkAutoClose.TabIndex = 11;
-            checkAutoClose.Text = "Close when download completed";
+            checkAutoClose.Text = "Close automatically";
             checkAutoClose.UseVisualStyleBackColor = true;
             // 
             // frmMain

@@ -454,7 +454,7 @@ public class YtDlpEngine
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = ytDlpExecutable,
-                    Arguments = $"--list-formats {videoUrl}",
+                    Arguments = $"-F {videoUrl}",
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true

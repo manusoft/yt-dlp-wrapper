@@ -13,6 +13,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="ffmpeg.exe" />
+    <None Remove="ffplay.exe" />
+    <None Remove="ffprobe.exe" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="ffmpeg.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="ffplay.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="ffprobe.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="iconvideo (Custom).ico" />
   </ItemGroup>
 

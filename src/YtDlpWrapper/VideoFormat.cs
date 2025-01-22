@@ -12,4 +12,11 @@ public class VideoFormat
     //public string FileSize { get; set; }
     //public string Codec { get; set; }
     //public string AdditionalInfo { get; set; }
+
+    public string Name => $"{Type} ({Resolution})";
+
+    public override string ToString()
+    {
+        return $"{Type} - {Resolution} - {FPS}";
+    }
 }

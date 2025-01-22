@@ -6,7 +6,7 @@ namespace VideoDownloader;
 public partial class frmMain : Form
 {
     private readonly YtDlpEngine engine;
-    private readonly string  downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+    private readonly string downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
     public frmMain()
     {
@@ -102,7 +102,7 @@ public partial class frmMain : Form
         }
         else
         {
-            if(selectedFormat != null)
+            if (selectedFormat != null)
             {
                 await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, selectedFormat.ID);
             }
@@ -112,7 +112,7 @@ public partial class frmMain : Form
             }
         }
 
-        if(checkAutoClose.Checked)
+        if (checkAutoClose.Checked)
         {
             Application.Exit();
         }
@@ -149,9 +149,9 @@ public partial class frmMain : Form
         {
             comboQuality.DataSource = formats;
             comboQuality.ValueMember = "ID";
-            comboQuality.DisplayMember = "Resolution";
+            comboQuality.DisplayMember = "Name";
 
-            comboQuality.Enabled = true;
+            //comboQuality.Enabled = true;
             buttonDownload.Enabled = true;
         }
         else
@@ -220,5 +220,21 @@ public partial class frmMain : Form
         folderBrowserDialog.ShowNewFolderButton = true;
         folderBrowserDialog.ShowDialog();
         textOutput.Text = folderBrowserDialog.SelectedPath;
+    }
+
+    private void radioAuto_CheckedChanged(object sender, EventArgs e)
+    {
+        if (radioAuto.Checked)
+            comboQuality.Enabled = false;
+        else
+            comboQuality.Enabled = true;
+    }
+
+    private void radioCustom_CheckedChanged(object sender, EventArgs e)
+    {
+        if(radioCustom.Checked)
+            comboQuality.Enabled = true;
+        else
+            comboQuality.Enabled = false;
     }
 }

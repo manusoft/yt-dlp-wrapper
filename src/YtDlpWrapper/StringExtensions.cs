@@ -9,10 +9,10 @@ public static class StringExtensions
         {
             VideoQuality.All => "all",
             VideoQuality.MergeAll => "mergeall",
-            VideoQuality.Best => "best",
-            VideoQuality.BestVideo => "bestvideo",
-            VideoQuality.Worst => "worst",           
-            VideoQuality.WorstVideo => "worstvideo",            
+            VideoQuality.Best => "b",
+            VideoQuality.BestVideo => "bv",
+            VideoQuality.Worst => "w",           
+            VideoQuality.WorstVideo => "wv",            
             _ => throw new ArgumentOutOfRangeException(nameof(quality), quality, "Unknown video quality")
         };
     }
@@ -22,8 +22,8 @@ public static class StringExtensions
     {
         return quality switch
         {
-            AudioQuality.BestAudio => "bestaudio",
-            AudioQuality.WorstAudio => "worstaudio",
+            AudioQuality.BestAudio => "ba",
+            AudioQuality.WorstAudio => "wa",
             _ => throw new ArgumentOutOfRangeException(nameof(quality), quality, "Unknown audio quality")
         };
     }
