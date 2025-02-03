@@ -1,5 +1,7 @@
 ![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Wrapper) ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Wrapper)
 
+![Static Badge](https://img.shields.io/badge/ytdlp_executable-red) ![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Executable)  ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Executable)
+
 # YTDLP-Wrapper
 
 ![icon](https://github.com/user-attachments/assets/3848b748-ef25-4e28-9163-b7dba7e42315)
