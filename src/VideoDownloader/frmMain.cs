@@ -110,7 +110,7 @@ public partial class frmMain : Form
         {
             if (selectedFormat != null)
             {
-                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom,$"{selectedFormat.ID}+ba");
+                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom,selectedFormat.ID);
             }
             else
             {
