@@ -1,3 +1,4 @@
+using Microsoft.WindowsAPICodePack.Taskbar;
 using System.Drawing;
 using YtDlpWrapper;
 
@@ -57,6 +58,9 @@ public partial class frmMain : Form
 
         int progress = 0;
         progressDownload.Value = progress;
+        TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
+        TaskbarManager.Instance.SetProgressValue(progress, 100);
+
 
         // Subscribe to the download progress event
         engine.OnErrorMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
@@ -82,6 +86,8 @@ public partial class frmMain : Form
                 // Convert the double to an integer for progress (if needed)
                 progress = (int)Math.Round(percent); // Rounds to the nearest integer
                 progressDownload.Value = progress;
+                TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
+                TaskbarManager.Instance.SetProgressValue(progress, 100);
 
                 // Update the status
                 UpdateStatus("Downloading", progress, e.Size, e.Speed, e.ETA);
@@ -104,7 +110,7 @@ public partial class frmMain : Form
         {
             if (selectedFormat != null)
             {
-                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, selectedFormat.ID);
+                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom,$"{selectedFormat.ID}+ba");
             }
             else
             {
@@ -138,12 +144,18 @@ public partial class frmMain : Form
             return;
         }
 
+        TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Indeterminate);
         progressDownload.Style = ProgressBarStyle.Marquee;
         progressDownload.MarqueeAnimationSpeed = 10;
         textDetail.Text = "Analyzing video URL..." + Environment.NewLine;
         UpdateStatus("Analyzing...");
 
         var formats = await GetVideoFormatsAsync(textUrl.Text);
+
+        foreach (var format in formats)
+        {
+            textDetail.AppendText($"{format.ID} {format.Name} {format.Type} {format.Resolution}" + Environment.NewLine);
+        }
 
         if (formats != null)
         {
@@ -161,9 +173,10 @@ public partial class frmMain : Form
             comboQuality.Items.Add("Worst");
         }
 
+        TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
         progressDownload.Style = ProgressBarStyle.Blocks;
         progressDownload.MarqueeAnimationSpeed = 100;
-        textDetail.Text = "Video URL analyzed." + Environment.NewLine;
+        //textDetail.Text = "Video URL analyzed." + Environment.NewLine;
         UpdateStatus("Analyzed");
     }
 
@@ -232,7 +245,7 @@ public partial class frmMain : Form
 
     private void radioCustom_CheckedChanged(object sender, EventArgs e)
     {
-        if(radioCustom.Checked)
+        if (radioCustom.Checked)
             comboQuality.Enabled = true;
         else
             comboQuality.Enabled = false;
