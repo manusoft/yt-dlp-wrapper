@@ -1,12 +1,14 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
-using System.Drawing;
+using System.Windows.Shell;
 using YtDlpWrapper;
 
 namespace VideoDownloader;
 
 public partial class frmMain : Form
 {
-    private readonly YtDlpEngine engine;
+    private readonly YtDlpEngine engineV1;
+    private readonly Ytdlp engineV2;
+    private string currentVersion;
     private readonly string downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
     public frmMain()
@@ -15,7 +17,10 @@ public partial class frmMain : Form
 
         try
         {
-            engine = new YtDlpEngine();
+            engineV1 = new YtDlpEngine();
+
+            engineV2 = new Ytdlp();
+            engineV2.OnProgressMessage += EngineV2_OnProgressMessage;
             textOutput.Text = downloadPath;
         }
         catch (Exception)
@@ -24,12 +29,22 @@ public partial class frmMain : Form
         }
     }
 
-    private void frmMain_Load(object sender, EventArgs e)
+    private void EngineV2_OnProgressMessage(object? sender, string e)
+    {
+
+    }
+
+    private async void frmMain_Load(object sender, EventArgs e)
     {
         comboQuality.Enabled = false;
         buttonDownload.Enabled = false;
         ClearStatus();
         UpdateStatus("Engine started successfully.");
+    }
+
+    private async void textUrl_TextChanged(object sender, EventArgs e)
+    {
+        await AnalizingAsync();
     }
 
     private async void buttonDownload_Click(object sender, EventArgs e)
@@ -45,7 +60,8 @@ public partial class frmMain : Form
 
     private async Task<List<VideoFormat>> GetVideoFormatsAsync(string url)
     {
-        return await engine.GetAvailableFormatsAsync(url);
+        //return await engineV1.GetAvailableFormatsAsync(url);
+        return await engineV2.GetAvailableFormatsAsync(url);
     }
 
     private async Task DownloadVideoAsync(string url, VideoFormat? quality)
@@ -61,14 +77,16 @@ public partial class frmMain : Form
         TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
         TaskbarManager.Instance.SetProgressValue(progress, 100);
 
+        // Subscribe all output
+        engineV2.OnOutput += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
 
         // Subscribe to the download progress event
-        engine.OnErrorMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
+        //engineV2.OnErrorMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
 
         // Subscribe to the download progress event
-        engine.OnProgressMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
+        //engineV2.OnProgressMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
 
-        engine.OnCompleteDownload += (sender, e) =>
+        engineV2.OnCompleteDownload += (sender, e) =>
         {
             progressDownload.Value = 100;
             textDetail.AppendText($"{e}" + Environment.NewLine);
@@ -76,7 +94,7 @@ public partial class frmMain : Form
         };
 
         // Subscribe to the download progress event
-        engine.OnProgressDownload += (sender, e) =>
+        engineV2.OnProgressDownload += (sender, e) =>
         {
             try
             {
@@ -104,13 +122,17 @@ public partial class frmMain : Form
 
         if (radioAuto.Checked)
         {
-            await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
+            //await engineV1.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
+            await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);
         }
         else
         {
             if (selectedFormat != null)
             {
-                await engine.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom,selectedFormat.ID);
+                //await engineV1.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, selectedFormat.ID);
+                await engineV2.SetOutputFolder(textOutput.Text.Trim())
+                    .SetFormat("mp4")                    
+                    .ExecuteAsync(url);
             }
             else
             {
@@ -124,11 +146,13 @@ public partial class frmMain : Form
         }
         else
         {
+            ClearStatus();
             EnableControls();
         }
     }
 
-    private async void textUrl_TextChanged(object sender, EventArgs e)
+
+    private async Task AnalizingAsync()
     {
         if (string.IsNullOrEmpty(textUrl.Text))
         {
@@ -224,6 +248,17 @@ public partial class frmMain : Form
         toolStripLabelSpeed.Text = string.Empty;
         toolStripLabelETA.Text = string.Empty;
         //toolStripProgressBar.Value = 0;
+
+        try
+        {
+            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
+            TaskbarManager.Instance.SetProgressValue(0, 100);
+        }
+        catch (Exception)
+        {
+        }
+       
+        progressDownload.Value = 0;
     }
 
     private void buttonBrowseFolder_Click(object sender, EventArgs e)

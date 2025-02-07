@@ -13,10 +13,11 @@ public class Ytdlp
     public Ytdlp(string ytDlpPath = "yt-dlp")
     {
         _ytDlpPath = ytDlpPath;
-        _commandBuilder = new StringBuilder();       
+        _commandBuilder = new StringBuilder();
         progressParser = new ProgressParser();
 
         // Subscribe events
+        progressParser.OnOutput += (sender, e) => OnOutput?.Invoke(this, e);
         progressParser.OnProgressDownload += (sender, e) => OnProgressDownload?.Invoke(this, e);
         progressParser.OnCompleteDownload += (sender, e) => OnCompleteDownload?.Invoke(this, e);
         progressParser.OnProgressMessage += (sender, e) => OnProgressMessage?.Invoke(this, e);
@@ -30,6 +31,10 @@ public class Ytdlp
 
     // Event for command completed
     public event Action<bool, string> OnCommandCompleted;
+
+
+    // Event for output updates
+    public event EventHandler<string> OnOutput;
 
     // Event to notify progress updates
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
@@ -48,6 +53,16 @@ public class Ytdlp
     public string PreviewCommand()
     {
         return _commandBuilder.ToString();
+    }
+
+    /// <summary>
+    /// Show current version
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp Version()
+    {
+        _commandBuilder.Append("--version ");
+        return this;
     }
 
     /// <summary>

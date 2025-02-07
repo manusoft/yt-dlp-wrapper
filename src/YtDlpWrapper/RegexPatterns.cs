@@ -44,12 +44,11 @@ public static class RegexPatterns
     public const string DownloadProgressWithFrag = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(~?\s*(?<size>\S+))\s*at\s*(?<speed>\S+)/s*\s*ETA\s*(?<eta>\S+)\s*\(frag\s*(?<frag>\d+/\d+)\)";
 
     // Handle download progress with variable progress
-    // public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(~?\s*(?<size>\S+))\s*in\s*(?<time>\S+)\s*at\s*(?<speed>\S+)";
-    public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
+    public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+|Unknown)\s*B/s\s*ETA\s*(?<eta>\S+|Unknown)";
+
 
     // Handle complete download with fixed progress at 100%
-    // public const string DownloadProgressComplete = @"\[download\] (?<percent>100)% of (?<size>\S+)";
-    public const string DownloadProgressComplete = @"\[download\]\s*(?<percent>100(\.0)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+)\s*ETA\s*(?<eta>\S+)";
+    public const string DownloadProgressComplete = @"\[download\]\s*(?<percent>100(\.0)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+|Unknown)\s*B/s\s*ETA\s*(?<eta>\S+|Unknown)";
 
     // Handle download complete with variable progress
     //public const string DownloadCompleted = @"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(?<size>\S+)\s*in\s*(?<eta>\S+)\s*at\s*(?<speed>\S+)";

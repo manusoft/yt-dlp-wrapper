@@ -40,6 +40,10 @@ public class ProgressParser
         if (string.IsNullOrEmpty(output))
             return;
 
+        // All output logs
+        OnOutput.Invoke(this, output);
+
+        // Matched Patterns
         foreach (var regex in _compiledRegex)
         {
             var match = regex.Match(output);
@@ -48,7 +52,7 @@ public class ProgressParser
                 _regexHandlers[regex.ToString()]?.Invoke(match);
                 return;
             }
-        }
+        }      
 
         // Fallback for unknown or unhandled output
         HandleUnknownOutput(output);
@@ -224,7 +228,39 @@ public class ProgressParser
         }
     }
 
+    public event EventHandler<string> OnOutput;
     public event EventHandler<string> OnProgressMessage;
     public event EventHandler<DownloadProgressEventArgs> OnProgressDownload;
     public event EventHandler<string> OnCompleteDownload;
 }
+
+
+// Parse Testing program
+//using System;
+//using System.Text.RegularExpressions;
+
+//class Program
+//{
+//    public const string DownloadProgress = @"\[download\]\s*(?<percent>\d+(\.\d+)?)%\s*of\s*(?<size>\S+)\s*at\s*(?<speed>\S+|Unknown)\s*B/s\s*ETA\s*(?<eta>\S+|Unknown)";
+
+//    static void Main()
+//    {
+//        string[] logs = {
+//            "[download]  36.9% of   26.35MiB at  Unknown B/s ETA Unknown",
+//            "[download]  74.6% of   26.35MiB at  Unknown B/s ETA Unknown"
+//        };
+
+//        foreach (string log in logs)
+//        {
+//            Match match = Regex.Match(log, DownloadProgress);
+//            if (match.Success)
+//            {
+//                Console.WriteLine($"Percent: {match.Groups["percent"].Value}");
+//                Console.WriteLine($"Size: {match.Groups["size"].Value}");
+//                Console.WriteLine($"Speed: {match.Groups["speed"].Value}");
+//                Console.WriteLine($"ETA: {match.Groups["eta"].Value}");
+//                Console.WriteLine("-------------");
+//            }
+//        }
+//    }
+//}
