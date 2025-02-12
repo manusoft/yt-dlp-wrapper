@@ -131,7 +131,7 @@ public partial class frmMain : Form
             {
                 //await engineV1.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, selectedFormat.ID);
                 await engineV2.SetOutputFolder(textOutput.Text.Trim())
-                    .SetFormat("mp4")                    
+                    .SetFormat(selectedFormat.ID)
                     .ExecuteAsync(url);
             }
             else
