@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ProductName>Video Downloader</ProductName>
     <Title>Video Downlaoder</Title>
-	<Version>1.3.0</Version>
+	<Version>1.4.25</Version>
     <ApplicationIcon>iconvideo (Custom).ico</ApplicationIcon>
   </PropertyGroup>
 

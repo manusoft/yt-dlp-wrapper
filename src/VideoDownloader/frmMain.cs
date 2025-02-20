@@ -1,5 +1,4 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
-using System.Windows.Shell;
 using YtDlpWrapper;
 
 namespace VideoDownloader;
@@ -171,23 +170,15 @@ public partial class frmMain : Form
         TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Indeterminate);
         progressDownload.Style = ProgressBarStyle.Marquee;
         progressDownload.MarqueeAnimationSpeed = 10;
-        textDetail.Text = "Analyzing video URL..." + Environment.NewLine;
         UpdateStatus("Analyzing...");
 
         var formats = await GetVideoFormatsAsync(textUrl.Text);
-
-        foreach (var format in formats)
-        {
-            textDetail.AppendText($"{format.ID} {format.Name} {format.Type} {format.Resolution}" + Environment.NewLine);
-        }
-
         if (formats != null)
         {
             comboQuality.DataSource = formats;
             comboQuality.ValueMember = "ID";
             comboQuality.DisplayMember = "Name";
 
-            //comboQuality.Enabled = true;
             buttonDownload.Enabled = true;
         }
         else
@@ -200,7 +191,6 @@ public partial class frmMain : Form
         TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
         progressDownload.Style = ProgressBarStyle.Blocks;
         progressDownload.MarqueeAnimationSpeed = 100;
-        //textDetail.Text = "Video URL analyzed." + Environment.NewLine;
         UpdateStatus("Analyzed");
     }
 
