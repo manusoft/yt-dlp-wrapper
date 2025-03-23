@@ -7,7 +7,6 @@ public partial class frmMain : Form
 {
     private readonly YtDlpEngine engineV1;
     private readonly Ytdlp engineV2;
-    private string currentVersion;
     private readonly string downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
     public frmMain()
@@ -33,7 +32,7 @@ public partial class frmMain : Form
 
     }
 
-    private async void frmMain_Load(object sender, EventArgs e)
+    private void frmMain_Load(object sender, EventArgs e)
     {
         comboQuality.Enabled = false;
         buttonDownload.Enabled = false;
@@ -155,6 +154,7 @@ public partial class frmMain : Form
     {
         if (string.IsNullOrEmpty(textUrl.Text))
         {
+            radioAuto.Checked = true;
             comboQuality.Enabled = false;
             buttonDownload.Enabled = false;
             return;

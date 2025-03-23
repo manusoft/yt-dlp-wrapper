@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp.Test", "src\Cons
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDownloader", "src\VideoDownloader\VideoDownloader.csproj", "{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YtDlpWrapper.Executable", "src\YtDlpWrapper.Executable\YtDlpWrapper.Executable.csproj", "{68052C17-85AF-4566-AA5D-4719BD159E4E}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{68052C17-85AF-4566-AA5D-4719BD159E4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{68052C17-85AF-4566-AA5D-4719BD159E4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{68052C17-85AF-4566-AA5D-4719BD159E4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{68052C17-85AF-4566-AA5D-4719BD159E4E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

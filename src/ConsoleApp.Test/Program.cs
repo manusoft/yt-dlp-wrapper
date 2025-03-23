@@ -98,6 +98,8 @@ ytdlp.OnProgressDownload += (sender, e) => Console.WriteLine($"Downloading: {e.P
 //}
 
 
+ytdlp.Version();
+
 await ytdlp.SetOutputFolder(outputDirectory)
            //.SetFormat("mp4")
            //.DownloadThumbnails()            
