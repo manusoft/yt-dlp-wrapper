@@ -15,14 +15,15 @@ public partial class frmMain : Form
 
         try
         {
-            engineV1 = new YtDlpEngine();
+            engineV1 = new YtDlpEngine($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
 
-            engineV2 = new Ytdlp();
+            engineV2 = new Ytdlp($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
             engineV2.OnProgressMessage += EngineV2_OnProgressMessage;
             textOutput.Text = downloadPath;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine(ex.Message);
             UpdateStatus("Engine failed to start.");
         }
     }

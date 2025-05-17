@@ -217,7 +217,7 @@
             MaximizeBox = false;
             MinimumSize = new Size(700, 450);
             Name = "frmMain";
-            Text = "Video Downloader v1.4.25 - Manuhub ";
+            Text = "Video Downloader v1.5.28 - Manuhub ";
             Load += frmMain_Load;
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();
