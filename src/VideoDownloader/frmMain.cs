@@ -1,5 +1,5 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
-using System;
+using System.Reflection;
 using YtDlpWrapper;
 
 namespace VideoDownloader;
@@ -20,7 +20,7 @@ public partial class frmMain : Form
             engineV2.OnProgressMessage += EngineV2_OnProgressMessage;
             engineV2.OnOutputMessage += Enginev2_OnOutputMessage;
             engineV2.OnProgressDownload += EngineV2_OnProgressDownload;
-            engineV2.OnCompleteDownload += Enginev2_OnCompleteDownload;   
+            engineV2.OnCompleteDownload += Enginev2_OnCompleteDownload;
             textOutput.Text = downloadPath;
         }
         catch (Exception ex)
@@ -28,6 +28,24 @@ public partial class frmMain : Form
             Console.WriteLine(ex.Message);
             UpdateStatus("Engine failed to start.");
         }
+    }
+
+    private void frmMain_Load(object sender, EventArgs e)
+    {
+        try
+        {
+            var version = GetVersion();
+            var major = version.Split('.')[0];
+            var minor = version.Split('.')[1];
+            var build = version.Split('.')[2];
+            var revision = version.Split('.')[3];
+            this.Text = $"Video Downloader v{major}.{minor}.{build}";
+            comboQuality.Enabled = false;
+            buttonDownload.Enabled = false;
+            ClearStatus();
+            UpdateStatus("Engine started successfully.");
+        }
+        catch (Exception) { }
     }
 
     private void EngineV2_OnProgressDownload(object? sender, DownloadProgressEventArgs e)
@@ -46,30 +64,38 @@ public partial class frmMain : Form
             // Update the status
             UpdateStatus("Downloading...", progress, e.Size, e.Speed, e.ETA);
         }
-        catch (Exception ex)
-        {
-            // Handle the exception
-            Console.WriteLine($"Error parsing percent: {ex.Message}");
-        }
+        catch (Exception) { }
     }
 
     private void EngineV2_OnErrorMessage(object? sender, string e)
     {
-        progressDownload.Value = 0;
-        textDetail.AppendText($"{e}" + Environment.NewLine);
-        ClearStatus();
+        try
+        {
+            progressDownload.Value = 0;
+            textDetail.AppendText($"{e}" + Environment.NewLine);
+            ClearStatus();
+        }
+        catch (Exception) { }
     }
 
     private void Enginev2_OnCompleteDownload(object? sender, string e)
     {
-        progressDownload.Value = 100;
-        textDetail.AppendText($"{e}" + Environment.NewLine);
-        ClearStatus();
+        try
+        {
+            progressDownload.Value = 100;
+            textDetail.AppendText($"{e}" + Environment.NewLine);
+            ClearStatus();
+        }
+        catch (Exception) { }
     }
 
     private void Enginev2_OnOutputMessage(object? sender, string e)
     {
-        textDetail.AppendText($"{e}" + Environment.NewLine);
+        try
+        {
+            textDetail.AppendText($"{e}" + Environment.NewLine);
+        }
+        catch (Exception) { }
     }
 
     private void EngineV2_OnProgressMessage(object? sender, string e)
@@ -77,13 +103,6 @@ public partial class frmMain : Form
         Console.WriteLine(e);
     }
 
-    private void frmMain_Load(object sender, EventArgs e)
-    {
-        comboQuality.Enabled = false;
-        buttonDownload.Enabled = false;
-        ClearStatus();
-        UpdateStatus("Engine started successfully.");
-    }
 
     private async void textUrl_TextChanged(object sender, EventArgs e)
     {
@@ -103,118 +122,140 @@ public partial class frmMain : Form
 
     private async Task<List<VideoFormat>> GetVideoFormatsAsync(string url)
     {
-        //return await engineV1.GetAvailableFormatsAsync(url);
-        return await engineV2.GetAvailableFormatsAsync(url);
+        try
+        {
+            return await engineV2.GetAvailableFormatsAsync(url);
+        }
+        catch (Exception)
+        {
+            return new List<VideoFormat>();
+        }
     }
 
     private async Task DownloadVideoAsync(string url, VideoFormat? quality)
     {
-        UpdateStatus("Preparing to download...");
-        DisableControls();
-        textUrl.Clear();
-        textDetail.Clear();
-        textDetail.AppendText($"Downloading video from: {url}" + Environment.NewLine);
-
-        int progress = 0;
-        progressDownload.Value = progress;
-        TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
-        TaskbarManager.Instance.SetProgressValue(progress, 100);
-
-        var selectedFormat = quality;
-
-        if (radioAuto.Checked)
+        try
         {
-            await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);
-        }
-        else
-        {
-            if (selectedFormat != null)
+            UpdateStatus("Preparing to download...");
+            DisableControls();
+            textUrl.Clear();
+            textDetail.Clear();
+            textDetail.AppendText($"Downloading video from: {url}" + Environment.NewLine);
+
+            int progress = 0;
+            progressDownload.Value = progress;
+            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
+            TaskbarManager.Instance.SetProgressValue(progress, 100);
+
+            var selectedFormat = quality;
+
+            if (radioAuto.Checked)
             {
-
-                await engineV2.SetOutputFolder(textOutput.Text.Trim())
-                    .SetFormat(selectedFormat.ID)
-                    .ExecuteAsync(url);
+                await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);
             }
             else
             {
-                MessageBox.Show("Please select a video quality", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (selectedFormat != null)
+                {
+
+                    await engineV2.SetOutputFolder(textOutput.Text.Trim())
+                        .SetFormat(selectedFormat.ID)
+                        .ExecuteAsync(url);
+                }
+                else
+                {
+                    MessageBox.Show("Please select a video quality", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+            if (checkAutoClose.Checked)
+            {
+                Application.Exit();
+            }
+            else
+            {
+                ClearStatus();
+                EnableControls();
             }
         }
-
-        if (checkAutoClose.Checked)
-        {
-            Application.Exit();
-        }
-        else
-        {
-            ClearStatus();
-            EnableControls();
-        }
+        catch (Exception) { }
     }
 
 
     private async Task AnalizingAsync()
     {
-        if (string.IsNullOrEmpty(textUrl.Text))
+        try
         {
-            radioAuto.Checked = true;
-            comboQuality.Enabled = false;
-            buttonDownload.Enabled = false;
-            return;
+            if (string.IsNullOrEmpty(textUrl.Text))
+            {
+                radioAuto.Checked = true;
+                comboQuality.Enabled = false;
+                buttonDownload.Enabled = false;
+                return;
+            }
+
+            if (!textUrl.Text.StartsWith("http", StringComparison.InvariantCultureIgnoreCase))
+            {
+                comboQuality.Enabled = false;
+                buttonDownload.Enabled = false;
+                return;
+            }
+
+            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Indeterminate);
+            progressDownload.Style = ProgressBarStyle.Marquee;
+            progressDownload.MarqueeAnimationSpeed = 10;
+            UpdateStatus("Analyzing...");
+
+            var formats = await GetVideoFormatsAsync(textUrl.Text);
+            if (formats != null)
+            {
+                comboQuality.DataSource = formats;
+                comboQuality.ValueMember = "ID";
+                comboQuality.DisplayMember = "Name";
+
+                buttonDownload.Enabled = true;
+            }
+            else
+            {
+                comboQuality.DataSource = null;
+                comboQuality.Items.Add("Best");
+                comboQuality.Items.Add("Worst");
+            }
+
+            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
+            progressDownload.Style = ProgressBarStyle.Blocks;
+            progressDownload.MarqueeAnimationSpeed = 100;
+            UpdateStatus("Analyzed");
         }
-
-        if (!textUrl.Text.StartsWith("http", StringComparison.InvariantCultureIgnoreCase))
-        {
-            comboQuality.Enabled = false;
-            buttonDownload.Enabled = false;
-            return;
-        }
-
-        TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Indeterminate);
-        progressDownload.Style = ProgressBarStyle.Marquee;
-        progressDownload.MarqueeAnimationSpeed = 10;
-        UpdateStatus("Analyzing...");
-
-        var formats = await GetVideoFormatsAsync(textUrl.Text);
-        if (formats != null)
-        {
-            comboQuality.DataSource = formats;
-            comboQuality.ValueMember = "ID";
-            comboQuality.DisplayMember = "Name";
-
-            buttonDownload.Enabled = true;
-        }
-        else
-        {
-            comboQuality.DataSource = null;
-            comboQuality.Items.Add("Best");
-            comboQuality.Items.Add("Worst");
-        }
-
-        TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
-        progressDownload.Style = ProgressBarStyle.Blocks;
-        progressDownload.MarqueeAnimationSpeed = 100;
-        UpdateStatus("Analyzed");
+        catch (Exception) { }
     }
 
     private void DisableControls()
     {
-        radioAuto.Enabled = false;
-        radioCustom.Enabled = false;
-        buttonBrowseFolder.Enabled = false;
-        comboQuality.Enabled = false;
-        buttonDownload.Enabled = false;
-        textOutput.Enabled = false;
-        textUrl.Enabled = false;
+        try
+        {
+            radioAuto.Enabled = false;
+            radioCustom.Enabled = false;
+            buttonBrowseFolder.Enabled = false;
+            comboQuality.Enabled = false;
+            buttonDownload.Enabled = false;
+            textOutput.Enabled = false;
+            textUrl.Enabled = false;
+        }
+        catch (Exception) { }
     }
 
     private void EnableControls()
     {
-        radioAuto.Enabled = true;
-        radioCustom.Enabled = true;
-        buttonBrowseFolder.Enabled = true;
-        textOutput.Enabled = true;
-        textUrl.Enabled = true;
+        try
+        {
+            radioAuto.Enabled = true;
+            radioCustom.Enabled = true;
+            buttonBrowseFolder.Enabled = true;
+            textOutput.Enabled = true;
+            textUrl.Enabled = true;
+        }
+        catch (Exception) { }
     }
 
     private void UpdateStatus(string status, int progress = 0, string size = "", string speed = "", string eta = "")
@@ -228,54 +269,77 @@ public partial class frmMain : Form
             toolStripLabelETA.Text = string.IsNullOrEmpty(eta) ? "" : $"ETA: {eta}";
             //toolStripProgressBar.Value = progress;
         }
-        catch (Exception)
-        {
-        }
+        catch (Exception) { }
     }
 
     private void ClearStatus()
     {
-        toolStripLabelStatus.Text = "Status: Idle";
-        toolStripLabelProgress.Text = string.Empty;
-        toolStripLabelSize.Text = string.Empty;
-        toolStripLabelSpeed.Text = string.Empty;
-        toolStripLabelETA.Text = string.Empty;
-        //toolStripProgressBar.Value = 0;
-
         try
         {
+            toolStripLabelStatus.Text = "Status: Idle";
+            toolStripLabelProgress.Text = string.Empty;
+            toolStripLabelSize.Text = string.Empty;
+            toolStripLabelSpeed.Text = string.Empty;
+            toolStripLabelETA.Text = string.Empty;
+            //toolStripProgressBar.Value = 0;
             TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
             TaskbarManager.Instance.SetProgressValue(0, 100);
         }
-        catch (Exception)
+        catch (Exception) { }
+        finally
         {
+            progressDownload.Value = 0;
         }
-       
-        progressDownload.Value = 0;
     }
 
     private void buttonBrowseFolder_Click(object sender, EventArgs e)
     {
-        FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
-        folderBrowserDialog.Description = "Select the folder to save the video";
-        folderBrowserDialog.ShowNewFolderButton = true;
-        folderBrowserDialog.ShowDialog();
-        textOutput.Text = folderBrowserDialog.SelectedPath;
+        try
+        {
+            FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
+            folderBrowserDialog.Description = "Select the folder to save the video";
+            folderBrowserDialog.ShowNewFolderButton = true;
+            folderBrowserDialog.ShowDialog();
+            textOutput.Text = folderBrowserDialog.SelectedPath;
+        }
+        catch (Exception) { }
     }
 
     private void radioAuto_CheckedChanged(object sender, EventArgs e)
     {
-        if (radioAuto.Checked)
-            comboQuality.Enabled = false;
-        else
-            comboQuality.Enabled = true;
+        try
+        {
+            if (radioAuto.Checked)
+                comboQuality.Enabled = false;
+            else
+                comboQuality.Enabled = true;
+        }
+        catch (Exception) { }
     }
 
     private void radioCustom_CheckedChanged(object sender, EventArgs e)
     {
-        if (radioCustom.Checked)
-            comboQuality.Enabled = true;
-        else
-            comboQuality.Enabled = false;
+        try
+        {
+            if (radioCustom.Checked)
+                comboQuality.Enabled = true;
+            else
+                comboQuality.Enabled = false;
+        }
+        catch (Exception) { }
+    }
+
+    public string GetVersion()
+    {
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var version = assembly.GetName().Version!.ToString();
+            return version;
+        }
+        catch (Exception)
+        {
+            return "v1.5";
+        }
     }
 }
