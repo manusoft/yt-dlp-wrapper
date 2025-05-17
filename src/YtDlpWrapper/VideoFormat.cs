@@ -1,4 +1,6 @@
-﻿namespace YtDlpWrapper;
+﻿using System.Text.RegularExpressions;
+
+namespace YtDlpWrapper;
 
 public class VideoFormat
 {
@@ -6,8 +8,15 @@ public class VideoFormat
     public string Type { get; set; }
     public string Resolution { get; set; }
     public string FPS { get; set; }
-    public string CH { get; set; }
-    public string FileSize { get; set; }
-    public string Codec { get; set; }
-    public string AdditionalInfo { get; set; }
+    //public string CH { get; set; }
+    //public string FileSize { get; set; }
+    //public string Codec { get; set; }
+    //public string AdditionalInfo { get; set; }
+
+    public string Name => $"{Type} ({Resolution})";
+
+    public override string ToString()
+    {
+        return $"{Type} - {Resolution} - {FPS}";
+    }
 }

@@ -7,10 +7,36 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ProductName>Video Downloader</ProductName>
+    <Title>Video Downlaoder</Title>
+	<Version>1.5.3</Version>
+    <ApplicationIcon>iconvideo (Custom).ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\YtDlpWrapper.Executable\YtDlpWrapper.Executable.csproj" />
+    <None Remove="ffmpeg.exe" />
+    <None Remove="ffplay.exe" />
+    <None Remove="ffprobe.exe" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="ffmpeg.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="ffplay.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="ffprobe.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="iconvideo (Custom).ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft-Windows10-APICodePack-ShellExtensions" Version="1.1.8" />
+    <PackageReference Include="ytdlp-executable" Version="2025.4.30" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\YtDlpWrapper\YtDlpWrapper.csproj" />
   </ItemGroup>
 
