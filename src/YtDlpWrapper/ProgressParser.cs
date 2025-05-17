@@ -41,7 +41,7 @@ public class ProgressParser
             return;
 
         // All output logs
-        OnOutput.Invoke(this, output);
+        OnOutputMessage.Invoke(this, output);
 
         // Matched Patterns
         foreach (var regex in _compiledRegex)
@@ -228,7 +228,7 @@ public class ProgressParser
         }
     }
 
-    public event EventHandler<string> OnOutput;
+    public event EventHandler<string> OnOutputMessage;
     public event EventHandler<string> OnProgressMessage;
     public event EventHandler<DownloadProgressEventArgs> OnProgressDownload;
     public event EventHandler<string> OnCompleteDownload;

@@ -1,12 +1,13 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
+using System;
 using YtDlpWrapper;
 
 namespace VideoDownloader;
 
 public partial class frmMain : Form
 {
-    private readonly YtDlpEngine engineV1;
-    private readonly Ytdlp engineV2;
+    private int progress = 0;
+    private readonly Ytdlp engineV2 = new Ytdlp($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
     private readonly string downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
     public frmMain()
@@ -15,10 +16,11 @@ public partial class frmMain : Form
 
         try
         {
-            engineV1 = new YtDlpEngine($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
-
-            engineV2 = new Ytdlp($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
+            engineV2.OnErrorMessage += EngineV2_OnErrorMessage;
             engineV2.OnProgressMessage += EngineV2_OnProgressMessage;
+            engineV2.OnOutputMessage += Enginev2_OnOutputMessage;
+            engineV2.OnProgressDownload += EngineV2_OnProgressDownload;
+            engineV2.OnCompleteDownload += Enginev2_OnCompleteDownload;   
             textOutput.Text = downloadPath;
         }
         catch (Exception ex)
@@ -28,9 +30,51 @@ public partial class frmMain : Form
         }
     }
 
+    private void EngineV2_OnProgressDownload(object? sender, DownloadProgressEventArgs e)
+    {
+        try
+        {
+            // Parse e.Percent as a double
+            double percent = double.Parse(e.Percent.ToString());
+
+            // Convert the double to an integer for progress (if needed)
+            progress = (int)Math.Round(percent); // Rounds to the nearest integer
+            progressDownload.Value = progress;
+            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
+            TaskbarManager.Instance.SetProgressValue(progress, 100);
+
+            // Update the status
+            UpdateStatus("Downloading...", progress, e.Size, e.Speed, e.ETA);
+        }
+        catch (Exception ex)
+        {
+            // Handle the exception
+            Console.WriteLine($"Error parsing percent: {ex.Message}");
+        }
+    }
+
+    private void EngineV2_OnErrorMessage(object? sender, string e)
+    {
+        progressDownload.Value = 0;
+        textDetail.AppendText($"{e}" + Environment.NewLine);
+        ClearStatus();
+    }
+
+    private void Enginev2_OnCompleteDownload(object? sender, string e)
+    {
+        progressDownload.Value = 100;
+        textDetail.AppendText($"{e}" + Environment.NewLine);
+        ClearStatus();
+    }
+
+    private void Enginev2_OnOutputMessage(object? sender, string e)
+    {
+        textDetail.AppendText($"{e}" + Environment.NewLine);
+    }
+
     private void EngineV2_OnProgressMessage(object? sender, string e)
     {
-
+        Console.WriteLine(e);
     }
 
     private void frmMain_Load(object sender, EventArgs e)
@@ -76,59 +120,17 @@ public partial class frmMain : Form
         TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
         TaskbarManager.Instance.SetProgressValue(progress, 100);
 
-        // Subscribe all output
-        engineV2.OnOutput += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
-
-        // Subscribe to the download progress event
-        //engineV2.OnErrorMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
-
-        // Subscribe to the download progress event
-        //engineV2.OnProgressMessage += (sender, e) => textDetail.AppendText($"{e}" + Environment.NewLine);
-
-        engineV2.OnCompleteDownload += (sender, e) =>
-        {
-            progressDownload.Value = 100;
-            textDetail.AppendText($"{e}" + Environment.NewLine);
-            ClearStatus();
-        };
-
-        // Subscribe to the download progress event
-        engineV2.OnProgressDownload += (sender, e) =>
-        {
-            try
-            {
-                // Parse e.Percent as a double
-                double percent = double.Parse(e.Percent.ToString());
-
-                // Convert the double to an integer for progress (if needed)
-                progress = (int)Math.Round(percent); // Rounds to the nearest integer
-                progressDownload.Value = progress;
-                TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
-                TaskbarManager.Instance.SetProgressValue(progress, 100);
-
-                // Update the status
-                UpdateStatus("Downloading", progress, e.Size, e.Speed, e.ETA);
-            }
-            catch (Exception ex)
-            {
-                // Handle the exception
-                Console.WriteLine($"Error parsing percent: {ex.Message}");
-            }
-        };
-
-
         var selectedFormat = quality;
 
         if (radioAuto.Checked)
         {
-            //await engineV1.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Best);
             await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);
         }
         else
         {
             if (selectedFormat != null)
             {
-                //await engineV1.DownloadVideoAsync(url, textOutput.Text.Trim(), VideoQuality.Custom, selectedFormat.ID);
+
                 await engineV2.SetOutputFolder(textOutput.Text.Trim())
                     .SetFormat(selectedFormat.ID)
                     .ExecuteAsync(url);

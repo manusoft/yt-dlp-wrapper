@@ -16,7 +16,7 @@ public class Ytdlp
         progressParser = new ProgressParser();
 
         // Subscribe events
-        progressParser.OnOutput += (sender, e) => OnOutput?.Invoke(this, e);
+        progressParser.OnOutputMessage += (sender, e) => OnOutputMessage?.Invoke(this, e);
         progressParser.OnProgressDownload += (sender, e) => OnProgressDownload?.Invoke(this, e);
         progressParser.OnCompleteDownload += (sender, e) => OnCompleteDownload?.Invoke(this, e);
         progressParser.OnProgressMessage += (sender, e) => OnProgressMessage?.Invoke(this, e);
@@ -33,7 +33,7 @@ public class Ytdlp
 
 
     // Event for output updates
-    public event EventHandler<string> OnOutput;
+    public event EventHandler<string> OnOutputMessage;
 
     // Event to notify progress updates
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
