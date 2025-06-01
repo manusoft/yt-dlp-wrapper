@@ -138,7 +138,7 @@ public partial class frmMain : Form
         {
             UpdateStatus("Preparing to download...");
             DisableControls();
-            textUrl.Clear();
+            //textUrl.Clear();
             textDetail.Clear();
             textDetail.AppendText($"Downloading video from: {url}" + Environment.NewLine);
 
@@ -151,7 +151,7 @@ public partial class frmMain : Form
 
             if (radioAuto.Checked)
             {
-                await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);
+                await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);                
             }
             else
             {
@@ -177,6 +177,7 @@ public partial class frmMain : Form
                 ClearStatus();
                 EnableControls();
             }
+
         }
         catch (Exception) { }
     }
