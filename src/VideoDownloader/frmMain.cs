@@ -1,5 +1,6 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
 using System.Reflection;
+using System.Threading.Tasks;
 using YtDlpWrapper;
 
 namespace VideoDownloader;
@@ -44,8 +45,21 @@ public partial class frmMain : Form
             buttonDownload.Enabled = false;
             ClearStatus();
             UpdateStatus("Engine started successfully.");
+
+            GetYtdlpVersion();
         }
         catch (Exception) { }
+    }
+
+    private async void GetYtdlpVersion()
+    {
+        try
+        {
+            await engineV2.Version().ExecuteAsync("");
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private void EngineV2_OnProgressDownload(object? sender, DownloadProgressEventArgs e)
