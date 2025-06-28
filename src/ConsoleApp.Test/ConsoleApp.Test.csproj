@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ytdlp-executable" Version="2025.6.25" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\YtDlpWrapper\YtDlpWrapper.csproj" />
   </ItemGroup>
 

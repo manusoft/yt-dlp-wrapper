@@ -17,14 +17,14 @@ string outputDirectory = @"C:\Downloads";
 //ytDlpEngine.OnProgressDownload += (sender, e) => Console.WriteLine($"Downloading: {e.Percent}% of {e.Size} ETA:{e.ETA}");
 
 // Input video URL and output directory
-Console.Write("Enter the video URL: ");
-var videoUrl = Console.ReadLine();
+//Console.Write("Enter the video URL: ");
+//var videoUrl = Console.ReadLine();
 
-if (string.IsNullOrEmpty(videoUrl))
-{
-    Console.WriteLine("Invalid URL");
-    return;
-}
+//if (string.IsNullOrEmpty(videoUrl))
+//{
+//    Console.WriteLine("Invalid URL");
+//    return;
+//}
 
 // Start downloading the video
 //var videoInfo = await ytDlpEngine.GetVideoInfo(videoUrl);
@@ -62,7 +62,7 @@ if (string.IsNullOrEmpty(videoUrl))
 //var thumnail = await ytDlpEngine.GetThumbnailAsync(videoUrl);
 //Console.WriteLine(thumnail);
 
-var ytdlp = new Ytdlp();
+var ytdlp = new Ytdlp($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
 
 // Subscribe to the detailed progress event
 //ytdlp.OnDetailedProgress += progress =>
@@ -97,12 +97,16 @@ ytdlp.OnProgressDownload += (sender, e) => Console.WriteLine($"Downloading: {e.P
 //    Console.WriteLine($"{format.ID} {format.Type} {format.Resolution} {format.FPS}");
 //}
 
+// Input video URL and output directory
+Console.Write("Enter the video URL: ");
+var videoUrl = Console.ReadLine();
 
-ytdlp.Version();
+if (string.IsNullOrEmpty(videoUrl))
+{
+    Console.WriteLine("Invalid URL");
+    return;
+}
 
 await ytdlp.SetOutputFolder(outputDirectory)
-           //.SetFormat("mp4")
-           //.DownloadThumbnails()            
-           .ExecuteAsync(videoUrl); // Example URL
-
-Console.WriteLine(ytdlp.PreviewCommand());
+           //.Version()
+           .ExecuteAsync(videoUrl);

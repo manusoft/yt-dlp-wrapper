@@ -1,6 +1,5 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
 using System.Reflection;
-using System.Threading.Tasks;
 using YtDlpWrapper;
 
 namespace VideoDownloader;
@@ -36,11 +35,7 @@ public partial class frmMain : Form
         try
         {
             var version = GetVersion();
-            var major = version.Split('.')[0];
-            var minor = version.Split('.')[1];
-            var build = version.Split('.')[2];
-            var revision = version.Split('.')[3];
-            this.Text = $"Video Downloader v{major}.{minor}.{build}";
+            this.Text = $"Video Downloader v{version[0]}.{version[1]}.{version[2]}";
             comboQuality.Enabled = false;
             buttonDownload.Enabled = false;
             ClearStatus();
@@ -165,7 +160,7 @@ public partial class frmMain : Form
 
             if (radioAuto.Checked)
             {
-                await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);                
+                await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);
             }
             else
             {
@@ -344,17 +339,17 @@ public partial class frmMain : Form
         catch (Exception) { }
     }
 
-    public string GetVersion()
+    public string[] GetVersion()
     {
         try
         {
             var assembly = Assembly.GetExecutingAssembly();
             var version = assembly.GetName().Version!.ToString();
-            return version;
+            return version.Split('.');
         }
         catch (Exception)
         {
-            return "v1.5";
+            return new string[] { "1", "7", "0" };
         }
     }
 }
