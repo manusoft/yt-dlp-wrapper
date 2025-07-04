@@ -7,6 +7,7 @@ namespace VideoDownloader;
 public partial class frmMain : Form
 {
     private int progress = 0;
+    private bool hasError = false;
     private readonly Ytdlp engineV2 = new Ytdlp($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
     private readonly string downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
@@ -80,6 +81,7 @@ public partial class frmMain : Form
     {
         try
         {
+            hasError = true;
             progressDownload.Value = 0;
             textDetail.AppendText($"{e}" + Environment.NewLine);
             ClearStatus();
@@ -145,6 +147,7 @@ public partial class frmMain : Form
     {
         try
         {
+            hasError = false;
             UpdateStatus("Preparing to download...");
             DisableControls();
             //textUrl.Clear();
@@ -177,7 +180,7 @@ public partial class frmMain : Form
                 }
             }
 
-            if (checkAutoClose.Checked)
+            if (checkAutoClose.Checked && !hasError)
             {
                 Application.Exit();
             }
@@ -262,8 +265,12 @@ public partial class frmMain : Form
             radioAuto.Enabled = true;
             radioCustom.Enabled = true;
             buttonBrowseFolder.Enabled = true;
+            comboQuality.Enabled = radioCustom.Checked;
             textOutput.Enabled = true;
             textUrl.Enabled = true;
+
+            if (hasError)
+                buttonDownload.Enabled = true;
         }
         catch (Exception) { }
     }
@@ -286,14 +293,17 @@ public partial class frmMain : Form
     {
         try
         {
-            toolStripLabelStatus.Text = "Status: Idle";
-            toolStripLabelProgress.Text = string.Empty;
-            toolStripLabelSize.Text = string.Empty;
-            toolStripLabelSpeed.Text = string.Empty;
-            toolStripLabelETA.Text = string.Empty;
-            //toolStripProgressBar.Value = 0;
-            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
-            TaskbarManager.Instance.SetProgressValue(0, 100);
+            if (!hasError)
+            {
+                toolStripLabelStatus.Text = "Status: Idle";
+                toolStripLabelProgress.Text = string.Empty;
+                toolStripLabelSize.Text = string.Empty;
+                toolStripLabelSpeed.Text = string.Empty;
+                toolStripLabelETA.Text = string.Empty;
+                //toolStripProgressBar.Value = 0;
+                TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
+                TaskbarManager.Instance.SetProgressValue(0, 100);
+            }
         }
         catch (Exception) { }
         finally
