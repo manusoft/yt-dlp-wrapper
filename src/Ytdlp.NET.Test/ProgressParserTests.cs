@@ -1,4 +1,7 @@
-﻿namespace Ytdlp.Test;
+﻿using System.Text.RegularExpressions;
+using YtdlpDotNet;
+
+namespace Ytdlp.NET.Test;
 
 public class ProgressParserTests
 {
@@ -95,6 +98,32 @@ public class ProgressParserTests
     }
 
     [Fact]
+    public void DeletingOriginalFile_LogsCorrectly()
+    {
+        // Arrange
+        var logger = new TestLogger();
+        var parser = new ProgressParser(logger);
+        bool triggered = false;
+        parser.OnPostProcessingComplete += (s, e) => triggered = true;
+
+        // Act
+        parser.ParseProgress("[Merger] Merging formats into \"C:\\Users\\manua\\Videos\\test.webm\"");
+        parser.ParseProgress("Deleting original file C:\\Users\\manua\\Videos\\test.f251.webm (pass -k to keep)");
+        parser.ParseProgress("Deleting original file C:\\Users\\manua\\Videos\\test.f401.mp4 (pass -k to keep)");
+
+        // Assert
+        Assert.True(triggered, "OnPostProcessingComplete was not triggered after processing both deletion lines.");
+        Assert.Contains("OnPostProcessingComplete event triggered.", logger.GetMessages());
+    }
+
+    [Fact]
+    public void DeletingOriginalFile_Matches() {
+        var regex = new Regex(@"Deleting original file\s+(?<path>.+?)\s+\(pass -k to keep\)", RegexOptions.IgnoreCase);
+        var match = regex.Match("Deleting original file C:\\Users\\manua\\Videos\\test.f251.webm (pass -k to keep)");
+        Assert.True(match.Success); // Should pass
+    }
+
+    [Fact]
     public void Reset_ClearsDownloadCompletedFlag()
     {
         var logger = new TestLogger();
@@ -109,6 +138,18 @@ public class ProgressParserTests
     private class TestLogger : ILogger
     {
         public List<(LogType Type, string Message)> Logs { get; } = new();
-        public void Log(LogType type, string message) => Logs.Add((type, message));
+        //public void Log(LogType type, string message) => Logs.Add((type, message));
+
+        public void Log(LogType type, string message)
+        {
+            Logs.Add((type, message));
+        }
+
+
+        // Helper to get messages as a list of strings for assertions
+        public IEnumerable<string> GetMessages()
+        {
+            return Logs.Select(log => log.Message);
+        }
     }
 }

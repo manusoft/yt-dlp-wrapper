@@ -21,6 +21,7 @@ internal static class RegexPatterns
     public const string DownloadProgressComplete = @"\[download\]\s*(?<percent>100(?:\.0)?)%\s*of\s*(?<size>[^\s]+)\s*at\s*(?<speed>[^\s]+|Unknown)\s*ETA\s*(?<eta>[^\s]+|Unknown)";
     public const string UnknownError = @"\[download\]\s*Unknown error";
     public const string MergingFormats = @"\[Merger\]\s*Merging formats into\s*""(?<path>.+)""";
+    public const string DeleteingOriginalFile = @"Deleting original file\s+(?<path>.+?)\s+\(pass -k to keep\)";
     public const string ExtractingMetadata = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*Extracting metadata";
     public const string SpecificError = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*ERROR:\s*(?<error>.+)";
     public const string DownloadingSubtitles = @"\[info\]\s*Downloading subtitles:\s*(?<language>[^\s]+)";

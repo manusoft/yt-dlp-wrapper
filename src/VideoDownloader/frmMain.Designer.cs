@@ -76,9 +76,9 @@
             comboQuality.DropDownStyle = ComboBoxStyle.DropDownList;
             comboQuality.Font = new Font("Segoe UI", 12F);
             comboQuality.FormattingEnabled = true;
-            comboQuality.Location = new Point(157, 82);
+            comboQuality.Location = new Point(157, 81);
             comboQuality.Name = "comboQuality";
-            comboQuality.Size = new Size(206, 29);
+            comboQuality.Size = new Size(256, 29);
             comboQuality.TabIndex = 3;
             // 
             // textDetail
@@ -96,9 +96,9 @@
             // buttonDownload
             // 
             buttonDownload.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            buttonDownload.Location = new Point(553, 82);
+            buttonDownload.Location = new Point(571, 82);
             buttonDownload.Name = "buttonDownload";
-            buttonDownload.Size = new Size(119, 29);
+            buttonDownload.Size = new Size(101, 29);
             buttonDownload.TabIndex = 5;
             buttonDownload.Text = "DOWNLOAD";
             buttonDownload.UseVisualStyleBackColor = true;
@@ -187,7 +187,7 @@
             // checkAutoClose
             // 
             checkAutoClose.AutoSize = true;
-            checkAutoClose.Location = new Point(401, 86);
+            checkAutoClose.Location = new Point(419, 85);
             checkAutoClose.Name = "checkAutoClose";
             checkAutoClose.Size = new Size(146, 23);
             checkAutoClose.TabIndex = 11;
@@ -217,7 +217,7 @@
             MaximizeBox = false;
             MinimumSize = new Size(700, 450);
             Name = "frmMain";
-            Text = "Video Downloader v1.5.52 - Manuhub ";
+            Text = "Video Downloader v0.0.0 - Manuhub ";
             Load += frmMain_Load;
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();

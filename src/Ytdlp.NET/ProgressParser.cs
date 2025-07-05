@@ -7,6 +7,7 @@ public sealed class ProgressParser
     private readonly Dictionary<Regex, Action<Match>> _regexHandlers;
     private readonly ILogger _logger;
     private bool _isDownloadCompleted;
+    private bool _isMerging; // Track merging state
 
     public ProgressParser(ILogger? logger = null)
     {
@@ -35,6 +36,8 @@ public sealed class ProgressParser
         { new Regex(RegexPatterns.ExtractingMetadata, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleExtractingMetadata },
         { new Regex(RegexPatterns.SpecificError, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleSpecificError },
         { new Regex(RegexPatterns.DownloadingSubtitles, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingSubtitles },
+        { new Regex(RegexPatterns.DeleteingOriginalFile, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleMergingComplete }, // New handler
+        { new Regex(@"has been successfully merged", RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleMergingComplete }
     };
     }
 
@@ -61,6 +64,8 @@ public sealed class ProgressParser
     public void Reset()
     {
         _isDownloadCompleted = false;
+        _isMerging = false;
+        _logger.Log(LogType.Info, "Resetting progress parser.");
     }
 
     #region Event Handlers
@@ -232,7 +237,31 @@ public sealed class ProgressParser
     private void HandleMergingFormats(Match match)
     {
         string path = match.Groups["path"].Value;
+        _isMerging = true;
         LogAndNotify(LogType.Info, $"Merging formats into: {path}");
+        _logger.Log(LogType.Info, "Set _isMerging to true");
+    }
+
+    private int _deleteCount = 0;
+    private void HandleMergingComplete(Match match)
+    {
+        if (_isMerging)
+        {
+            _deleteCount++;
+            var message = $"Merging complete: {match.Value}";
+            LogAndNotify(LogType.Info, message);
+            if (_deleteCount >= 2) // Wait for both deletions
+            {
+                _isMerging = false;
+                _deleteCount = 0;
+                OnPostProcessingComplete?.Invoke(this, message);
+                _logger.Log(LogType.Info, "OnPostProcessingComplete event triggered.");
+            }
+        }
+        else
+        {
+            _logger.Log(LogType.Warning, $"Merging complete detected without prior merging start: {match.Value}");
+        }
     }
 
     private void HandleExtractingMetadata(Match match)
@@ -275,5 +304,6 @@ public sealed class ProgressParser
     public event EventHandler<string>? OnErrorMessage;
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
     public event EventHandler<string>? OnCompleteDownload;
+    public event EventHandler<string>? OnPostProcessingComplete; // New event
     #endregion
 }

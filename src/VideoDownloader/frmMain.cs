@@ -1,130 +1,235 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
 using System.Reflection;
-using YtDlpWrapper;
+using System.Threading.Tasks;
+using YtdlpDotNet;
 
 namespace VideoDownloader;
 
 public partial class frmMain : Form
 {
-    private int progress = 0;
-    private bool hasError = false;
-    private readonly Ytdlp engineV2 = new Ytdlp($"{AppContext.BaseDirectory}\\Tools\\yt-dlp.exe");
-    private readonly string downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+    private const string YTDLP_PATH = @".\Tools\yt-dlp.exe";
+    private const string DEFAULT_YTDLP_VERSION = "2025.06.30";
+    private const string BEST_FORMAT = "bestvideo+bestaudio";
+    private readonly string _downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+    private readonly Ytdlp _ytdlp;
+    private readonly ILogger _logger = new ConsoleLogger();
+    private bool _hasError;
+    private DateTime _lastProgressUpdate = DateTime.MinValue;
 
     public frmMain()
     {
         InitializeComponent();
-
         try
         {
-            engineV2.OnErrorMessage += EngineV2_OnErrorMessage;
-            engineV2.OnProgressMessage += EngineV2_OnProgressMessage;
-            engineV2.OnOutputMessage += Enginev2_OnOutputMessage;
-            engineV2.OnProgressDownload += EngineV2_OnProgressDownload;
-            engineV2.OnCompleteDownload += Enginev2_OnCompleteDownload;
-            textOutput.Text = downloadPath;
+            _ytdlp = new Ytdlp(YTDLP_PATH, _logger);
+            SubscribeToYtdlpEvents();
+            textOutput.Text = _downloadPath;
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.Log(LogType.Error, $"Failed to initialize yt-dlp: {ex.Message}");
             UpdateStatus("Engine failed to start.");
         }
     }
 
-    private void frmMain_Load(object sender, EventArgs e)
+    private async void frmMain_Load(object sender, EventArgs e)
     {
         try
         {
             var version = GetVersion();
             this.Text = $"Video Downloader v{version[0]}.{version[1]}.{version[2]}";
+            var ytdlpVersion = await GetYtdlpVersionAsync();
             comboQuality.Enabled = false;
             buttonDownload.Enabled = false;
-            ClearStatus();
-            UpdateStatus("Engine started successfully.");
-
-            GetYtdlpVersion();
+            UpdateStatus($"Engine started successfully. v{ytdlpVersion}");
         }
-        catch (Exception) { }
-    }
-
-    private async void GetYtdlpVersion()
-    {
-        try
+        catch (Exception ex)
         {
-            await engineV2.Version().ExecuteAsync("");
-        }
-        catch (Exception)
-        {
+            _logger.Log(LogType.Error, $"Error during form load: {ex.Message}");
+            UpdateStatus("Failed to initialize application.");
         }
     }
 
-    private void EngineV2_OnProgressDownload(object? sender, DownloadProgressEventArgs e)
+    private async Task<string> GetYtdlpVersionAsync()
     {
         try
         {
-            // Parse e.Percent as a double
-            double percent = double.Parse(e.Percent.ToString());
+            return await _ytdlp.GetVersionAsync() ?? DEFAULT_YTDLP_VERSION;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Failed to get yt-dlp version: {ex.Message}");
+            return DEFAULT_YTDLP_VERSION;
+        }
+    }
 
-            // Convert the double to an integer for progress (if needed)
-            progress = (int)Math.Round(percent); // Rounds to the nearest integer
+    private bool _isMerging;
+    private void SubscribeToYtdlpEvents()
+    {
+        _ytdlp.OnError += error => _logger.Log(LogType.Error, $"Error: {error}");
+        _ytdlp.OnOutputMessage += (s, e) => AppendTextDetail(e);
+        _ytdlp.OnProgressMessage += (s, e) =>
+        {
+            _logger.Log(LogType.Info, e);
+            if (e.Contains("Merging formats"))
+            {
+                _isMerging = true;
+                _logger.Log(LogType.Info, "Set _isMerging=true in OnProgressMessage");
+            }
+        };
+        _ytdlp.OnProgressDownload += HandleProgressDownload;
+        _ytdlp.OnCompleteDownload += HandleCompleteDownload;
+        _ytdlp.OnPostProcessingComplete += (s, e) => 
+        {
+            _logger.Log(LogType.Info, $"Subscribed OnPostProcessingComplete event triggered: {e}");
+            HandlePostProcessingComplete(s, e);
+        }; // Handle merging completion
+        _ytdlp.OnErrorMessage += HandleErrorMessage;
+        _ytdlp.OnCommandCompleted += (success, message) =>
+        {
+            _logger.Log(success ? LogType.Info : LogType.Error, message);
+            if (success && !_hasError && checkAutoClose.Checked && !_isMerging)
+            {
+                _logger.Log(LogType.Info, "Auto-closing after command completion (no merging).");
+                Application.DoEvents();
+                Application.Exit();
+            }
+        };
+        _logger.Log(LogType.Info, "Subscribed to all Ytdlp events.");
+    }
+
+
+    private void HandleProgressDownload(object? sender, DownloadProgressEventArgs e)
+    {
+        try
+        {
+            if ((DateTime.Now - _lastProgressUpdate).TotalMilliseconds < 100) return;
+            _lastProgressUpdate = DateTime.Now;
+            int progress = (int)Math.Round(double.Parse(e.Percent.ToString()));
+            UpdateProgressBar(progress);
+            UpdateStatus("Downloading...", progress, e.Size, e.Speed, e.ETA);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Progress download error: {ex.Message}");
+        }
+    }
+
+    private async void HandleCompleteDownload(object? sender, string e)
+    {
+        try
+        {
+            _logger.Log(LogType.Info, $"HandleCompleteDownload called: {e}, _isMerging={_isMerging}");
+            AppendTextDetail(e);
+            // Only auto-close if no merging is expected
+            if (!_hasError && checkAutoClose.Checked && !_isMerging)
+            {
+                _logger.Log(LogType.Info, "Auto-closing application (no merging required).");
+                UpdateStatus("Download completed.");
+                await Task.Delay(5000);
+                Application.Exit();
+            }
+            else
+            {
+                UpdateStatus("Download completed.");
+                EnableControls();
+            }
+                
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Complete download error: {ex.Message}");
+        }
+    }
+
+    private void HandlePostProcessingComplete(object? sender, string e)
+    {
+        try
+        {
+            _logger.Log(LogType.Info, $"Post-processing complete: {e}");
+            AppendTextDetail(e);
+            UpdateProgressBar(100);
+            UpdateStatus("Download and merging completed.");
+            _isMerging = false; // Reset after merging
+            Application.DoEvents();
+            if (!_hasError && checkAutoClose.Checked)
+            {
+                _logger.Log(LogType.Info, "Calling Application.Exit() for auto-close.");
+                Application.Exit();
+            }
+            else
+            {
+                _logger.Log(LogType.Info, $"Not auto-closing: _hasError={_hasError}, checkAutoClose={checkAutoClose.Checked}");
+                EnableControls();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Post-processing completion error: {ex.Message}");
+            AppendTextDetail($"Completion error: {ex.Message}");
+            UpdateStatus("Post-processing failed.");
+            EnableControls();
+        }
+    }
+
+    private void HandleErrorMessage(object? sender, string e)
+    {
+        try
+        {
+            _hasError = true;
+            _logger.Log(LogType.Error, $"Setting _hasError due to: {e}");
+            UpdateProgressBar(0);
+            AppendTextDetail(e);
+            UpdateStatus("Download or merging failed.");
+            EnableControls();
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Error message handling: {ex.Message}");
+            AppendTextDetail($"Error handling failed: {ex.Message}");
+        }
+    }
+
+    private void UpdateProgressBar(int progress)
+    {
+        InvokeIfRequired(progressDownload, () =>
+        {
             progressDownload.Value = progress;
             TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
             TaskbarManager.Instance.SetProgressValue(progress, 100);
-
-            // Update the status
-            UpdateStatus("Downloading...", progress, e.Size, e.Speed, e.ETA);
-        }
-        catch (Exception) { }
+        });
     }
 
-    private void EngineV2_OnErrorMessage(object? sender, string e)
+    private void AppendTextDetail(string text)
     {
-        try
+        InvokeIfRequired(textDetail, () =>
         {
-            hasError = true;
-            progressDownload.Value = 0;
-            textDetail.AppendText($"{e}" + Environment.NewLine);
-            ClearStatus();
-        }
-        catch (Exception) { }
+            textDetail.AppendText($"{text}{Environment.NewLine}");
+        });
     }
 
-    private void Enginev2_OnCompleteDownload(object? sender, string e)
+    private void InvokeIfRequired(Control control, Action action)
     {
-        try
+        if (control.InvokeRequired)
         {
-            progressDownload.Value = 100;
-            textDetail.AppendText($"{e}" + Environment.NewLine);
-            ClearStatus();
+            control.Invoke(action);
         }
-        catch (Exception) { }
-    }
-
-    private void Enginev2_OnOutputMessage(object? sender, string e)
-    {
-        try
+        else
         {
-            textDetail.AppendText($"{e}" + Environment.NewLine);
+            action();
         }
-        catch (Exception) { }
     }
-
-    private void EngineV2_OnProgressMessage(object? sender, string e)
-    {
-        Console.WriteLine(e);
-    }
-
 
     private async void textUrl_TextChanged(object sender, EventArgs e)
     {
-        await AnalizingAsync();
+        await AnalyzeAsync();
     }
 
     private async void buttonDownload_Click(object sender, EventArgs e)
     {
         if (string.IsNullOrEmpty(textUrl.Text))
         {
-            MessageBox.Show("Please enter the video URL", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowError("Please enter a video URL.");
             return;
         }
 
@@ -135,117 +240,119 @@ public partial class frmMain : Form
     {
         try
         {
-            return await engineV2.GetAvailableFormatsAsync(url);
+            return await _ytdlp.GetAvailableFormatsAsync(url) ?? new List<VideoFormat>();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.Log(LogType.Error, $"Failed to get video formats: {ex.Message}");
             return new List<VideoFormat>();
         }
+    }
+
+    private async Task AnalyzeAsync()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(textUrl.Text) || !textUrl.Text.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                radioAuto.Checked = true;
+                comboQuality.Enabled = false;
+                buttonDownload.Enabled = false;
+                UpdateStatus("Idle");
+                return;
+            }
+
+            SetAnalyzingState(true);
+            var formats = await GetVideoFormatsAsync(textUrl.Text);
+            UpdateQualityCombo(formats);
+            SetAnalyzingState(false);
+            UpdateStatus(formats.Any() ? "Analyzed" : "No formats available.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Analysis error: {ex.Message}");
+            AppendTextDetail($"Analysis error: {ex.Message}");
+            SetAnalyzingState(false);
+            UpdateStatus("Analysis failed.");
+        }
+    }
+
+    private void SetAnalyzingState(bool isAnalyzing)
+    {
+        InvokeIfRequired(progressDownload, () =>
+        {
+            progressDownload.Style = isAnalyzing ? ProgressBarStyle.Marquee : ProgressBarStyle.Blocks;
+            progressDownload.MarqueeAnimationSpeed = isAnalyzing ? 10 : 100;
+            TaskbarManager.Instance.SetProgressState(isAnalyzing ? TaskbarProgressBarState.Indeterminate : TaskbarProgressBarState.NoProgress);
+        });
+    }
+
+    private void UpdateQualityCombo(List<VideoFormat> formats)
+    {
+        InvokeIfRequired(comboQuality, () =>
+        {
+            comboQuality.DataSource = formats.Any() ? formats : new List<VideoFormat>
+                {
+                    new VideoFormat { ID = "best", Resolution = "Best" },
+                    new VideoFormat { ID = "worst", Resolution = "Worst" }
+                };
+            comboQuality.ValueMember = "ID";
+            comboQuality.DisplayMember = null;
+            comboQuality.Format += (s, e) =>
+            {
+                var format = e.ListItem as VideoFormat;
+                e.Value = $"{format?.Resolution} ({format?.Extension}, {format?.FileSize ?? "Unknown"})";
+            };
+            buttonDownload.Enabled = true;
+        });
     }
 
     private async Task DownloadVideoAsync(string url, VideoFormat? quality)
     {
         try
         {
-            hasError = false;
+            _hasError = false;
+            _isMerging = false;
             UpdateStatus("Preparing to download...");
             DisableControls();
-            //textUrl.Clear();
-            textDetail.Clear();
-            textDetail.AppendText($"Downloading video from: {url}" + Environment.NewLine);
-
-            int progress = 0;
-            progressDownload.Value = progress;
-            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
-            TaskbarManager.Instance.SetProgressValue(progress, 100);
-
-            var selectedFormat = quality;
+            AppendTextDetail($"Downloading video from: {url}");
+            UpdateProgressBar(0);
 
             if (radioAuto.Checked)
             {
-                await engineV2.SetOutputFolder(textOutput.Text.Trim()).ExecuteAsync(url);
+                await _ytdlp
+                    .SetFormat(BEST_FORMAT)
+                    .SetOutputFolder(textOutput.Text.Trim())
+                    .ExecuteAsync(url);
+            }
+            else if (quality != null)
+            {
+                await _ytdlp
+                    .SetFormat(quality.ID)
+                    .SetOutputFolder(textOutput.Text.Trim())
+                    .ExecuteAsync(url);
             }
             else
             {
-                if (selectedFormat != null)
-                {
-
-                    await engineV2.SetOutputFolder(textOutput.Text.Trim())
-                        .SetFormat(selectedFormat.ID)
-                        .ExecuteAsync(url);
-                }
-                else
-                {
-                    MessageBox.Show("Please select a video quality", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-
-            if (checkAutoClose.Checked && !hasError)
-            {
-                Application.Exit();
-            }
-            else
-            {
-                ClearStatus();
+                _hasError = true;
+                ShowError("Please select a video quality.");
                 EnableControls();
             }
-
         }
-        catch (Exception) { }
-    }
-
-
-    private async Task AnalizingAsync()
-    {
-        try
+        catch (Exception ex)
         {
-            if (string.IsNullOrEmpty(textUrl.Text))
-            {
-                radioAuto.Checked = true;
-                comboQuality.Enabled = false;
-                buttonDownload.Enabled = false;
-                return;
-            }
-
-            if (!textUrl.Text.StartsWith("http", StringComparison.InvariantCultureIgnoreCase))
-            {
-                comboQuality.Enabled = false;
-                buttonDownload.Enabled = false;
-                return;
-            }
-
-            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Indeterminate);
-            progressDownload.Style = ProgressBarStyle.Marquee;
-            progressDownload.MarqueeAnimationSpeed = 10;
-            UpdateStatus("Analyzing...");
-
-            var formats = await GetVideoFormatsAsync(textUrl.Text);
-            if (formats != null)
-            {
-                comboQuality.DataSource = formats;
-                comboQuality.ValueMember = "ID";
-                comboQuality.DisplayMember = "Name";
-
-                buttonDownload.Enabled = true;
-            }
-            else
-            {
-                comboQuality.DataSource = null;
-                comboQuality.Items.Add("Best");
-                comboQuality.Items.Add("Worst");
-            }
-
-            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
-            progressDownload.Style = ProgressBarStyle.Blocks;
-            progressDownload.MarqueeAnimationSpeed = 100;
-            UpdateStatus("Analyzed");
+            _hasError = true;
+            _logger.Log(LogType.Error, $"Download error: {ex.Message}");
+            AppendTextDetail($"Error: {ex.Message}");
+            UpdateStatus("Download failed.");
+            EnableControls();
         }
-        catch (Exception) { }
     }
+
 
     private void DisableControls()
     {
-        try
+        InvokeIfRequired(this, () =>
         {
             radioAuto.Enabled = false;
             radioCustom.Enabled = false;
@@ -254,13 +361,12 @@ public partial class frmMain : Form
             buttonDownload.Enabled = false;
             textOutput.Enabled = false;
             textUrl.Enabled = false;
-        }
-        catch (Exception) { }
+        });
     }
 
     private void EnableControls()
     {
-        try
+        InvokeIfRequired(this, () =>
         {
             radioAuto.Enabled = true;
             radioCustom.Enabled = true;
@@ -268,98 +374,95 @@ public partial class frmMain : Form
             comboQuality.Enabled = radioCustom.Checked;
             textOutput.Enabled = true;
             textUrl.Enabled = true;
-
-            if (hasError)
-                buttonDownload.Enabled = true;
-        }
-        catch (Exception) { }
+            buttonDownload.Enabled = !_hasError;
+        });
     }
 
     private void UpdateStatus(string status, int progress = 0, string size = "", string speed = "", string eta = "")
     {
-        try
+        InvokeIfRequired(this, () =>
         {
             toolStripLabelStatus.Text = $"Status: {status}";
             toolStripLabelProgress.Text = progress == 0 ? "" : $"Progress: {progress}%";
             toolStripLabelSize.Text = string.IsNullOrEmpty(size) ? "" : $"Size: {size}";
             toolStripLabelSpeed.Text = string.IsNullOrEmpty(speed) ? "" : $"Speed: {speed}";
             toolStripLabelETA.Text = string.IsNullOrEmpty(eta) ? "" : $"ETA: {eta}";
-            //toolStripProgressBar.Value = progress;
-        }
-        catch (Exception) { }
+        });
     }
 
-    private void ClearStatus()
+    private void ShowError(string message)
     {
-        try
-        {
-            if (!hasError)
-            {
-                toolStripLabelStatus.Text = "Status: Idle";
-                toolStripLabelProgress.Text = string.Empty;
-                toolStripLabelSize.Text = string.Empty;
-                toolStripLabelSpeed.Text = string.Empty;
-                toolStripLabelETA.Text = string.Empty;
-                //toolStripProgressBar.Value = 0;
-                TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.NoProgress);
-                TaskbarManager.Instance.SetProgressValue(0, 100);
-            }
-        }
-        catch (Exception) { }
-        finally
-        {
-            progressDownload.Value = 0;
-        }
+        _logger.Log(LogType.Error, message);
+        AppendTextDetail($"Error: {message}");
+        MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
     private void buttonBrowseFolder_Click(object sender, EventArgs e)
     {
         try
         {
-            FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
-            folderBrowserDialog.Description = "Select the folder to save the video";
-            folderBrowserDialog.ShowNewFolderButton = true;
-            folderBrowserDialog.ShowDialog();
-            textOutput.Text = folderBrowserDialog.SelectedPath;
+            using var folderBrowserDialog = new FolderBrowserDialog
+            {
+                Description = "Select the folder to save the video",
+                ShowNewFolderButton = true
+            };
+            if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+            {
+                textOutput.Text = folderBrowserDialog.SelectedPath;
+            }
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Folder selection error: {ex.Message}");
+            ShowError($"Failed to select folder: {ex.Message}");
+        }
     }
 
     private void radioAuto_CheckedChanged(object sender, EventArgs e)
     {
         try
         {
-            if (radioAuto.Checked)
-                comboQuality.Enabled = false;
-            else
-                comboQuality.Enabled = true;
+            comboQuality.Enabled = !radioAuto.Checked;
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Radio auto changed error: {ex.Message}");
+            AppendTextDetail($"Error: {ex.Message}");
+        }
     }
 
     private void radioCustom_CheckedChanged(object sender, EventArgs e)
     {
         try
         {
-            if (radioCustom.Checked)
-                comboQuality.Enabled = true;
-            else
-                comboQuality.Enabled = false;
+            comboQuality.Enabled = radioCustom.Checked;
         }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Radio custom changed error: {ex.Message}");
+            AppendTextDetail($"Error: {ex.Message}");
+        }
     }
 
     public string[] GetVersion()
     {
         try
         {
-            var assembly = Assembly.GetExecutingAssembly();
-            var version = assembly.GetName().Version!.ToString();
-            return version.Split('.');
+            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+            return version?.Split('.') ?? new[] { "1", "7", "0" };
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return new string[] { "1", "7", "0" };
+            _logger.Log(LogType.Error, $"Failed to get application version: {ex.Message}");
+            return new[] { "1", "8", "0" };
+        }
+    }
+
+    private class ConsoleLogger : ILogger
+    {
+        public void Log(LogType type, string message)
+        {
+            Console.WriteLine($"[{type}] {message}");
         }
     }
 }

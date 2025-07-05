@@ -23,6 +23,7 @@ public sealed class Ytdlp
     public event EventHandler<string>? OnCompleteDownload;
     public event EventHandler<string>? OnProgressMessage;
     public event EventHandler<string>? OnErrorMessage;
+    public event Action<object, string>? OnPostProcessingComplete;
 
     // Valid yt-dlp options for validation
     private static readonly HashSet<string> ValidOptions = new HashSet<string>
@@ -52,6 +53,7 @@ public sealed class Ytdlp
         _progressParser.OnCompleteDownload += (sender, e) => OnCompleteDownload?.Invoke(this, e);
         _progressParser.OnProgressMessage += (sender, e) => OnProgressMessage?.Invoke(this, e);
         _progressParser.OnErrorMessage += (sender, e) => OnErrorMessage?.Invoke(this, e);
+        _progressParser.OnPostProcessingComplete += (s, e) => OnPostProcessingComplete?.Invoke(this, e);
     }
 
     private bool IsInPath(string executable)
@@ -305,6 +307,12 @@ public sealed class Ytdlp
         if (string.IsNullOrWhiteSpace(operation))
             throw new ArgumentException("Operation cannot be empty.", nameof(operation));
         _commandBuilder.Append($"--postprocessor-args \"{SanitizeInput(operation)}\" ");
+        return this;
+    }
+
+    public Ytdlp SetKeepTempFiles(bool keep)
+    {
+        if (keep) _commandBuilder.Append(" -k");
         return this;
     }
 
