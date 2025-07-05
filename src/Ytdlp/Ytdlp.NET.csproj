@@ -3,15 +3,15 @@
   <PropertyGroup>
 	<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>	
+    <Nullable>enable</Nullable>
+	<RootNamespace>YtdlpDotNet</RootNamespace>
 	<AssemblyName>Ytdlp.NET</AssemblyName>
-	<RootNamespace>Ytdlp.NET</RootNamespace>
 	<PackageId>Ytdlp.NET</PackageId>
 	<PackageDescription>A .NET wrapper for yt-dlp, providing a fluent interface for downloading videos, audio, subtitles, and thumbnails with progress tracking and event-based feedback.</PackageDescription>
 	<Copyright>Copyright © 2025 ManuHub</Copyright>
 	<Authors>Manojbabu</Authors>
 	<PackageTags>yt-dlp youtube downloader video audio subtitles thumbnails fluent-api progress-tracking csharp dotnet</PackageTags>
-	<PackageProjectUrl>https://github.com/manusoft/yt-dlp-wrapper</PackageProjectUrl>
+	<PackageProjectUrl>https://github.com/yt-dlp/yt-dlp</PackageProjectUrl>
 	<RepositoryUrl>https://github.com/manusoft/yt-dlp-wrapper</RepositoryUrl>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
