@@ -9,13 +9,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp.Test", "src\Cons
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDownloader", "src\VideoDownloader\VideoDownloader.csproj", "{E71041F2-AB5C-4BE2-B701-BEA07932CD1D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET", "src\Ytdlp\Ytdlp.NET.csproj", "{2671D067-5408-4CAD-9CEE-6AC95722367C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET", "src\Ytdlp.NET\Ytdlp.NET.csproj", "{2671D067-5408-4CAD-9CEE-6AC95722367C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET.Console", "src\Ytdlp.Console\Ytdlp.NET.Console.csproj", "{562C13F3-0C03-4E53-901E-F352A3404C16}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET.Console", "src\Ytdlp.NET.Console\Ytdlp.NET.Console.csproj", "{562C13F3-0C03-4E53-901E-F352A3404C16}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Archived", "Archived", "{83E393FE-5BD2-48EE-A50F-A2B0F23F9F98}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET.Test", "src\Ytdlp.Test\Ytdlp.NET.Test.csproj", "{FF120C1F-85CC-4233-9F2F-E6234B249469}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET.Test", "src\Ytdlp.NET.Test\Ytdlp.NET.Test.csproj", "{FF120C1F-85CC-4233-9F2F-E6234B249469}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
