@@ -38,6 +38,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\YtDlpWrapper\YtDlpWrapper.csproj" />
+    <ProjectReference Include="..\Ytdlp\Ytdlp.NET.csproj" />
   </ItemGroup>
 
   <ItemGroup>

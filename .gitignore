@@ -364,3 +364,6 @@ FodyWeavers.xsd
 /src/VideoDownloader/ffmpeg.exe
 /src/VideoDownloader/ffplay.exe
 /src/VideoDownloader/ffprobe.exe
+/ytdlp.Console/ffmpeg.exe
+/ytdlp.Console/ffplay.exe
+/ytdlp.Console/ffprobe.exe
