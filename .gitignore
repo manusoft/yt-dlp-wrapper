@@ -367,3 +367,6 @@ FodyWeavers.xsd
 /ytdlp.Console/ffmpeg.exe
 /ytdlp.Console/ffplay.exe
 /ytdlp.Console/ffprobe.exe
+/src/Ytdlp.NET.Console/ffmpeg.exe
+/src/Ytdlp.NET.Console/ffplay.exe
+/src/Ytdlp.NET.Console/ffprobe.exe
