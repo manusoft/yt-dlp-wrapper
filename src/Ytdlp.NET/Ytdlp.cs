@@ -13,6 +13,7 @@ public sealed class Ytdlp
     private readonly ILogger _logger;
     private string _format = "best";
     private string _outputFolder = ".";
+    private string? _outputTemplate;
 
     // Events for progress and status updates
     public event Action<string>? OnProgress;
@@ -27,16 +28,16 @@ public sealed class Ytdlp
 
     // Valid yt-dlp options for validation
     private static readonly HashSet<string> ValidOptions = new HashSet<string>
-{
-    "--extract-audio", "--audio-format", "--format", "--playlist-items", "--limit-rate", "--proxy",
-    "--simulate", "--write-info-json", "--write-subs", "--sub-langs", "--write-thumbnail",
-    "--live-from-start", "--no-live-from-start", "--retries", "--download-sections",
-    "--concat-playlist", "--replace-in-metadata", "--download-archive", "--user-agent",
-    "--write-log", "--cookies", "--referer", "--merge-output-format", "--add-header",
-    "--dump-json", "--write-video", "--write-audio", "--postprocessor-args",
-    "--download-timeout", "--username", "--password", "--no-ads", "--recode-video",
-    "--timeout"
-};
+    {
+        "--extract-audio", "--audio-format", "--format", "--playlist-items", "--limit-rate", "--proxy",
+        "--simulate", "--write-info-json", "--write-subs", "--sub-langs", "--write-thumbnail",
+        "--live-from-start", "--no-live-from-start", "--retries", "--download-sections",
+        "--concat-playlist", "--replace-in-metadata", "--download-archive", "--user-agent",
+        "--write-log", "--cookies", "--referer", "--merge-output-format", "--add-header",
+        "--dump-json", "--write-video", "--write-audio", "--postprocessor-args",
+        "--download-timeout", "--username", "--password", "--no-ads", "--recode-video",
+        "--timeout", "--restrict-filenames"
+    };
 
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
     {
@@ -132,7 +133,7 @@ public sealed class Ytdlp
     {
         if (string.IsNullOrWhiteSpace(template))
             throw new ArgumentException("Output template cannot be empty.", nameof(template));
-        _commandBuilder.Append($"-o \"{SanitizeInput(template)}\" ");
+        _outputTemplate = template.Replace("\\", "/").Trim();
         return this;
     }
 
@@ -406,7 +407,7 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task ExecuteAsync(string url)
+    public async Task ExecuteAsync(string url, string? outputTemplate = null)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -427,8 +428,12 @@ public sealed class Ytdlp
         _progressParser.Reset();
         _logger.Log(LogType.Info, $"Starting download for URL: {url}");
 
+        // Use provided template or default
+        string template = Path.Combine(_outputFolder, _outputTemplate?.Replace("\\", "/")!)
+            ?? Path.Combine(_outputFolder, "%(title)s.%(ext)s").Replace("\\", "/");
+
         // Build command with format and output template
-        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{_outputFolder}/%(title)s.%(ext)s\" \"{SanitizeInput(url)}\"";
+        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" \"{SanitizeInput(url)}\"";
         _commandBuilder.Clear(); // Clear after building arguments
 
         await RunYtdlpAsync(arguments);
@@ -467,6 +472,48 @@ public sealed class Ytdlp
             }
         }
     }
+
+    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3)
+    {
+        if (urls == null || !urls.Any())
+        {
+            _logger.Log(LogType.Error, "No URLs provided for batch download");
+            throw new YtdlpException("No URLs provided for batch download");
+        }
+
+        try
+        {
+            Directory.CreateDirectory(_outputFolder);
+            _logger.Log(LogType.Info, $"Output folder for batch: {Path.GetFullPath(_outputFolder)}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Failed to create output folder {_outputFolder}: {ex.Message}");
+            throw new YtdlpException($"Failed to create output folder {_outputFolder}", ex);
+        }
+
+        using SemaphoreSlim throttler = new(maxConcurrency);
+
+        var tasks = urls.Select(async url =>
+        {
+            await throttler.WaitAsync();
+            try
+            {
+                await ExecuteAsync(url);
+            }
+            catch (YtdlpException ex)
+            {
+                _logger.Log(LogType.Error, $"Skipping URL {url} due to error: {ex.Message}");
+            }
+            finally
+            {
+                throttler.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
     #endregion
 
     #region Private Helpers
