@@ -1,0 +1,285 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ClipMate.MainPage"
+             xmlns:models="clr-namespace:ClipMate.Models"
+             xmlns:viewmodels="clr-namespace:ClipMate.ViewModels"
+             x:DataType="viewmodels:MainViewModel" Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <viewmodels:MainViewModel x:Key="MainVM" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,Auto, *" RowSpacing="5">
+        <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,1*" Padding="10" >
+            <Label Grid.Column="0"
+                   Text="ClipMate"
+                   TextColor="Red"
+                   FontSize="32"
+                   FontAttributes="Bold"/>
+
+            <Border Grid.Column="1"
+                    Stroke="Gray"
+                    StrokeThickness="1"
+                    BackgroundColor="#1A1A1A"
+                    StrokeShape="RoundRectangle 10"
+                    HeightRequest="50"
+                    HorizontalOptions="Fill">
+
+                <Grid ColumnDefinitions="*, Auto">
+                    <!-- Entry inside the Border with right padding for the button -->
+                    <Entry Grid.Column="0"
+                           Text="{Binding Url}" 
+                           Placeholder="Enter video URL"
+                           BackgroundColor="Transparent"
+                           TextColor="White"
+                           PlaceholderColor="Gray"
+                           FontSize="16"
+                           VerticalOptions="Center"     
+                           HeightRequest="50"
+                           ClearButtonVisibility="WhileEditing" />
+
+                    <!-- Button at the right edge of the control -->
+                    <Border Grid.Column="1"
+                            StrokeThickness="0"
+                            BackgroundColor="#E53935"
+                            HeightRequest="50"
+                            WidthRequest="50"
+                            HorizontalOptions="End"
+                            VerticalOptions="Center">
+
+                        <Button Text="🔍"
+                                FontSize="20"
+                                BackgroundColor="Transparent"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                Command="{Binding AnalyzeCommand}"
+                                Padding="0"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                    </Border>
+
+                </Grid>
+            </Border>
+
+            <ActivityIndicator Grid.Column="2" IsVisible="{Binding IsAnalizing}" IsRunning="{Binding IsAnalizing}" Color="Red" HorizontalOptions="End"/>
+
+        </Grid>
+
+        <Border Grid.Row="1"
+                Stroke="Gray"
+                StrokeThickness="0.5"
+                Margin="10"
+                BackgroundColor="#1A1A1A"
+                StrokeShape="RoundRectangle 12"
+                HorizontalOptions="Fill"
+                Padding="12"
+                IsVisible="{Binding IsAnalyzed}">
+
+            <Grid>
+                <VerticalStackLayout  Spacing="5">
+
+                    <!-- Video URL -->
+                    <Label Text="{Binding Url}"
+                       TextColor="LightGray"
+                       FontSize="14"
+                       LineBreakMode="TailTruncation"
+                       HorizontalOptions="Fill"
+                       Margin="0,0,0,6" />
+
+                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                        <!-- Extension -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="📦" VerticalTextAlignment="Center" />
+                            <Label Text="{Binding SelectedFormat.Extension}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Resolution -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="🎞️" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.Resolution}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Size -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="💾" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.FileSize}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- FPS -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="🚀" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.FPS}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Channels -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="🔊" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.Channels}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Video codec -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="📹" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.VCodec}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Audio codec -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="🎧" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.ACodec}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Extra info -->
+                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                            <Label Text="📋" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.MoreInfo}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+                    </HorizontalStackLayout>
+
+                    <!-- Quality label, picker with border, and download button -->
+                    <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="12" VerticalOptions="Center" HorizontalOptions="Fill">
+                        <Label Grid.Column="0"
+                           Text="Quality:"
+                           TextColor="White"
+                           FontSize="14"
+                           VerticalOptions="Center" />
+
+                        <!-- Picker wrapped inside Border for visible stroke -->
+                        <Border Grid.Column="1"
+                            Stroke="Gray"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            BackgroundColor="#1A1A1A"
+                            HeightRequest="40"
+                            HorizontalOptions="Fill">
+                            <Picker ItemsSource="{Binding Formats}"
+                                SelectedItem="{Binding SelectedFormat, Mode=TwoWay}"
+                                ItemDisplayBinding="{Binding .}"
+                                BackgroundColor="Transparent"
+                                TextColor="White"
+                                FontSize="14"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Center" />
+                        </Border>
+
+                        <Button Grid.Column="2"
+                            Text="Add to Que"
+                            TextColor="White"
+                            BackgroundColor="#E53935"
+                            FontAttributes="Bold"
+                            CornerRadius="8"
+                            HeightRequest="40"
+                            Command="{Binding AddCommand}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Grid>
+        </Border>        
+
+        <CollectionView  Grid.Row="2"  ItemsSource="{Binding Jobs}" Margin="10" VerticalScrollBarVisibility="Never"  >
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout ItemSpacing="5" Orientation="Vertical" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:DownloadJob">
+                    <Border Stroke="Gray"
+                                StrokeThickness="0.5"
+                                BackgroundColor="#1A1A1A"
+                                StrokeShape="RoundRectangle 10"
+                                Padding="10"
+                                Margin="10">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" RowSpacing="10">
+                            <!-- Thumbnail -->
+                            <Image Source="{Binding ThumbnailImage}"
+                                       HeightRequest="80"
+                                       WidthRequest="120"
+                                       Aspect="AspectFill"
+                                       Grid.Column="0"
+                                       BackgroundColor="Black"/>
+
+                            <!-- Right side info -->
+                            <VerticalStackLayout Grid.Column="1" Spacing="6">
+
+                                <!-- URL -->
+                                <Label Text="{Binding Url}"
+                                           TextColor="White"
+                                           FontSize="14"
+                                           LineBreakMode="TailTruncation"
+                                           MaxLines="2" />
+
+                                <!-- Info row -->
+                                <HorizontalStackLayout Spacing="8">
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="🎞️" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding Format.Resolution}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center"/>
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="💾" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding Format.FileSize}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="🕒" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding ETA}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="⚡" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding Speed}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+                                </HorizontalStackLayout>
+
+                                <!-- Progress -->
+                                <ProgressBar Progress="{Binding Progress}"
+                                     HeightRequest="6"
+                                     ProgressColor="LimeGreen"
+                                     BackgroundColor="Gray" />
+
+                                <!-- Status and Error -->
+                                <Label Text="{Binding Status}" FontSize="12" TextColor="LightGray" />
+                            </VerticalStackLayout>
+                            <!-- Action buttons -->
+                            <Grid Grid.Column="2"  ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8">
+                                <!-- Download -->
+                                <Button Grid.Column="0"
+                                            Text="⬇"
+                                            BackgroundColor="#2E7D32"
+                                            TextColor="White"
+                                            CornerRadius="6"    
+                                            WidthRequest="20"
+                                            HeightRequest="20"
+                                            Command="{Binding Source={StaticResource MainVM}, Path=StartCommand}"
+                                            CommandParameter="{Binding .}" />
+
+                                <!-- Open Folder -->
+                                <Button Grid.Column="1"
+                                            Text="📂"
+                                            BackgroundColor="#1976D2"
+                                            TextColor="White"
+                                            CornerRadius="6"
+                                            WidthRequest="20"
+                                            HeightRequest="20"
+                                            Command="{Binding OpenFolderCommand}" />
+
+                                <!-- Delete -->
+                                <!--<Button Grid.Column="2"
+                                        Text="🗑"
+                                        BackgroundColor="Red"
+                                        TextColor="IndianRed"
+                                        WidthRequest="20"
+                                        HeightRequest="20"
+                                        Command="{Binding DeleteCommand}" />-->
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+
+
+
+</ContentPage>
