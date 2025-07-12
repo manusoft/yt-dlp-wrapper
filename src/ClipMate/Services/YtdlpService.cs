@@ -4,15 +4,10 @@ using YtdlpDotNet;
 
 namespace ClipMate.Services;
 
-public class YtdlpService
+public class YtdlpService(AppLogger logger)
 {
     private readonly string _ytdlpPath = Path.Combine(AppContext.BaseDirectory, "Tools", "yt-dlp.exe");
-    private readonly ILogger _logger;
-
-    public YtdlpService(ILogger logger)
-    {
-        _logger = logger;
-    }
+    private readonly AppLogger _logger = logger;
 
     public async Task<List<VideoFormat>> GetFormatsAsync(string url)
     {
@@ -48,50 +43,20 @@ public class YtdlpService
                     job.Thumbnail = "videoimage.png"; // Fallback
                 }
             }
-            //var match = Regex.Match(msg, @"Writing video thumbnail to:\s*(.+)$");
-            //if (match.Success)
-            //    originalPath = match.Groups[1].Value;
         };
 
         ytdlp.OnProgressDownload += (s, e) =>
         {
-            //if (double.TryParse(e.Percent.ToString(), out var percent))
-            //    job.Progress = percent / 100.0;
-
-            //if (e.Message.Contains("has already been downloaded"))
-            //{
-            //    job.Status = DownloadStatus.Completed;
-            //    job.IsDownloading = false;
-            //    job.IsCompleted = true;
-            //    job.ErrorMessage = e.Message;
-            //    return;
-            //}
-
-            //job.Eta= e.ETA;
-            //job.Speed = e.Speed;
-            //job.Status = DownloadStatus.Downloading;
-            //job.IsDownloading = true;
-
-            //if (File.Exists(originalPath))
-            //{
-            //    job.ThumbnailBase64 = ConvertImageToBase64(originalPath); // Convert to base64
-            //    job.Thumbnail = null;
-            //    File.Delete(originalPath);
-            //}
-            //else
-            //{
-            //    job.Thumbnail = "videoimage.png"; // Fallback
-            //}
-
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase) ||
-                    e.Message.Contains("Unmatched output", StringComparison.InvariantCultureIgnoreCase))
+                if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
-                    job.ErrorMessage = e.Message;
+                    job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
+
+                    _logger.Log(LogType.Info, e.Message);
                     return;
                 }
 
@@ -100,12 +65,21 @@ public class YtdlpService
                 job.Speed = e.Speed;
                 job.Status = DownloadStatus.Downloading;
                 job.IsDownloading = true;
+                job.ErrorMessage = string.Empty;
 
                 if (File.Exists(originalPath))
                 {
                     job.ThumbnailBase64 = ConvertImageToBase64(originalPath);
                     job.Thumbnail = null;
-                    File.Delete(originalPath);
+
+                    try
+                    {
+                        File.Delete(originalPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Log(LogType.Info, ex.Message);
+                    }
                 }
             });
         };
@@ -114,18 +88,20 @@ public class YtdlpService
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (msg.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase) ||
-                    msg.Contains("Unmatched output", StringComparison.InvariantCultureIgnoreCase))
+                if (msg.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
-                    job.ErrorMessage = msg;
+                    job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
+
+                    _logger.Log(LogType.Info, msg);
                     return;
                 }
 
                 job.Status = DownloadStatus.Downloading;
                 job.IsDownloading = true;
+                job.ErrorMessage = string.Empty;
 
                 if (msg.Contains("Merging formats"))
                     job.Status = DownloadStatus.Merging;
@@ -140,6 +116,7 @@ public class YtdlpService
                 job.IsDownloading = false;
                 job.IsCompleted = true;
                 job.Progress = 100;
+                job.ErrorMessage = string.Empty;
             });
         };
 

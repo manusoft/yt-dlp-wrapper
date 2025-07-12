@@ -1,9 +1,9 @@
 ﻿namespace ClipMate.Models;
 
 public enum DownloadStatus
-{
-    Pending,
+{    
     Analyzing,
+    Pending,
     Downloading,
     Merging,
     Completed,

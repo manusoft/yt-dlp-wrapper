@@ -15,6 +15,7 @@ public partial class MainViewModel : BaseViewModel
     public string OutputPath { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
+    private readonly AppLogger _logger;
 
     public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
     public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
@@ -25,10 +26,10 @@ public partial class MainViewModel : BaseViewModel
     [ObservableProperty]
     private MediaFormat? _selectedFormat;
 
-
     public MainViewModel()
     {
-        _ytdlpService = new YtdlpService(new ConsoleLogger());
+        _logger = new AppLogger();
+        _ytdlpService = new YtdlpService(_logger);
         _jsonService = new JsonService();
         InitializeAsync();
     }
@@ -97,7 +98,7 @@ public partial class MainViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.Log(LogType.Error, ex.Message);
         }
         finally
         {
@@ -126,7 +127,12 @@ public partial class MainViewModel : BaseViewModel
             {
                 Url = Url,
                 Format = SelectedFormat,
-                OutputPath = OutputPath
+                OutputPath = OutputPath,
+                ErrorMessage = string.Empty,
+                IsCompleted = false,
+                IsDownloading = false,
+                IsMerging = false,
+                Status = DownloadStatus.Pending,                
             };
 
             Jobs.Insert(0, job);
@@ -134,7 +140,7 @@ public partial class MainViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.Log(LogType.Error, ex.Message);
             return null;
         }
         finally
@@ -168,7 +174,7 @@ public partial class MainViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _logger.Log(LogType.Error, ex.Message);
         }
 
         _jsonService.Save(Jobs);
@@ -176,7 +182,7 @@ public partial class MainViewModel : BaseViewModel
         if (string.IsNullOrEmpty(job.ErrorMessage))
             await ShowToastAsync($"✅ Download finished successfully for:{job.Url}");
         else
-            await ShowToastAsync($"✅ {job.ErrorMessage}");
+            await ShowToastAsync($"{job.ErrorMessage}");
     }
 
     [RelayCommand]
@@ -195,19 +201,11 @@ public partial class MainViewModel : BaseViewModel
             Process.Start("explorer", OutputPath);
 #endif
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.Log(LogType.Error, ex.Message);
         }
     }
-
-    private async Task StartAllAsync()
-    {
-        foreach (var job in Jobs.Where(j => j.Status == DownloadStatus.Pending))
-        {
-            await _ytdlpService.ExecuteDownloadAsync(job);
-        }
-    }
-
 
     private async Task LoadDownloadListAsync()
     {
@@ -215,14 +213,6 @@ public partial class MainViewModel : BaseViewModel
 
         foreach (var job in jobs)
             Jobs.Add(job);
-    }
-
-    private class ConsoleLogger : ILogger
-    {
-        public void Log(LogType type, string message)
-        {
-            Console.WriteLine($"[{type}] {message}");
-        }
     }
 
     // Toast settings
@@ -238,6 +228,5 @@ public partial class MainViewModel : BaseViewModel
             Console.WriteLine(ex.Message);
         }
     }
-
 
 }

@@ -6,13 +6,26 @@ namespace ClipMate.Services;
 
 public class JsonService
 {
+    private static string _filePath;
+
+    public JsonService()
+    {
+        var folderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ManuHub", "ClipMate");
+
+        if (!Directory.Exists(folderPath))
+        {
+            Directory.CreateDirectory(folderPath);
+        }
+
+        _filePath = Path.Combine(folderPath, "clipmate.json");
+    }
     public void Save(object obj)
     {
         try
         {
-            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "clipmate.json");
             var jsonString = JsonSerializer.Serialize(obj);
-            File.WriteAllText(filePath, jsonString);
+            File.WriteAllText(_filePath, jsonString);
+            Console.WriteLine(_filePath);
         }
         catch (Exception ex)
         {
@@ -24,11 +37,10 @@ public class JsonService
     {
         try
         {
-            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "clipmate.json");
-
-            if (File.Exists(filePath))
+            if (File.Exists(_filePath))
             {
-                var jsonString = await File.ReadAllTextAsync(filePath);
+                Console.WriteLine(_filePath);
+                var jsonString = await File.ReadAllTextAsync(_filePath);
                 return JsonSerializer.Deserialize<ObservableCollection<DownloadJob>>(jsonString)!;
             }
 
