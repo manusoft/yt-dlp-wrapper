@@ -1,6 +1,4 @@
 ﻿using ClipMate.Models;
-using CommunityToolkit.Maui.Alerts;
-using CommunityToolkit.Maui.Core;
 using System.Text.RegularExpressions;
 using YtdlpDotNet;
 
@@ -47,60 +45,121 @@ public class YtdlpService
                 }
                 else
                 {
-                    job.Thumbnail = "dotnet_bot.png"; // Fallback
+                    job.Thumbnail = "videoimage.png"; // Fallback
                 }
             }
+            //var match = Regex.Match(msg, @"Writing video thumbnail to:\s*(.+)$");
+            //if (match.Success)
+            //    originalPath = match.Groups[1].Value;
         };
 
         ytdlp.OnProgressDownload += (s, e) =>
         {
-            if (double.TryParse(e.Percent.ToString(), out var percent))
-                job.Progress = percent / 100.0;
+            //if (double.TryParse(e.Percent.ToString(), out var percent))
+            //    job.Progress = percent / 100.0;
 
-            job.ETA = e.ETA;
-            job.Speed = e.Speed;           
-            job.Status = DownloadStatus.Downloading;
+            //if (e.Message.Contains("has already been downloaded"))
+            //{
+            //    job.Status = DownloadStatus.Completed;
+            //    job.IsDownloading = false;
+            //    job.IsCompleted = true;
+            //    job.ErrorMessage = e.Message;
+            //    return;
+            //}
 
-            if (File.Exists(originalPath))
+            //job.Eta= e.ETA;
+            //job.Speed = e.Speed;
+            //job.Status = DownloadStatus.Downloading;
+            //job.IsDownloading = true;
+
+            //if (File.Exists(originalPath))
+            //{
+            //    job.ThumbnailBase64 = ConvertImageToBase64(originalPath); // Convert to base64
+            //    job.Thumbnail = null;
+            //    File.Delete(originalPath);
+            //}
+            //else
+            //{
+            //    job.Thumbnail = "videoimage.png"; // Fallback
+            //}
+
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                job.Thumbnail = originalPath;
-                job.ErrorMessage = "exist!";
-            }
-            else
-            {
-                job.Thumbnail = "dotnet_bot.png"; // Fallback
-            }
+                if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase) ||
+                    e.Message.Contains("Unmatched output", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    job.Status = DownloadStatus.Completed;
+                    job.IsDownloading = false;
+                    job.IsCompleted = true;
+                    job.ErrorMessage = e.Message;
+                    return;
+                }
+
+                job.Progress = e.Percent / 100.0;
+                job.Eta = e.ETA;
+                job.Speed = e.Speed;
+                job.Status = DownloadStatus.Downloading;
+                job.IsDownloading = true;
+
+                if (File.Exists(originalPath))
+                {
+                    job.ThumbnailBase64 = ConvertImageToBase64(originalPath);
+                    job.Thumbnail = null;
+                    File.Delete(originalPath);
+                }
+            });
         };
 
         ytdlp.OnProgressMessage += (s, msg) =>
         {
-            if (msg.Contains("Merging formats"))
-                job.Status = DownloadStatus.Merging;
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (msg.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase) ||
+                    msg.Contains("Unmatched output", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    job.Status = DownloadStatus.Completed;
+                    job.IsDownloading = false;
+                    job.IsCompleted = true;
+                    job.ErrorMessage = msg;
+                    return;
+                }
+
+                job.Status = DownloadStatus.Downloading;
+                job.IsDownloading = true;
+
+                if (msg.Contains("Merging formats"))
+                    job.Status = DownloadStatus.Merging;
+            });
         };
 
-        ytdlp.OnCompleteDownload += async (s, msg) =>
+        ytdlp.OnCompleteDownload += (s, msg) =>
         {
-            job.Status = DownloadStatus.Completed;
-            job.IsCompleted = true;
-            job.Progress = 100;
-            await ShowToastAsync($"✅ Download finished successfully for:{job.Url}");
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                job.Status = DownloadStatus.Completed;
+                job.IsDownloading = false;
+                job.IsCompleted = true;
+                job.Progress = 100;
+            });
         };
 
         ytdlp.OnErrorMessage += (s, msg) =>
         {
-            if (msg.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                job.Status = DownloadStatus.Warning;
-                job.ErrorMessage = msg;
-            }
-            else
-            {
-                job.ErrorMessage = msg;
-                job.Status = DownloadStatus.Failed;
-            }
+                if (msg.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    job.Status = DownloadStatus.Warning;
+                    job.ErrorMessage = msg;
+                }
+                else
+                {
+                    job.ErrorMessage = msg;
+                    job.IsDownloading = false;
+                    job.Status = DownloadStatus.Failed;
+                }
+            });
         };
-
-        job.Status = DownloadStatus.Downloading;
 
         try
         {
@@ -123,15 +182,15 @@ public class YtdlpService
             else
             {
                 job.ErrorMessage = ex.Message;
+                job.IsDownloading = false;
                 job.Status = DownloadStatus.Failed;
             }
         }
     }
 
-    // Toast settings
-    public async Task ShowToastAsync(string message)
+    private string ConvertImageToBase64(string imagePath)
     {
-        var toast = Toast.Make(message, ToastDuration.Long, 14);
-        await toast.Show(new CancellationTokenSource().Token);
+        byte[] imageBytes = File.ReadAllBytes(imagePath);
+        return $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
     }
 }

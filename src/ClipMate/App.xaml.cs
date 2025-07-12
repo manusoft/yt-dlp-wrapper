@@ -11,7 +11,8 @@
         protected override Window CreateWindow(IActivationState? activationState)
         {
             return new Window(new AppShell())
-            {
+            {                 
+                Title = "Clip Mate v1.0",
                 Width = 1000,
                 Height = 700,
                 X = 100,

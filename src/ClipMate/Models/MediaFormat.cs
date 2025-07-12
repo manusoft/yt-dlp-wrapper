@@ -2,7 +2,7 @@
 
 public class MediaFormat
 {
-    public string ID { get; set; } = "best";
+    public string ID { get; set; } = "b";
     public string Extension { get; set; } = "mp4";
     public string Resolution { get; set; } = "Best";
     public string? FileSize { get; set; } = "Unknown";

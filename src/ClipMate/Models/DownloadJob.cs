@@ -1,100 +1,166 @@
-﻿using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using YtdlpDotNet;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ClipMate.Models;
 
-public class DownloadJob : INotifyPropertyChanged
+public partial class DownloadJob : ObservableObject
 {
-    private string _url = string.Empty;
-    public string Url
-    {
-        get => _url;
-        set { _url = value; OnPropertyChanged(); }
-    }
-    private MediaFormat? _format;
-    public MediaFormat? Format
-    {
-        get => _format;
-        set
-        {
-            if (_format != value)
-            {
-                _format = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    private string url = string.Empty;
+    //public string Url
+    //{
+    //    get => _url;
+    //    set { SetProperty(ref _url, value); }
+    //}
+
+    [ObservableProperty]
+    private MediaFormat? format;
+    //public MediaFormat? Format
+    //{
+    //    get => _format;
+    //    set
+    //    {
+    //        if (_format != value)
+    //        {
+    //            SetProperty(ref _format, value);
+    //        }
+    //    }
+    //}
 
     public string OutputPath { get; set; } = string.Empty;
 
-    private DownloadStatus _status = DownloadStatus.Pending;
-    public DownloadStatus Status
-    {
-        get => _status;
-        set { _status = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    private DownloadStatus status = DownloadStatus.Pending;
+    //public DownloadStatus Status
+    //{
+    //    get => _status;
+    //    set { SetProperty(ref _status, value); }
+    //}
 
-    private string _thumbnail = "dotnet_bot.png";
-    public string Thumbnail
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThumbnailImage))]
+    private string? thumbnail = "videoimage.png";
+    //public string? Thumbnail
+    //{
+    //    get => _thumbnail;
+    //    set
+    //    {
+    //        if (_thumbnail != value)
+    //        {
+    //            _thumbnail = value;
+    //            SetProperty(ref _thumbnail, value);
+    //            OnPropertyChanged(nameof(ThumbnailImage));
+    //        }
+    //    }
+    //}
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThumbnailImage))]
+    private string? thumbnailBase64;
+    //public string? ThumbnailBase64
+    //{
+    //    get => _thumbnailBase64;
+    //    set
+    //    {
+    //        if (_thumbnailBase64 != value)
+    //        {
+    //            _thumbnailBase64 = value;
+    //            OnPropertyChanged();
+    //            OnPropertyChanged(nameof(ThumbnailImage));
+    //        }
+    //    }
+    //}
+
+    [ObservableProperty]
+    private double progress;
+    //public double Progress
+    //{
+    //    get => _progress;
+    //    set { SetProperty(ref _progress, value); }
+    //}
+
+    [ObservableProperty]
+    private string? speed;
+    //public string? Speed
+    //{
+    //    get => _speed;
+    //    set { SetProperty(ref _speed, value); }
+    //}
+
+    [ObservableProperty]
+    private string? eta;
+    //public string? ETA
+    //{
+    //    get => _eta;
+    //    set { SetProperty(ref _eta, value); }
+    //}
+
+    [ObservableProperty]
+    private bool isMerging;
+    //public bool IsMerging
+    //{
+    //    get => _isMerging;
+    //    set { SetProperty(ref _isMerging, value); }
+    //}
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotDownloading))]
+    private bool isDownloading;
+    //public bool IsDownloading
+    //{
+    //    get => _isDownloading;
+    //    set
+    //    {
+    //        SetProperty(ref _isDownloading, value);
+    //        OnPropertyChanged(nameof(IsNotDownloading));
+    //    }
+    //}
+
+    [ObservableProperty]
+    private bool isCompleted;
+    //public bool IsCompleted
+    //{
+    //    get => _isCompleted;
+    //    set { SetProperty(ref _isCompleted, value); }
+    //}
+
+    [ObservableProperty]
+    private string errorMessage = "";
+    //public string ErrorMessage
+    //{
+    //    get => _errorMessage;
+    //    set { SetProperty(ref _errorMessage, value); }
+    //}
+
+    public bool IsNotDownloading => !IsDownloading;
+
+    public ImageSource? ThumbnailImage
     {
-        get => _thumbnail;
-        set
+        get
         {
-            if (_thumbnail != value)
+            if (!string.IsNullOrWhiteSpace(ThumbnailBase64) && ThumbnailBase64.StartsWith("data:image"))
             {
-                _thumbnail = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(ThumbnailImage)); // update Image binding
+                try
+                {
+                    var base64Data = ThumbnailBase64.Split(',')[1];
+                    byte[] imageBytes = Convert.FromBase64String(base64Data);
+                    return ImageSource.FromStream(() => new MemoryStream(imageBytes));
+                }
+                catch
+                {
+                    return null;
+                }
             }
+
+            return !string.IsNullOrWhiteSpace(Thumbnail) ? ImageSource.FromFile(Thumbnail) : null;
         }
     }
 
-    private double _progress;
-    public double Progress
-    {
-        get => _progress;
-        set { _progress = value; OnPropertyChanged(); }
-    }
-
-    private string? _speed;
-    public string? Speed
-    {
-        get => _speed;
-        set { _speed = value; OnPropertyChanged(); }
-    }
-
-    private string? _eta;
-    public string? ETA
-    {
-        get => _eta;
-        set { _eta = value; OnPropertyChanged(); }
-    }
-
-    private bool _isMerging;
-    public bool IsMerging
-    {
-        get => _isMerging;
-        set { _isMerging = value; OnPropertyChanged(); }
-    }
-
-    private bool _isCompleted;
-    public bool IsCompleted
-    {
-        get => _isCompleted;
-        set { _isCompleted = value; OnPropertyChanged(); }
-    }
-
-    private string _errorMessage = "";
-    public string ErrorMessage
-    {
-        get => _errorMessage;
-        set { _errorMessage = value; OnPropertyChanged(); }
-    }
-
-    public ImageSource? ThumbnailImage => string.IsNullOrWhiteSpace(Thumbnail) ? null : ImageSource.FromFile(Thumbnail);
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    //private void SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = "")
+    //{
+    //    if (!EqualityComparer<T>.Default.Equals(field, value))
+    //    {
+    //        field = value;
+    //        OnPropertyChanged(propertyName);
+    //    }
+    //}
 }

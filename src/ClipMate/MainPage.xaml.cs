@@ -4,9 +4,11 @@ namespace ClipMate;
 
 public partial class MainPage : ContentPage
 {
-    public MainPage()
+    private readonly MainViewModel viewModel;
+
+    public MainPage(MainViewModel viewModel)
     {
         InitializeComponent();
-        BindingContext = new MainViewModel();
+        BindingContext = this.viewModel = viewModel;
     }   
 }

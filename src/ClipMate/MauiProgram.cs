@@ -2,7 +2,6 @@
 using ClipMate.ViewModels;
 using CommunityToolkit.Maui;
 using Microsoft.Extensions.Logging;
-using System;
 
 namespace ClipMate
 {
@@ -33,6 +32,7 @@ namespace ClipMate
         // More services registered here.
         public static MauiAppBuilder AddServices(this MauiAppBuilder builder)
         {
+            builder.Services.AddSingleton<JsonService>();
             builder.Services.AddScoped<YtdlpService>();
             builder.Services.AddSingleton<IFilePicker>(FilePicker.Default);
 
