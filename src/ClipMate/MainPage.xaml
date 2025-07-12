@@ -9,12 +9,11 @@
 
     <Grid RowDefinitions="Auto,Auto, *" RowSpacing="5">
         <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,1*" Padding="10" >
-            <Label 
+            <Image 
                 Grid.Column="0"
-                Text="ClipMate"
-                TextColor="Red"
-                FontSize="32"
-                FontAttributes="Bold"/>
+                Source="logo_1.png"
+                HeightRequest="30"
+                HorizontalOptions="Start"/>
 
             <Border 
                 Grid.Column="1"
@@ -140,7 +139,7 @@
                         <!-- FPS -->
                         <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
                             <Label Text="🚀" VerticalTextAlignment="Center"/>
-                            <Label Text="{Binding SelectedFormat.FPS}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                            <Label Text="{Binding SelectedFormat.Fps}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- Channels -->
@@ -316,6 +315,33 @@
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout ItemSpacing="5" Orientation="Vertical" />
             </CollectionView.ItemsLayout>
+            <CollectionView.EmptyView>
+                <ContentView>
+                    <VerticalStackLayout
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        Spacing="10">
+                        <ActivityIndicator 
+                            IsRunning="{Binding IsBusy}"
+                            HeightRequest="50"
+                            WidthRequest="50"
+                            IsVisible="{Binding IsBusy}"
+                            Color="Green"/>
+                        <Image
+                            Source="appimage.png"
+                            HeightRequest="100"
+                            WidthRequest="100"
+                            IsVisible="{Binding IsNotBusy}"/>   
+                        <Label 
+                            TextColor="White"
+                            Text="Your download queue is empty. Paste a URL to begin."
+                            Margin="10,25,10,10"
+                            HorizontalOptions="Fill"
+                            HorizontalTextAlignment="Center"
+                            IsVisible="{Binding IsNotBusy}"/>
+                    </VerticalStackLayout>
+                </ContentView>
+            </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="m:DownloadJob">
                     <Border 
@@ -361,7 +387,7 @@
 
                                     <HorizontalStackLayout Spacing="4">
                                         <Label Text="💾" VerticalTextAlignment="Center"/>
-                                        <Label Text="{Binding Format.FileSize, Mode=OneWay}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                        <Label Text="{Binding FormatFileSize, Mode=OneWay}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                                     </HorizontalStackLayout>
 
                                     <HorizontalStackLayout Spacing="4">

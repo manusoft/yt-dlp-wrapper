@@ -5,6 +5,12 @@ namespace ClipMate.ViewModels;
 public partial class BaseViewModel : ObservableRecipient
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotBusy))]
+    private bool isBusy;
+
+    public bool IsNotBusy => !IsBusy;
+
+    [ObservableProperty]
     private bool isAnalizing;
 
     [ObservableProperty]

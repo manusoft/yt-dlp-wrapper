@@ -1,23 +1,11 @@
 ﻿using YtdlpDotNet;
 
-namespace ClipMate.Models;
+namespace ClipMate.Services;
 
 public class AppLogger : ILogger
 {
     private static readonly object LogLock = new();
-    private static string _logFilePath;
-
-    public AppLogger()
-    {
-        var logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ManuHub", "ClipMate");
-
-        if (!Directory.Exists(logDirectory))
-        {
-            Directory.CreateDirectory(logDirectory);
-        }
-
-        _logFilePath = Path.Combine(logDirectory, $"Log_{DateTime.Now.ToString("yyyyMMdd")}.log");
-    }
+    private static string _logFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Log_{DateTime.Now.ToString("yyyyMMdd")}.log");
 
     public void Log(LogType type, string message)
     {

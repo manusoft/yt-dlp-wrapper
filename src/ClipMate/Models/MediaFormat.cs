@@ -1,16 +1,37 @@
-﻿namespace ClipMate.Models;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System.Text.Json.Serialization;
 
-public class MediaFormat
+namespace ClipMate.Models;
+
+public partial class MediaFormat : ObservableObject
 {
-    public string ID { get; set; } = "b";
-    public string Extension { get; set; } = "mp4";
-    public string Resolution { get; set; } = "Best";
-    public string? FileSize { get; set; } = "Unknown";
-    public string? FPS { get; set; }
-    public string? Channels { get; set; }
-    public string? VCodec { get; set; }
-    public string? ACodec { get; set; }
-    public string? MoreInfo { get; set; }    
+    [ObservableProperty]
+    public string id = "b";
+
+    [ObservableProperty]
+    public string extension = "mp4";
+
+    [ObservableProperty]
+    public string resolution = "Best";
+
+    [ObservableProperty]
+    public string? fileSize = "Unknown";
+
+    [ObservableProperty]
+    public string? fps = "Unknown";
+
+    [ObservableProperty]
+    public string? channels = "Unknown";
+
+    [ObservableProperty]
+    public string? vCodec = "Unknown";
+
+    [ObservableProperty]
+    public string? aCodec = "Unknown";
+
+    [ObservableProperty]
+    public string? moreInfo;
+
     public override string ToString()
     {
         return string.IsNullOrWhiteSpace(FileSize)

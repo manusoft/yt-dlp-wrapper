@@ -62,11 +62,11 @@ public partial class MainViewModel : BaseViewModel
 
             var autoFormat = new MediaFormat
             {
-                ID = "b",
+                Id = "b",
                 Extension = "mp4",
                 Resolution = "Auto",
                 FileSize = "N/A",
-                FPS = "Auto",
+                Fps = "Auto",
                 Channels = "2",
                 VCodec = "Best",
                 ACodec = "Best",
@@ -79,11 +79,11 @@ public partial class MainViewModel : BaseViewModel
             {
                 var mediaFormat = new MediaFormat
                 {
-                    ID = f.ID,
+                    Id = f.ID,
                     Extension = f.Extension ?? "N/A",
                     Resolution = f.Resolution ?? "N/A",
                     FileSize = f.FileSize ?? "N/A",
-                    FPS = f.FPS ?? "N/A",
+                    Fps = f.FPS ?? "N/A",
                     Channels = f.Channels ?? "N/A",
                     VCodec = f.VCodec ?? "N/A",
                     ACodec = f.ACodec ?? "N/A",
@@ -209,10 +209,29 @@ public partial class MainViewModel : BaseViewModel
 
     private async Task LoadDownloadListAsync()
     {
+        IsBusy = true;
+
         var jobs = await _jsonService.GetAsync();
 
         foreach (var job in jobs)
+        {
+            // Reset status if it was downloading when the app was last closed
+            if (job.Status == DownloadStatus.Downloading || job.Status == DownloadStatus.Merging)
+            {
+                job.Status = DownloadStatus.Pending;
+                job.IsDownloading = false;
+                job.IsCompleted = false;
+                job.Progress = 0;
+                job.ErrorMessage = string.Empty;
+            }
+
+            job.Eta = string.IsNullOrWhiteSpace(job.Eta) ? "N/A" : job.Eta;
+            job.Speed = string.IsNullOrWhiteSpace(job.Speed) ? "N/A" : job.Speed;
+
             Jobs.Add(job);
+        }
+
+        IsBusy = false;
     }
 
     // Toast settings

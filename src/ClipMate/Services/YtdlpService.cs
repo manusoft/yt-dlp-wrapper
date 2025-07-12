@@ -50,10 +50,11 @@ public class YtdlpService(AppLogger logger)
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
-                {
+                {                    
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
+                    job.Format!.FileSize = e.Size;                     
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
 
                     _logger.Log(LogType.Info, e.Message);
@@ -65,6 +66,8 @@ public class YtdlpService(AppLogger logger)
                 job.Speed = e.Speed;
                 job.Status = DownloadStatus.Downloading;
                 job.IsDownloading = true;
+                job.IsCompleted = false;
+                job.Format!.FileSize = e.Size;
                 job.ErrorMessage = string.Empty;
 
                 if (File.Exists(originalPath))
@@ -98,10 +101,6 @@ public class YtdlpService(AppLogger logger)
                     _logger.Log(LogType.Info, msg);
                     return;
                 }
-
-                job.Status = DownloadStatus.Downloading;
-                job.IsDownloading = true;
-                job.ErrorMessage = string.Empty;
 
                 if (msg.Contains("Merging formats"))
                     job.Status = DownloadStatus.Merging;
@@ -142,7 +141,7 @@ public class YtdlpService(AppLogger logger)
         {
             await ytdlp
                 .SetOutputFolder(job.OutputPath)
-                .SetFormat(job.Format?.ID ?? "b")
+                .SetFormat(job.Format?.Id ?? "b")
                 .AddCustomCommand("--restrict-filenames")
                 .SetOutputTemplate("%(upload_date)s_%(title)s_.%(ext)s")
                 .DownloadThumbnails()
