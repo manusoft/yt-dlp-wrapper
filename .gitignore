@@ -370,3 +370,12 @@ FodyWeavers.xsd
 /src/Ytdlp.NET.Console/ffmpeg.exe
 /src/Ytdlp.NET.Console/ffplay.exe
 /src/Ytdlp.NET.Console/ffprobe.exe
+/src/ClipMate/ffmpeg.exe
+/src/ClipMate/ffplay.exe
+/src/ClipMate/ffprobe.exe
+/src/ClipMate/Tools/ffmpeg.exe
+/src/ClipMate/Tools/ffplay.exe
+/src/ClipMate/Tools/ffprobe.exe
+/src/ClipMate/Dependencies/ffmpeg.exe
+/src/ClipMate/Dependencies/ffplay.exe
+/src/ClipMate/Dependencies/ffprobe.exe

@@ -59,6 +59,16 @@
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
+	<Target Name="CopyFfmpegToolsToYtdlpOutputTools" AfterTargets="Build">
+		<ItemGroup>
+			<FfmpegTools Include="Dependencies\ffmpeg.exe;Dependencies\ffprobe.exe;Dependencies\ffplay.exe" />
+		</ItemGroup>
+
+		<Copy SourceFiles="@(FfmpegTools)"
+			  DestinationFolder="$(OutDir)Tools"
+			  SkipUnchangedFiles="true" />
+	</Target>
+
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Maui" Version="12.1.0" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />

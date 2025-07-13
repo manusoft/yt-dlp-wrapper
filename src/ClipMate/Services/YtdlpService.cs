@@ -121,12 +121,20 @@ public class YtdlpService(AppLogger logger)
 
         ytdlp.OnErrorMessage += (s, msg) =>
         {
-            MainThread.BeginInvokeOnMainThread(() =>
+            MainThread.BeginInvokeOnMainThread(async () =>
             {
                 if (msg.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Warning;
                     job.ErrorMessage = msg;
+
+                    await Task.Delay(3000);
+
+                    job.IsCompleted = true;
+                    job.Progress = 100;
+                    job.ErrorMessage = string.Empty;
+                    job.IsDownloading = false;
+                    job.Status = DownloadStatus.Completed;
                 }
                 else
                 {
@@ -154,6 +162,13 @@ public class YtdlpService(AppLogger logger)
             {
                 job.Status = DownloadStatus.Warning;
                 job.ErrorMessage = ex.Message;
+
+                await Task.Delay(3000);
+
+                job.IsCompleted = true;
+                job.IsDownloading = false;
+                job.Progress = 100;
+                job.Status = DownloadStatus.Completed;                
             }
             else
             {
