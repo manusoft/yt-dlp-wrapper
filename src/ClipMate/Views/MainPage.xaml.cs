@@ -1,6 +1,6 @@
 ﻿using ClipMate.ViewModels;
 
-namespace ClipMate;
+namespace ClipMate.Views;
 
 public partial class MainPage : ContentPage
 {

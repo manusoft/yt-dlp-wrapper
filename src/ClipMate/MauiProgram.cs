@@ -1,7 +1,11 @@
 ﻿using ClipMate.Services;
 using ClipMate.ViewModels;
+using ClipMate.Views;
 using CommunityToolkit.Maui;
+
+#if DEBUG
 using Microsoft.Extensions.Logging;
+#endif
 
 namespace ClipMate
 {

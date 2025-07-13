@@ -12,13 +12,14 @@ namespace ClipMate.ViewModels;
 
 public partial class MainViewModel : BaseViewModel
 {
+    public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
+    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
     public string OutputPath { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+
+    private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
     private readonly AppLogger _logger;
-
-    public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
-    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
     [ObservableProperty]
     private string _url = string.Empty;
@@ -132,7 +133,7 @@ public partial class MainViewModel : BaseViewModel
                 IsCompleted = false,
                 IsDownloading = false,
                 IsMerging = false,
-                Status = DownloadStatus.Pending,                
+                Status = DownloadStatus.Pending,
             };
 
             Jobs.Insert(0, job);
@@ -154,42 +155,112 @@ public partial class MainViewModel : BaseViewModel
     [RelayCommand]
     private async Task AddJobAndDownloadAsync()
     {
-        var job = await AddJobAsync();
-        if (job != null)
-            await StartDownloadAsync(job);
-    }
-
-    [RelayCommand]
-    private async Task StartDownloadAsync(DownloadJob job)
-    {
-        await _ytdlpService.ExecuteDownloadAsync(job);
-
         try
         {
-            if (File.Exists(job.Thumbnail))
-            {
-                File.Delete(job.Thumbnail);
-                job.Thumbnail = null;
-            }
+            var job = await AddJobAsync();
+            if (job != null)
+                await StartDownloadAsync(job);
         }
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, ex.Message);
         }
+    }
 
-        _jsonService.Save(Jobs);
+    [RelayCommand]
+    private async Task StartDownloadAsync(DownloadJob job)
+    {
+        if (job == null || job.IsDownloading)
+            return;
 
-        if (string.IsNullOrEmpty(job.ErrorMessage))
-            await ShowToastAsync($"✅ Download finished successfully for:{job.Url}");
-        else
-            await ShowToastAsync($"{job.ErrorMessage}");
+        var cts = new CancellationTokenSource();
+        _downloadTokens[job] = cts;
+
+        try
+        {
+            job.Status = DownloadStatus.Pending;
+
+            await _ytdlpService.ExecuteDownloadAsync(job, cts.Token);
+
+            // Download completed successfully (no OperationCanceledException)
+            // Delete temp thumbnail file
+            if (File.Exists(job.Thumbnail))
+            {
+                try
+                {
+                    File.Delete(job.Thumbnail);
+                    job.Thumbnail = null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log(LogType.Error, $"Thumbnail delete error: {ex.Message}");
+                }
+            }
+
+            _jsonService.Save(Jobs);
+
+            if (string.IsNullOrWhiteSpace(job.ErrorMessage))
+                await ShowToastAsync($"✅ Download finished successfully for: {job.Url}");
+            else
+                await ShowToastAsync(job.ErrorMessage);
+        }
+        catch (OperationCanceledException)
+        {
+            job.Status = DownloadStatus.Cancelled;
+            job.IsDownloading = false;
+            job.ErrorMessage = "⛔ Download canceled.";
+
+            _jsonService.Save(Jobs);
+            await ShowToastAsync(job.ErrorMessage);
+        }
+        catch (Exception ex)
+        {
+            job.Status = DownloadStatus.Failed;
+            job.IsDownloading = false;
+            job.ErrorMessage = $"❌ Unexpected error: {ex.Message}";
+
+            _logger.Log(LogType.Error, ex.Message);
+            _jsonService.Save(Jobs);
+            await ShowToastAsync(job.ErrorMessage);
+        }
+        finally
+        {
+            _downloadTokens.Remove(job);
+        }
+    }
+
+    [RelayCommand]
+    public void CancelDownload(DownloadJob job)
+    {
+        try
+        {
+            if (_downloadTokens.TryGetValue(job, out var cts))
+            {
+                cts.Cancel();
+                job.IsDownloading = false;
+                job.IsCompleted = false;
+                job.Status = DownloadStatus.Cancelled;
+                _downloadTokens.Remove(job);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }        
     }
 
     [RelayCommand]
     private void RemoveJob(DownloadJob job)
     {
-        Jobs.Remove(job);
-        _jsonService.Save(Jobs);
+        try
+        {
+            Jobs.Remove(job);
+            _jsonService.Save(Jobs);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }
     }
 
     [RelayCommand]
@@ -200,6 +271,33 @@ public partial class MainViewModel : BaseViewModel
 #if WINDOWS
             Process.Start("explorer", OutputPath);
 #endif
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClipboardCopyAsync(DownloadJob? job)
+    {
+        try
+        {
+            if (job != null)
+                await Clipboard.Default.SetTextAsync(job.Url);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenLinkAsync(string url)
+    {
+        try
+        {
+            await Launcher.Default.OpenAsync(url);
         }
         catch (Exception ex)
         {

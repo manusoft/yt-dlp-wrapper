@@ -9,10 +9,10 @@ public class YtdlpService(AppLogger logger)
     private readonly string _ytdlpPath = Path.Combine(AppContext.BaseDirectory, "Tools", "yt-dlp.exe");
     private readonly AppLogger _logger = logger;
 
-    public async Task<List<VideoFormat>> GetFormatsAsync(string url)
+    public async Task<List<VideoFormat>> GetFormatsAsync(string url, CancellationToken cancellationToken = default)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
-        var formats = await ytdlp.GetAvailableFormatsAsync(url);
+        var formats = await ytdlp.GetAvailableFormatsAsync(url, cancellationToken);
         return formats?.Select(f => new VideoFormat
         {
             ID = f.ID,
@@ -22,16 +22,17 @@ public class YtdlpService(AppLogger logger)
         }).ToList() ?? new();
     }
 
-    public async Task ExecuteDownloadAsync(DownloadJob job)
+    public async Task ExecuteDownloadAsync(DownloadJob job, CancellationToken cancellationToken)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
         string originalPath = "";
 
-        ytdlp.OnOutputMessage += (s, msg) =>
+        void HandleOutput(object? s, string msg)
         {
+            if (cancellationToken.IsCancellationRequested) return;
+
             if (msg.StartsWith("[info] Writing video thumbnail"))
             {
-                // Extract path from the message
                 var match = Regex.Match(msg, @"to:\s(.+)$");
                 if (match.Success)
                 {
@@ -40,23 +41,24 @@ public class YtdlpService(AppLogger logger)
                 }
                 else
                 {
-                    job.Thumbnail = "videoimage.png"; // Fallback
+                    job.Thumbnail = "videoimage.png";
                 }
             }
-        };
+        }
 
-        ytdlp.OnProgressDownload += (s, e) =>
+        void HandleProgress(object? s, DownloadProgressEventArgs e)
         {
+            if (cancellationToken.IsCancellationRequested) return;
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
-                {                    
+                {
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
-                    job.Format!.FileSize = e.Size;                     
+                    job.Format!.FileSize = e.Size;
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
-
                     _logger.Log(LogType.Info, e.Message);
                     return;
                 }
@@ -74,21 +76,15 @@ public class YtdlpService(AppLogger logger)
                 {
                     job.ThumbnailBase64 = ConvertImageToBase64(originalPath);
                     job.Thumbnail = null;
-
-                    try
-                    {
-                        File.Delete(originalPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Log(LogType.Info, ex.Message);
-                    }
+                    try { File.Delete(originalPath); } catch (Exception ex) { _logger.Log(LogType.Info, ex.Message); }
                 }
             });
-        };
+        }
 
-        ytdlp.OnProgressMessage += (s, msg) =>
+        void HandleMessage(object? s, string msg)
         {
+            if (cancellationToken.IsCancellationRequested) return;
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 if (msg.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
@@ -97,7 +93,6 @@ public class YtdlpService(AppLogger logger)
                     job.IsDownloading = false;
                     job.IsCompleted = true;
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
-
                     _logger.Log(LogType.Info, msg);
                     return;
                 }
@@ -105,10 +100,12 @@ public class YtdlpService(AppLogger logger)
                 if (msg.Contains("Merging formats"))
                     job.Status = DownloadStatus.Merging;
             });
-        };
+        }
 
-        ytdlp.OnCompleteDownload += (s, msg) =>
+        void HandleComplete(object? s, string msg)
         {
+            if (cancellationToken.IsCancellationRequested) return;
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 job.Status = DownloadStatus.Completed;
@@ -117,17 +114,18 @@ public class YtdlpService(AppLogger logger)
                 job.Progress = 100;
                 job.ErrorMessage = string.Empty;
             });
-        };
+        }
 
-        ytdlp.OnErrorMessage += (s, msg) =>
+        async void HandleError(object? s, string msg)
         {
-            MainThread.BeginInvokeOnMainThread(async () =>
+            if (cancellationToken.IsCancellationRequested) return;
+
+            await MainThread.InvokeOnMainThreadAsync(async() =>
             {
                 if (msg.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Warning;
                     job.ErrorMessage = msg;
-
                     await Task.Delay(3000);
 
                     job.IsCompleted = true;
@@ -143,17 +141,33 @@ public class YtdlpService(AppLogger logger)
                     job.Status = DownloadStatus.Failed;
                 }
             });
-        };
+        }       
+
+        // Subscribe handlers
+        ytdlp.OnOutputMessage += HandleOutput;
+        ytdlp.OnProgressDownload += HandleProgress;
+        ytdlp.OnProgressMessage += HandleMessage;
+        ytdlp.OnCompleteDownload += HandleComplete;
+        ytdlp.OnErrorMessage += HandleError;
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await ytdlp
                 .SetOutputFolder(job.OutputPath)
                 .SetFormat(job.Format?.Id ?? "b")
                 .AddCustomCommand("--restrict-filenames")
                 .SetOutputTemplate("%(upload_date)s_%(title)s_.%(ext)s")
                 .DownloadThumbnails()
-                .ExecuteAsync(job.Url);
+                .ExecuteAsync(job.Url, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Info, "⛔ Download was canceled by the user.");
+            job.Status = DownloadStatus.Cancelled;
+            job.IsDownloading = false;
+            job.ErrorMessage = "⛔ Download canceled.";
         }
         catch (YtdlpException ex)
         {
@@ -168,7 +182,7 @@ public class YtdlpService(AppLogger logger)
                 job.IsCompleted = true;
                 job.IsDownloading = false;
                 job.Progress = 100;
-                job.Status = DownloadStatus.Completed;                
+                job.Status = DownloadStatus.Completed;
             }
             else
             {
@@ -176,6 +190,15 @@ public class YtdlpService(AppLogger logger)
                 job.IsDownloading = false;
                 job.Status = DownloadStatus.Failed;
             }
+        }
+        finally
+        {
+            // 🔐 Unsubscribe handlers to avoid memory leaks
+            ytdlp.OnOutputMessage -= HandleOutput;
+            ytdlp.OnProgressDownload -= HandleProgress;
+            ytdlp.OnProgressMessage -= HandleMessage;
+            ytdlp.OnCompleteDownload -= HandleComplete;
+            ytdlp.OnErrorMessage -= HandleError;
         }
     }
 

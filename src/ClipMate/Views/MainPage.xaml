@@ -1,11 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="ClipMate.MainPage"
+             x:Class="ClipMate.Views.MainPage"
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              xmlns:m="clr-namespace:ClipMate.Models"
              xmlns:vm="clr-namespace:ClipMate.ViewModels"
-             x:DataType="vm:MainViewModel" Shell.NavBarIsVisible="False">
+             x:DataType="vm:MainViewModel" 
+             Shell.NavBarIsVisible="False">
 
     <Grid RowDefinitions="Auto,Auto, *" RowSpacing="5">
         <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,1*" Padding="10" >
@@ -94,6 +95,7 @@
 
         </Grid>
 
+        <!--Analyzed View-->
         <Border 
             Grid.Row="1"
             Stroke="Gray"
@@ -185,7 +187,7 @@
                             BackgroundColor="#1A1A1A"
                             HeightRequest="40"
                             HorizontalOptions="Fill">
-                            
+
                             <Picker
                                 ItemsSource="{Binding Formats}"
                                 SelectedItem="{Binding SelectedFormat, Mode=TwoWay}"
@@ -306,6 +308,7 @@
             </Grid>
         </Border>
 
+        <!--Download Que-->
         <CollectionView 
             x:Name="ListView"
             Grid.Row="2"  
@@ -331,7 +334,7 @@
                             Source="appimage.png"
                             HeightRequest="100"
                             WidthRequest="100"
-                            IsVisible="{Binding IsNotBusy}"/>   
+                            IsVisible="{Binding IsNotBusy}"/>
                         <Label 
                             TextColor="White"
                             Text="Your download queue is empty. Paste a URL to begin."
@@ -352,6 +355,7 @@
                         Padding="10"
                         Margin="10">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" RowSpacing="10">
+
                             <!-- Thumbnail -->
                             <Image 
                                 Source="{Binding ThumbnailImage, Mode=OneWay}"
@@ -363,19 +367,48 @@
 
                             <!-- Right side info -->
                             <VerticalStackLayout Grid.Column="1" Spacing="6">
-
                                 <!-- URL -->
                                 <HorizontalStackLayout Spacing="5">
-                                    <Image
+                                    <!--<Image
                                         Source="check_circle.png"
                                         IsVisible="{Binding IsCompleted}"
-                                        ToolTipProperties.Text="Completed"/>
+                                        ToolTipProperties.Text="Completed"/>-->
                                     <Label 
                                         Text="{Binding Url, Mode=OneWay}"
-                                        TextColor="White"
+                                        TextColor="DodgerBlue"
                                         FontSize="14"
                                         LineBreakMode="TailTruncation"
-                                        MaxLines="2" />
+                                        MaxLines="2" >
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer 
+                                                Command="{Binding Source={x:Reference ListView}, Path=BindingContext.OpenLinkCommand}"
+                                                CommandParameter="{Binding Url}"/>
+                                        </Label.GestureRecognizers>
+                                        <VisualStateManager.VisualStateGroups>
+                                            <VisualStateGroupList>
+                                                <VisualStateGroup x:Name="CommonStates">
+                                                    <VisualState x:Name="Normal">
+                                                        <VisualState.Setters>
+                                                            <Setter Property="TextDecorations" Value="None" />
+                                                            <Setter Property="TextColor" Value="DodgerBlue" />
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="PointerOver">
+                                                        <VisualState.Setters>
+                                                            <Setter Property="TextDecorations" Value="Underline" />
+                                                            <Setter Property="TextColor" Value="#1E90FF" />
+                                                            <!-- Slightly lighter -->
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="Pressed">
+                                                        <VisualState.Setters>
+                                                            <Setter Property="TextColor" Value="DarkBlue" />
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                </VisualStateGroup>
+                                            </VisualStateGroupList>
+                                        </VisualStateManager.VisualStateGroups>
+                                    </Label>
                                 </HorizontalStackLayout>
 
                                 <!-- Info row -->
@@ -405,25 +438,39 @@
                                 <ProgressBar 
                                     Progress="{Binding Progress, Mode=OneWay}"
                                     HeightRequest="6"
-                                    ProgressColor="LimeGreen"
+                                    ProgressColor="#CDDC39"
                                     BackgroundColor="Gray" />
 
                                 <!-- Status and Error -->
-                                <Label Text="{Binding Status}" FontSize="12" TextColor="LightGray" />
+                                <HorizontalStackLayout Spacing="10">
+                                    <BoxView 
+                                        WidthRequest="10" 
+                                        HeightRequest="10" 
+                                        CornerRadius="50"
+                                        Color="{Binding Status, Converter={StaticResource StatusToColorConverter}}" 
+                                        VerticalOptions="Center" HorizontalOptions="Center" />
+
+                                    <Label Text="{Binding Status}" FontSize="12" TextColor="LightGray" />
+                                    <!--<Label 
+                                        Text="{Binding Progress, StringFormat='Progress: {0:P0}'}"
+                                        FontSize="10"
+                                        TextColor="LightGray"
+                                        HorizontalOptions="End" />-->
+                                </HorizontalStackLayout>
                             </VerticalStackLayout>
+
                             <!-- Action buttons -->
                             <HorizontalStackLayout Grid.Column="2" Spacing="5" >
 
                                 <!-- Download -->
                                 <ImageButton 
-                                    Grid.Column="0"
-                                    Source="download.png"
+                                    Source="play.png"
                                     BackgroundColor="#00897B"
                                     WidthRequest="36"
                                     HeightRequest="36"
                                     CornerRadius="50"
                                     ToolTipProperties.Text="Start download"
-                                    IsEnabled="{Binding IsNotDownloading}"
+                                    IsVisible="{Binding IsNotDownloading}"
                                     Command="{Binding Source={x:Reference ListView}, Path=BindingContext.StartDownloadCommand}"
                                     CommandParameter="{Binding .}" >
                                     <VisualStateManager.VisualStateGroups>
@@ -440,7 +487,6 @@
                                                 <VisualState x:Name="PointerOver">
                                                     <VisualState.Setters>
                                                         <Setter Property="BackgroundColor" Value="#26A69A" />
-                                                        <!-- lighter teal hover -->
                                                         <Setter Property="Opacity" Value="1" />
                                                     </VisualState.Setters>
                                                 </VisualState>
@@ -448,7 +494,6 @@
                                                 <VisualState x:Name="Pressed">
                                                     <VisualState.Setters>
                                                         <Setter Property="BackgroundColor" Value="#004D40" />
-                                                        <!-- darker teal pressed -->
                                                         <Setter Property="Opacity" Value="0.9" />
                                                     </VisualState.Setters>
                                                 </VisualState>
@@ -456,7 +501,6 @@
                                                 <VisualState x:Name="Disabled">
                                                     <VisualState.Setters>
                                                         <Setter Property="BackgroundColor" Value="#80CBC4" />
-                                                        <!-- pale teal disabled -->
                                                         <Setter Property="Opacity" Value="0.6" />
                                                     </VisualState.Setters>
                                                 </VisualState>
@@ -466,6 +510,56 @@
                                     </VisualStateManager.VisualStateGroups>
                                 </ImageButton>
 
+                                <!-- Cancel Download -->
+                                <ImageButton 
+                                    Source="stop.png"
+                                    BackgroundColor="#FFB300"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    CornerRadius="50"
+                                    ToolTipProperties.Text="Cancel download"
+                                    IsVisible="{Binding IsDownloading}"
+                                    Command="{Binding Source={x:Reference ListView}, Path=BindingContext.CancelDownloadCommand}"
+                                    CommandParameter="{Binding .}">
+
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroupList>
+                                            <VisualStateGroup x:Name="CommonStates">
+
+                                                <VisualState x:Name="Normal">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFB300" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="PointerOver">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFC107" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Pressed">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFA000" />
+                                                        <Setter Property="Opacity" Value="0.85" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Disabled">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFE082" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                            </VisualStateGroup>
+                                        </VisualStateGroupList>
+                                    </VisualStateManager.VisualStateGroups>
+                                </ImageButton>
+
+                                <!--Open Folder-->
                                 <ImageButton 
                                     Grid.Column="1"
                                     Source="folder_open.png"
@@ -507,17 +601,15 @@
                                     </VisualStateManager.VisualStateGroups>
                                 </ImageButton>
 
-
                                 <!--Delete-->
                                 <ImageButton 
-                                    Grid.Column="2"
                                     Source="trash.png"
                                     BackgroundColor="#C62828"
                                     WidthRequest="36"
                                     HeightRequest="36"
                                     CornerRadius="50"
                                     ToolTipProperties.Text="Remove from the list"
-                                    IsEnabled="{Binding IsNotDownloading}"
+                                    IsVisible="{Binding IsNotDownloading}"
                                     Command="{Binding Source={x:Reference ListView}, Path=BindingContext.RemoveJobCommand}"
                                     CommandParameter="{Binding .}">
                                     <VisualStateManager.VisualStateGroups>
@@ -528,7 +620,6 @@
                                                 <VisualState x:Name="PointerOver">
                                                     <VisualState.Setters>
                                                         <Setter Property="BackgroundColor" Value="#D32F2F" />
-                                                        <!-- Red 600 -->
                                                         <Setter Property="Opacity" Value="1.0" />
                                                     </VisualState.Setters>
                                                 </VisualState>
@@ -536,7 +627,6 @@
                                                 <VisualState x:Name="Pressed">
                                                     <VisualState.Setters>
                                                         <Setter Property="BackgroundColor" Value="#B71C1C" />
-                                                        <!-- Red 900 -->
                                                         <Setter Property="Opacity" Value="0.9" />
                                                     </VisualState.Setters>
                                                 </VisualState>
@@ -544,7 +634,6 @@
                                                 <VisualState x:Name="Disabled">
                                                     <VisualState.Setters>
                                                         <Setter Property="BackgroundColor" Value="#EF9A9A" />
-                                                        <!-- Red 200 -->
                                                         <Setter Property="Opacity" Value="0.5" />
                                                     </VisualState.Setters>
                                                 </VisualState>
