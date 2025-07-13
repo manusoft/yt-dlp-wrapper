@@ -11,7 +11,10 @@ public partial class BaseViewModel : ObservableRecipient
     public bool IsNotBusy => !IsBusy;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotAnalizing))]
     private bool isAnalizing;
+
+    public bool IsNotAnalizing => !IsAnalizing;
 
     [ObservableProperty]
     private bool isAnalyzed;

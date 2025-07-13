@@ -77,22 +77,78 @@
                             </VisualStateGroupList>
                         </VisualStateManager.VisualStateGroups>
 
-                        <ImageButton
-                            Source="search.png"                            
-                            BackgroundColor="Transparent"
-                            Command="{Binding AnalyzeCommand}"
-                            Padding="0"
-                            HorizontalOptions="Center"
-                            VerticalOptions="Center" 
-                            ToolTipProperties.Text="Analyze download URL">
-                        </ImageButton>
+                        <Grid>
+                            <ImageButton
+                                Source="search.png"                            
+                                BackgroundColor="Transparent"
+                                IsVisible="{Binding IsNotAnalizing}"
+                                Command="{Binding AnalyzeCommand}"
+                                Padding="0"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" 
+                                ToolTipProperties.Text="Analyze download URL">
+                            </ImageButton>
+                            <ActivityIndicator 
+                                IsVisible="{Binding IsAnalizing}" 
+                                IsRunning="{Binding IsAnalizing}" 
+                                HeightRequest="20"
+                                WidthRequest="20"
+                                Color="#FFFFFF" 
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center"/>
+                        </Grid>
                     </Border>
 
                 </Grid>
             </Border>
 
-            <ActivityIndicator Grid.Column="2" IsVisible="{Binding IsAnalizing}" IsRunning="{Binding IsAnalizing}" Color="Red" HorizontalOptions="End"/>
+            <!-- About Button -->
+            <ImageButton 
+                Grid.Column="2"
+                Source="info.png"
+                BackgroundColor="#546E7A"  
+                WidthRequest="36"
+                HeightRequest="36"
+                CornerRadius="50"
+                ToolTipProperties.Text="About ClipMate"
+                Clicked="OnAboutClicked"
+                HorizontalOptions="End">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
 
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#546E7A" />
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#78909C" />
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#37474F" />
+                                    <Setter Property="Opacity" Value="0.85" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Disabled">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#CFD8DC" />
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </VisualStateManager.VisualStateGroups>
+            </ImageButton>
         </Grid>
 
         <!--Analyzed View-->
@@ -119,55 +175,100 @@
                         HorizontalOptions="Fill"
                         Margin="0,0,0,6" />
 
-                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                    <Grid 
+                        ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"
+                        VerticalOptions="Center"
+                        Padding="0"
+                        ColumnSpacing="10">
+                        
                         <!-- Extension -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
                             <Label Text="📦" VerticalTextAlignment="Center" />
                             <Label Text="{Binding SelectedFormat.Extension}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- Resolution -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
                             <Label Text="🎞️" VerticalTextAlignment="Center"/>
                             <Label Text="{Binding SelectedFormat.Resolution}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- Size -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
                             <Label Text="💾" VerticalTextAlignment="Center"/>
                             <Label Text="{Binding SelectedFormat.FileSize}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- FPS -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="3" Spacing="4" VerticalOptions="Center">
                             <Label Text="🚀" VerticalTextAlignment="Center"/>
                             <Label Text="{Binding SelectedFormat.Fps}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- Channels -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="4" Spacing="4" VerticalOptions="Center">
                             <Label Text="🔊" VerticalTextAlignment="Center"/>
                             <Label Text="{Binding SelectedFormat.Channels}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- Video codec -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="5" Spacing="4" VerticalOptions="Center">
                             <Label Text="📹" VerticalTextAlignment="Center"/>
                             <Label Text="{Binding SelectedFormat.VCodec}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- Audio codec -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="6" Spacing="4" VerticalOptions="Center">
                             <Label Text="🎧" VerticalTextAlignment="Center"/>
                             <Label Text="{Binding SelectedFormat.ACodec}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
 
                         <!-- Extra info -->
-                        <HorizontalStackLayout Spacing="4" VerticalOptions="Center">
+                        <HorizontalStackLayout Grid.Column="7" Spacing="4" VerticalOptions="Center">
                             <Label Text="📋" VerticalTextAlignment="Center"/>
                             <Label Text="{Binding SelectedFormat.MoreInfo}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
-                    </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Grid.Column="9" Spacing="4" HorizontalOptions="End" VerticalOptions="Center">
+                            <Label Text="Output Folder:" FontSize="12"  TextColor="LightGrey" MaxLines="1" LineBreakMode="TailTruncation"/>
+                            <Label 
+                                Text="{Binding OutputPath, Mode=TwoWay}"
+                                TextColor="DodgerBlue"
+                                FontSize="12"
+                                LineBreakMode="MiddleTruncation"
+                                MaxLines="1" >
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer 
+                                        Command="{Binding Source={x:Reference ListView}, Path=BindingContext.ChangeOutputFolderCommand}"
+                                        CommandParameter="{Binding OutputPath}"/>
+                                </Label.GestureRecognizers>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroupList>
+                                        <VisualStateGroup x:Name="CommonStates">
+                                            <VisualState x:Name="Normal">
+                                                <VisualState.Setters>
+                                                    <Setter Property="TextDecorations" Value="None" />
+                                                    <Setter Property="TextColor" Value="DodgerBlue" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="PointerOver">
+                                                <VisualState.Setters>
+                                                    <Setter Property="TextDecorations" Value="Underline" />
+                                                    <Setter Property="TextColor" Value="#1E90FF" />
+                                                    <!-- Slightly lighter -->
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="Pressed">
+                                                <VisualState.Setters>
+                                                    <Setter Property="TextColor" Value="DarkBlue" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateGroupList>
+                                </VisualStateManager.VisualStateGroups>
+                            </Label>
+                        </HorizontalStackLayout>
+                    </Grid>
 
                     <!-- Quality label, picker with border, and download button -->
                     <Grid ColumnDefinitions="Auto,*,*,*" ColumnSpacing="12" VerticalOptions="Center" HorizontalOptions="Fill">
@@ -369,10 +470,6 @@
                             <VerticalStackLayout Grid.Column="1" Spacing="6">
                                 <!-- URL -->
                                 <HorizontalStackLayout Spacing="5">
-                                    <!--<Image
-                                        Source="check_circle.png"
-                                        IsVisible="{Binding IsCompleted}"
-                                        ToolTipProperties.Text="Completed"/>-->
                                     <Label 
                                         Text="{Binding Url, Mode=OneWay}"
                                         TextColor="DodgerBlue"
@@ -439,7 +536,7 @@
                                     Progress="{Binding Progress, Mode=OneWay}"
                                     HeightRequest="6"
                                     ProgressColor="#CDDC39"
-                                    BackgroundColor="Gray" />
+                                    BackgroundColor="Gray"/>
 
                                 <!-- Status and Error -->
                                 <HorizontalStackLayout Spacing="10">
@@ -470,7 +567,7 @@
                                     HeightRequest="36"
                                     CornerRadius="50"
                                     ToolTipProperties.Text="Start download"
-                                    IsVisible="{Binding IsNotDownloading}"
+                                    IsVisible="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter='Pending|Failed|Cancelled'}"
                                     Command="{Binding Source={x:Reference ListView}, Path=BindingContext.StartDownloadCommand}"
                                     CommandParameter="{Binding .}" >
                                     <VisualStateManager.VisualStateGroups>
@@ -518,7 +615,7 @@
                                     HeightRequest="36"
                                     CornerRadius="50"
                                     ToolTipProperties.Text="Cancel download"
-                                    IsVisible="{Binding IsDownloading}"
+                                    IsVisible="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter='Downloading|Merging|Warning'}"
                                     Command="{Binding Source={x:Reference ListView}, Path=BindingContext.CancelDownloadCommand}"
                                     CommandParameter="{Binding .}">
 
@@ -568,8 +665,9 @@
                                     HeightRequest="36"
                                     CornerRadius="50"
                                     ToolTipProperties.Text="Open download folder"
-                                    IsVisible="{Binding IsCompleted}"
-                                    Command="{Binding Source={x:Reference ListView}, Path=BindingContext.OpenFolderCommand}">
+                                    IsVisible="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter='Completed'}"
+                                    Command="{Binding Source={x:Reference ListView}, Path=BindingContext.OpenFolderCommand}"
+                                    CommandParameter="{Binding .}">
 
                                     <VisualStateManager.VisualStateGroups>
                                         <VisualStateGroupList>

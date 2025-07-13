@@ -2,6 +2,7 @@
 using ClipMate.Services;
 using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Maui.Core;
+using CommunityToolkit.Maui.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -13,13 +14,15 @@ namespace ClipMate.ViewModels;
 public partial class MainViewModel : BaseViewModel
 {
     public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
-    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
-    public string OutputPath { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();    
 
     private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
     private readonly AppLogger _logger;
+
+    [ObservableProperty]
+    private string _outputPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
     [ObservableProperty]
     private string _url = string.Empty;
@@ -178,7 +181,8 @@ public partial class MainViewModel : BaseViewModel
 
         try
         {
-            job.Status = DownloadStatus.Pending;
+            job.Status = DownloadStatus.Downloading;
+            job.IsDownloading = true;
 
             await _ytdlpService.ExecuteDownloadAsync(job, cts.Token);
 
@@ -264,12 +268,14 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void OpenFolder()
+    private void OpenFolder(DownloadJob? job)
     {
+        if (job == null) return;
+
         try
         {
 #if WINDOWS
-            Process.Start("explorer", OutputPath);
+            Process.Start("explorer",  job.OutputPath);
 #endif
         }
         catch (Exception ex)
@@ -305,6 +311,23 @@ public partial class MainViewModel : BaseViewModel
         }
     }
 
+    [RelayCommand]
+    private async Task ChangeOutputFolderAsync(string path, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await FolderPicker.Default.PickAsync(cancellationToken);
+            if (result.IsSuccessful)
+            {
+                OutputPath = result.Folder.Path;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }
+    }
+
     private async Task LoadDownloadListAsync()
     {
         IsBusy = true;
@@ -313,16 +336,29 @@ public partial class MainViewModel : BaseViewModel
 
         foreach (var job in jobs)
         {
-            // Reset status if it was downloading when the app was last closed
-            if (job.Status == DownloadStatus.Downloading || job.Status == DownloadStatus.Merging)
+            // Normalize invalid or stale states
+            switch (job.Status)
             {
-                job.Status = DownloadStatus.Pending;
-                job.IsDownloading = false;
-                job.IsCompleted = false;
-                job.Progress = 0;
-                job.ErrorMessage = string.Empty;
+                case DownloadStatus.Downloading:
+                case DownloadStatus.Merging:
+                    job.Status = DownloadStatus.Pending;
+                    job.IsCompleted = false;
+                    break;
+
+                case DownloadStatus.Warning:
+                    job.Status = DownloadStatus.Completed;
+                    job.IsCompleted = true;
+                    break;
+
+                case DownloadStatus.Failed:
+                    job.IsCompleted = false;
+                    break;
             }
 
+            // Common reset values for non-complete states
+            job.IsDownloading = false;
+            job.ErrorMessage = string.Empty;
+            job.Progress = 0;
             job.Eta = string.IsNullOrWhiteSpace(job.Eta) ? "N/A" : job.Eta;
             job.Speed = string.IsNullOrWhiteSpace(job.Speed) ? "N/A" : job.Speed;
 
@@ -331,6 +367,7 @@ public partial class MainViewModel : BaseViewModel
 
         IsBusy = false;
     }
+
 
     // Toast settings
     public async Task ShowToastAsync(string message)

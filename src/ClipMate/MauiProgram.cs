@@ -2,6 +2,8 @@
 using ClipMate.ViewModels;
 using ClipMate.Views;
 using CommunityToolkit.Maui;
+using CommunityToolkit.Maui.Storage;
+
 
 #if DEBUG
 using Microsoft.Extensions.Logging;
@@ -38,7 +40,7 @@ namespace ClipMate
         {
             builder.Services.AddSingleton<JsonService>();
             builder.Services.AddScoped<YtdlpService>();
-            builder.Services.AddSingleton<IFilePicker>(FilePicker.Default);
+            builder.Services.AddSingleton<IFolderPicker>(FolderPicker.Default);
 
             return builder;
         }
