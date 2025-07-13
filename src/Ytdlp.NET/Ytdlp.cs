@@ -384,7 +384,7 @@ public sealed class Ytdlp
         return _commandBuilder.ToString().Trim();
     }
 
-    public async Task<List<VideoFormat>> GetAvailableFormatsAsync(string videoUrl)
+    public async Task<List<VideoFormat>> GetAvailableFormatsAsync(string videoUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
             throw new ArgumentException("Video URL cannot be empty.", nameof(videoUrl));
@@ -392,12 +392,37 @@ public sealed class Ytdlp
         try
         {
             var process = CreateProcess($"-F {SanitizeInput(videoUrl)}");
+
             process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
+
+            // Read standard output asynchronously
+            var readOutputTask = process.StandardOutput.ReadToEndAsync();
+
+            // Wait for process to exit, observing cancellation
+            using (cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true); // forcefully kill process
+                    }
+                }
+                catch { /* ignore if already exited */ }
+            }))
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
+
+            var output = await readOutputTask;
 
             _logger.Log(LogType.Info, $"Get Format: {output}");
             return ParseFormats(output);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Format fetching cancelled by user.");
+            throw;
         }
         catch (Exception ex)
         {
@@ -407,7 +432,7 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task ExecuteAsync(string url, string? outputTemplate = null)
+    public async Task ExecuteAsync(string url, CancellationToken cancellationToken = default, string? outputTemplate = null)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -436,10 +461,10 @@ public sealed class Ytdlp
         string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" \"{SanitizeInput(url)}\"";
         _commandBuilder.Clear(); // Clear after building arguments
 
-        await RunYtdlpAsync(arguments);
+        await RunYtdlpAsync(arguments, cancellationToken);
     }
 
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls)
+    public async Task ExecuteBatchAsync(IEnumerable<string> urls, CancellationToken cancellationToken = default)
     {
         if (urls == null || !urls.Any())
         {
@@ -463,7 +488,7 @@ public sealed class Ytdlp
         {
             try
             {
-                await ExecuteAsync(url);
+                await ExecuteAsync(url, cancellationToken);
             }
             catch (YtdlpException ex)
             {
@@ -473,7 +498,7 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3)
+    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken cancellationToken = default)
     {
         if (urls == null || !urls.Any())
         {
@@ -499,7 +524,7 @@ public sealed class Ytdlp
             await throttler.WaitAsync();
             try
             {
-                await ExecuteAsync(url);
+                await ExecuteAsync(url, cancellationToken);
             }
             catch (YtdlpException ex)
             {
@@ -517,7 +542,7 @@ public sealed class Ytdlp
     #endregion
 
     #region Private Helpers
-    private async Task RunYtdlpAsync(string arguments)
+    private async Task RunYtdlpAsync(string arguments, CancellationToken cancellationToken = default)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -536,6 +561,23 @@ public sealed class Ytdlp
             if (!process.Start())
                 throw new YtdlpException("Failed to start yt-dlp process.");
 
+            // Register cancellation
+            using var registration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                        _logger.Log(LogType.Warning, "yt-dlp process killed due to cancellation.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log(LogType.Error, $"Error killing process: {ex.Message}");
+                }
+            });
+
             // Read output and errors concurrently
             var outputTask = Task.Run(async () =>
             {
@@ -546,7 +588,7 @@ public sealed class Ytdlp
                     _progressParser.ParseProgress(output);
                     OnProgress?.Invoke(output);
                 }
-            });
+            }, cancellationToken);
 
             var errorTask = Task.Run(async () =>
             {
@@ -558,10 +600,10 @@ public sealed class Ytdlp
                     OnError?.Invoke(errorOutput);
                     _logger.Log(LogType.Error, errorOutput);
                 }
-            });
+            }, cancellationToken);
 
             await Task.WhenAll(outputTask, errorTask);
-            await process.WaitForExitAsync();
+            await process.WaitForExitAsync(cancellationToken);
 
             if (process.ExitCode != 0)
             {
@@ -573,6 +615,10 @@ public sealed class Ytdlp
             var message = success ? "Process completed successfully." : $"Process failed with exit code {process.ExitCode}.";
             OnCommandCompleted?.Invoke(success, message);
             _logger.Log(success ? LogType.Info : LogType.Error, message);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // Let your caller handle this
         }
         catch (Exception ex)
         {
