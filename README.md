@@ -9,6 +9,9 @@
 
 [Download the latest App](https://github.com/manusoft/yt-dlp-wrapper/releases/download/v1.0.0/gui-app.zip)
 
+![Clipmate](https://github.com/user-attachments/assets/f6adb3da-a609-4dc4-bc25-3600acf759a6)
+
+
 ![Screenshot 2025-01-23 153252](https://github.com/user-attachments/assets/1b977927-ea26-4220-bd41-9f64d6716058)
 
 
