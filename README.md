@@ -7,13 +7,13 @@
 # Ytdlp.NET
 ![icon](https://github.com/user-attachments/assets/2147c398-4e0f-43e2-99cb-32b34be7dc2f)
 
-[Download the latest App](https://github.com/manusoft/yt-dlp-wrapper/releases/download/v1.0.0/gui-app.zip)
-
+### ClipMate - MAUI.NET App
 ![Clipmate](https://github.com/user-attachments/assets/f6adb3da-a609-4dc4-bc25-3600acf759a6)
 
-
+### Video Downloader - .NET App
 ![Screenshot 2025-01-23 153252](https://github.com/user-attachments/assets/1b977927-ea26-4220-bd41-9f64d6716058)
 
+[Download the latest App](https://github.com/manusoft/yt-dlp-wrapper/releases/download/v1.0.0/gui-app.zip)
 
 
 A .NET wrapper for the `yt-dlp` command-line tool, providing a fluent interface to build and execute commands for downloading videos, audio, subtitles, thumbnails, and more from YouTube and other supported platforms. `Ytdlp.NET` simplifies interaction with `yt-dlp` by offering a strongly-typed API, progress parsing, and event-based feedback for real-time monitoring.
