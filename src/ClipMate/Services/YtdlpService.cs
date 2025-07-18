@@ -44,6 +44,8 @@ public class YtdlpService(AppLogger logger)
                     job.Thumbnail = "videoimage.png";
                 }
             }
+
+            job.Message = msg;
         }
 
         void HandleProgress(object? s, DownloadProgressEventArgs e)
@@ -52,6 +54,13 @@ public class YtdlpService(AppLogger logger)
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
+                if (File.Exists(originalPath))
+                {
+                    job.ThumbnailBase64 = ConvertImageToBase64(originalPath);
+                    job.Thumbnail = null;
+                    try { File.Delete(originalPath); } catch (Exception ex) { _logger.Log(LogType.Info, ex.Message); }
+                }
+
                 if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Completed;
@@ -71,13 +80,6 @@ public class YtdlpService(AppLogger logger)
                 job.IsCompleted = false;
                 job.Format!.FileSize = e.Size;
                 job.ErrorMessage = string.Empty;
-
-                if (File.Exists(originalPath))
-                {
-                    job.ThumbnailBase64 = ConvertImageToBase64(originalPath);
-                    job.Thumbnail = null;
-                    try { File.Delete(originalPath); } catch (Exception ex) { _logger.Log(LogType.Info, ex.Message); }
-                }
             });
         }
 
@@ -85,7 +87,7 @@ public class YtdlpService(AppLogger logger)
         {
             if (cancellationToken.IsCancellationRequested) return;
 
-            MainThread.BeginInvokeOnMainThread(() =>
+            MainThread.BeginInvokeOnMainThread(async () =>
             {
                 if (msg.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
@@ -94,11 +96,45 @@ public class YtdlpService(AppLogger logger)
                     job.IsCompleted = true;
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
                     _logger.Log(LogType.Info, msg);
+
+                    if (File.Exists(job.Thumbnail))
+                    {
+                        try
+                        {
+                            File.Delete(job.Thumbnail);
+                            job.Thumbnail = null;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Log(LogType.Error, $"Thumbnail delete error: {ex.Message}");
+                        }
+                    }
+
                     return;
                 }
 
-                if (msg.Contains("Merging formats"))
+                if (msg.Contains("Merging formats", StringComparison.InvariantCultureIgnoreCase))                
+                {
                     job.Status = DownloadStatus.Merging;
+                    await Task.Delay(1000);
+                    job.Status = DownloadStatus.Completed;
+                    job.IsDownloading = false;
+                    job.IsCompleted = true;
+                    job.Progress = 100;
+                    job.ErrorMessage = string.Empty;
+                }
+
+                if (msg.Contains("Fixing", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    job.Status = DownloadStatus.Merging;
+                    await Task.Delay(1000);
+                    job.Status = DownloadStatus.Completed;
+                    job.IsDownloading = false;
+                    job.IsCompleted = true;
+                    job.Progress = 100;
+                    job.ErrorMessage = string.Empty;
+                }
+
             });
         }
 

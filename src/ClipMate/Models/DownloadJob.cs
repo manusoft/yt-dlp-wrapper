@@ -46,6 +46,9 @@ public partial class DownloadJob : ObservableObject
     [ObservableProperty]
     private string errorMessage = "";
 
+    [ObservableProperty]
+    private string message;
+
     [JsonIgnore]
     public bool IsNotDownloading => !IsDownloading;
 

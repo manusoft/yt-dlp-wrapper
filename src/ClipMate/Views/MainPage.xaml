@@ -153,6 +153,7 @@
 
         <!--Analyzed View-->
         <Border 
+            x:Name="AnalyzedBorder"
             Grid.Row="1"
             Stroke="Gray"
             StrokeThickness="0.5"
@@ -549,10 +550,11 @@
 
                                     <Label Text="{Binding Status}" FontSize="12" TextColor="LightGray" />
                                     <!--<Label 
-                                        Text="{Binding Progress, StringFormat='Progress: {0:P0}'}"
-                                        FontSize="10"
+                                        Text="{Binding Message}"
+                                        FontSize="9"
                                         TextColor="LightGray"
-                                        HorizontalOptions="End" />-->
+                                        VerticalOptions="Center"
+                                        HorizontalOptions="End"/>-->
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
 

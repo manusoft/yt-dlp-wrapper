@@ -201,6 +201,8 @@ public partial class MainViewModel : BaseViewModel
                 }
             }
 
+            job.Progress = 100;
+
             _jsonService.Save(Jobs);
 
             if (string.IsNullOrWhiteSpace(job.ErrorMessage))
