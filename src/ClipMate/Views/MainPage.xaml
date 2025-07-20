@@ -1,8 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="ClipMate.Views.MainPage"
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="ClipMate.Views.MainPage"
+             x:Name="Root"
              xmlns:m="clr-namespace:ClipMate.Models"
              xmlns:vm="clr-namespace:ClipMate.ViewModels"
              x:DataType="vm:MainViewModel" 
@@ -570,7 +571,7 @@
                                     CornerRadius="50"
                                     ToolTipProperties.Text="Start download"
                                     IsVisible="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter='Pending|Failed|Cancelled'}"
-                                    Command="{Binding Source={x:Reference ListView}, Path=BindingContext.StartDownloadCommand}"
+                                    Command="{Binding Source={x:Reference Root}, Path=BindingContext.StartDownloadCommand}"
                                     CommandParameter="{Binding .}" >
                                     <VisualStateManager.VisualStateGroups>
                                         <VisualStateGroupList>

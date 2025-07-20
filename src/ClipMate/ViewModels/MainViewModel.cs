@@ -155,7 +155,7 @@ public partial class MainViewModel : BaseViewModel
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task AddJobAndDownloadAsync()
     {
         try
@@ -170,7 +170,7 @@ public partial class MainViewModel : BaseViewModel
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task StartDownloadAsync(DownloadJob job)
     {
         if (job == null || job.IsDownloading)
@@ -201,7 +201,7 @@ public partial class MainViewModel : BaseViewModel
                 }
             }
 
-            job.Progress = 100;
+            job.Progress = 0;
 
             _jsonService.Save(Jobs);
 
@@ -213,6 +213,7 @@ public partial class MainViewModel : BaseViewModel
         catch (OperationCanceledException)
         {
             job.Status = DownloadStatus.Cancelled;
+            job.Progress = 0;
             job.IsDownloading = false;
             job.ErrorMessage = "⛔ Download canceled.";
 
@@ -222,6 +223,7 @@ public partial class MainViewModel : BaseViewModel
         catch (Exception ex)
         {
             job.Status = DownloadStatus.Failed;
+            job.Progress = 0;
             job.IsDownloading = false;
             job.ErrorMessage = $"❌ Unexpected error: {ex.Message}";
 
@@ -342,14 +344,8 @@ public partial class MainViewModel : BaseViewModel
             switch (job.Status)
             {
                 case DownloadStatus.Downloading:
-                case DownloadStatus.Merging:
                     job.Status = DownloadStatus.Pending;
                     job.IsCompleted = false;
-                    break;
-
-                case DownloadStatus.Warning:
-                    job.Status = DownloadStatus.Completed;
-                    job.IsCompleted = true;
                     break;
 
                 case DownloadStatus.Failed:

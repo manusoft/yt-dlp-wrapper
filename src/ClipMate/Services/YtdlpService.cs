@@ -115,7 +115,6 @@ public class YtdlpService(AppLogger logger)
 
                 if (msg.Contains("Merging formats", StringComparison.InvariantCultureIgnoreCase))                
                 {
-                    job.Status = DownloadStatus.Merging;
                     await Task.Delay(1000);
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
@@ -126,7 +125,6 @@ public class YtdlpService(AppLogger logger)
 
                 if (msg.Contains("Fixing", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    job.Status = DownloadStatus.Merging;
                     await Task.Delay(1000);
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
@@ -160,7 +158,6 @@ public class YtdlpService(AppLogger logger)
             {
                 if (msg.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    job.Status = DownloadStatus.Warning;
                     job.ErrorMessage = msg;
                     await Task.Delay(3000);
 
@@ -210,11 +207,8 @@ public class YtdlpService(AppLogger logger)
             _logger.Log(LogType.Error, ex.Message);
             if (ex.Message.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
             {
-                job.Status = DownloadStatus.Warning;
                 job.ErrorMessage = ex.Message;
-
                 await Task.Delay(3000);
-
                 job.IsCompleted = true;
                 job.IsDownloading = false;
                 job.Progress = 100;
