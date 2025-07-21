@@ -24,26 +24,79 @@
                TextColor="Gray"
                HorizontalTextAlignment="Center" />
 
-        <HorizontalStackLayout Spacing="10">
+        <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+            <!-- Visit Website Button -->
             <Button 
                 Text="Visit Website"
-                BackgroundColor="#00897B"
-                TextColor="White"
-                Clicked="OnWebsiteClicked" />
+                BackgroundColor="Transparent"          
+                CornerRadius="8"
+                TextColor="#00897B"
+                Padding="10"
+                Clicked="OnWebsiteClicked">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
 
-            <Button 
-                Text="Contact Support"
-                BackgroundColor="#455A64"
-                TextColor="White"
-                Clicked="OnEmailClicked" />
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
 
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters>
+                                    <Setter Property="TextColor" Value="Green" />
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#37474F" />
+                                    <Setter Property="Opacity" Value="0.85" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </VisualStateManager.VisualStateGroups>
+            </Button>
+            
+            <!-- Close Button -->
             <Button 
                 Text="Close"
-                BackgroundColor="IndianRed"
-                TextColor="White"
-                Clicked="OnCloseClicked" />
-        </HorizontalStackLayout>
+                BackgroundColor="Transparent"
+                CornerRadius="8"
+                TextColor="IndianRed"
+                Clicked="OnCloseClicked">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
 
-        
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters>                                    
+                                    <Setter Property="TextColor" Value="Red" />
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#37474F"/>
+                                    <Setter Property="Opacity" Value="0.85" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </VisualStateManager.VisualStateGroups>
+            </Button>
+        </HorizontalStackLayout>        
     </VerticalStackLayout>
 </toolkit:Popup>

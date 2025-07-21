@@ -10,7 +10,7 @@
              Shell.NavBarIsVisible="False">
 
     <Grid RowDefinitions="Auto,Auto, *" RowSpacing="5">
-        <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,1*" Padding="10" >
+        <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,Auto,1*" Padding="10" ColumnSpacing="5" >
             <Image 
                 Grid.Column="0"
                 Source="logo_1.png"
@@ -31,7 +31,7 @@
                     <Entry 
                         Grid.Column="0"
                         Text="{Binding Url}" 
-                        Placeholder="Enter video URL"
+                        Placeholder="Paste video URL"
                         BackgroundColor="Transparent"
                         TextColor="White"
                         PlaceholderColor="Gray"
@@ -103,14 +103,65 @@
                 </Grid>
             </Border>
 
+            <!--Clipboard Button-->
+            <ImageButton
+                Grid.Column="2"
+                Source="clipboard_check.png"                            
+                BackgroundColor="Transparent"
+                IsVisible="{Binding IsNotAnalizing}"
+                Command="{Binding ClipboardPasteCommand}"
+                CornerRadius="50"
+                BorderWidth="1.5"
+                Padding="0"
+                HorizontalOptions="Center"
+                VerticalOptions="Center" 
+                ToolTipProperties.Text="Paste URL and Analyze">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
+
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters>
+                                    <Setter Property="BorderColor" Value="#78909C" />
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="BorderColor" Value="#78909C" />
+                                    <Setter Property="BackgroundColor" Value="#37474F" />
+                                    <Setter Property="Opacity" Value="0.85" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Disabled">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#212121"/>
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </VisualStateManager.VisualStateGroups>
+            </ImageButton>
+            
             <!-- About Button -->
             <ImageButton 
-                Grid.Column="2"
+                Grid.Column="3"
                 Source="info.png"
-                BackgroundColor="#546E7A"  
-                WidthRequest="36"
-                HeightRequest="36"
+                BackgroundColor="Transparent"  
                 CornerRadius="50"
+                BorderWidth="1.5"
+                HeightRequest="36"
+                WidthRequest="36"
                 ToolTipProperties.Text="About ClipMate"
                 Clicked="OnAboutClicked"
                 HorizontalOptions="End">
@@ -120,14 +171,13 @@
 
                             <VisualState x:Name="Normal">
                                 <VisualState.Setters>
-                                    <Setter Property="BackgroundColor" Value="#546E7A" />
                                     <Setter Property="Opacity" Value="1" />
                                 </VisualState.Setters>
                             </VisualState>
 
                             <VisualState x:Name="PointerOver">
                                 <VisualState.Setters>
-                                    <Setter Property="BackgroundColor" Value="#78909C" />
+                                    <Setter Property="BorderColor" Value="#78909C" />
                                     <Setter Property="Opacity" Value="1" />
                                 </VisualState.Setters>
                             </VisualState>

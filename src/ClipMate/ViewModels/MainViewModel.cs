@@ -14,7 +14,7 @@ namespace ClipMate.ViewModels;
 public partial class MainViewModel : BaseViewModel
 {
     public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
-    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();    
+    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
     private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
@@ -254,7 +254,7 @@ public partial class MainViewModel : BaseViewModel
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, ex.Message);
-        }        
+        }
     }
 
     [RelayCommand]
@@ -300,6 +300,37 @@ public partial class MainViewModel : BaseViewModel
         {
             _logger.Log(LogType.Error, ex.Message);
         }
+    }
+
+    [RelayCommand]
+    private async Task ClipboardPasteAsync()
+    {
+        try
+        {
+            var clipboardText = await Clipboard.Default.GetTextAsync();
+            if (!string.IsNullOrWhiteSpace(clipboardText) && IsValidUrl(clipboardText))
+            {
+                Url = clipboardText;
+                await AnalyzeAsync();
+            }
+            else
+            {
+                await ShowToastAsync("🚫 Clipboard is empty or does not contain a valid URL.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }
+    }
+
+    public static bool IsValidUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uriResult)
+               && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
     }
 
     [RelayCommand]
