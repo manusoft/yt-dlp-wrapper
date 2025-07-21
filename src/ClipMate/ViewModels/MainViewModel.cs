@@ -48,11 +48,11 @@ public partial class MainViewModel : BaseViewModel
     {
         if (string.IsNullOrWhiteSpace(Url)) return;
 
-        if (string.IsNullOrWhiteSpace(Url) || !Url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(Url) || IsValidUrl(Url))
         {
             IsAnalyzed = false;
             IsAnalizing = false;
-            await ShowToastAsync("🚫 Please enter a valid video URL.");
+            await ShowToastAsync("Please enter a valid video URL.");
             return;
         }
 
@@ -121,7 +121,7 @@ public partial class MainViewModel : BaseViewModel
         bool alreadyExists = Jobs.Any(j => string.Equals(j.Url, Url, StringComparison.OrdinalIgnoreCase));
         if (alreadyExists)
         {
-            await ShowToastAsync("⚠️ This download is already in your queue!");
+            await ShowToastAsync("This download is already in your queue!");
             return null;
         }
 
@@ -206,7 +206,7 @@ public partial class MainViewModel : BaseViewModel
             _jsonService.Save(Jobs);
 
             if (string.IsNullOrWhiteSpace(job.ErrorMessage))
-                await ShowToastAsync($"✅ Download finished successfully for: {job.Url}");
+                await ShowToastAsync($"Download finished successfully for: {job.Url}");
             else
                 await ShowToastAsync(job.ErrorMessage);
         }
@@ -215,7 +215,7 @@ public partial class MainViewModel : BaseViewModel
             job.Status = DownloadStatus.Cancelled;
             job.Progress = 0;
             job.IsDownloading = false;
-            job.ErrorMessage = "⛔ Download canceled.";
+            job.ErrorMessage = "Download canceled.";
 
             _jsonService.Save(Jobs);
             await ShowToastAsync(job.ErrorMessage);
@@ -225,7 +225,7 @@ public partial class MainViewModel : BaseViewModel
             job.Status = DownloadStatus.Failed;
             job.Progress = 0;
             job.IsDownloading = false;
-            job.ErrorMessage = $"❌ Unexpected error: {ex.Message}";
+            job.ErrorMessage = $"Unexpected error: {ex.Message}";
 
             _logger.Log(LogType.Error, ex.Message);
             _jsonService.Save(Jobs);
@@ -315,22 +315,13 @@ public partial class MainViewModel : BaseViewModel
             }
             else
             {
-                await ShowToastAsync("🚫 Clipboard is empty or does not contain a valid URL.");
+                await ShowToastAsync("Clipboard is empty or does not contain a valid URL.");
             }
         }
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, ex.Message);
         }
-    }
-
-    public static bool IsValidUrl(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            return false;
-
-        return Uri.TryCreate(url, UriKind.Absolute, out var uriResult)
-               && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
     }
 
     [RelayCommand]
@@ -395,6 +386,16 @@ public partial class MainViewModel : BaseViewModel
         }
 
         IsBusy = false;
+    }
+
+    // Helper method to validate URL format
+    private static bool IsValidUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uriResult)
+               && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
     }
 
 
