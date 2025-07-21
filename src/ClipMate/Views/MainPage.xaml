@@ -1,0 +1,753 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="ClipMate.Views.MainPage"
+             x:Name="Root"
+             xmlns:m="clr-namespace:ClipMate.Models"
+             xmlns:vm="clr-namespace:ClipMate.ViewModels"
+             x:DataType="vm:MainViewModel" 
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,Auto, *" RowSpacing="5">
+        <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,1*" Padding="10" >
+            <Image 
+                Grid.Column="0"
+                Source="logo_1.png"
+                HeightRequest="30"
+                HorizontalOptions="Start"/>
+
+            <Border 
+                Grid.Column="1"
+                Stroke="Gray"
+                StrokeThickness="1"
+                BackgroundColor="#1A1A1A"
+                StrokeShape="RoundRectangle 10"
+                HeightRequest="50"
+                HorizontalOptions="Fill">
+
+                <Grid ColumnDefinitions="*, Auto">
+                    <!-- Entry inside the Border with right padding for the button -->
+                    <Entry 
+                        Grid.Column="0"
+                        Text="{Binding Url}" 
+                        Placeholder="Enter video URL"
+                        BackgroundColor="Transparent"
+                        TextColor="White"
+                        PlaceholderColor="Gray"
+                        FontSize="16"
+                        VerticalOptions="Center"     
+                        HeightRequest="50"
+                        ClearButtonVisibility="WhileEditing" />
+
+                    <!-- Button at the right edge of the control -->
+                    <Border 
+                        Grid.Column="1"
+                        StrokeThickness="0"
+                        BackgroundColor="#1E88E5"
+                        HeightRequest="50"
+                        WidthRequest="50"
+                        HorizontalOptions="End"
+                        VerticalOptions="Center">
+                        <!-- Visual States go here, NOT inside Triggers -->
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroupList>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#1E88E5" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#42A5F5" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#1565C0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#90CAF9" />
+                                            <Setter Property="Opacity" Value="0.5" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateGroupList>
+                        </VisualStateManager.VisualStateGroups>
+
+                        <Grid>
+                            <ImageButton
+                                Source="search.png"                            
+                                BackgroundColor="Transparent"
+                                IsVisible="{Binding IsNotAnalizing}"
+                                Command="{Binding AnalyzeCommand}"
+                                Padding="0"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" 
+                                ToolTipProperties.Text="Analyze download URL">
+                            </ImageButton>
+                            <ActivityIndicator 
+                                IsVisible="{Binding IsAnalizing}" 
+                                IsRunning="{Binding IsAnalizing}" 
+                                HeightRequest="20"
+                                WidthRequest="20"
+                                Color="#FFFFFF" 
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center"/>
+                        </Grid>
+                    </Border>
+
+                </Grid>
+            </Border>
+
+            <!-- About Button -->
+            <ImageButton 
+                Grid.Column="2"
+                Source="info.png"
+                BackgroundColor="#546E7A"  
+                WidthRequest="36"
+                HeightRequest="36"
+                CornerRadius="50"
+                ToolTipProperties.Text="About ClipMate"
+                Clicked="OnAboutClicked"
+                HorizontalOptions="End">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
+
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#546E7A" />
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#78909C" />
+                                    <Setter Property="Opacity" Value="1" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#37474F" />
+                                    <Setter Property="Opacity" Value="0.85" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState x:Name="Disabled">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#CFD8DC" />
+                                    <Setter Property="Opacity" Value="0.5" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </VisualStateManager.VisualStateGroups>
+            </ImageButton>
+        </Grid>
+
+        <!--Analyzed View-->
+        <Border 
+            x:Name="AnalyzedBorder"
+            Grid.Row="1"
+            Stroke="Gray"
+            StrokeThickness="0.5"
+            Margin="10"
+            BackgroundColor="#1A1A1A"
+            StrokeShape="RoundRectangle 12"
+            HorizontalOptions="Fill"
+            Padding="12"
+            IsVisible="{Binding IsAnalyzed}">
+
+            <Grid>
+                <VerticalStackLayout  Spacing="5">
+
+                    <!-- Video URL -->
+                    <Label 
+                        Text="{Binding Url}"
+                        TextColor="LightGray"
+                        FontSize="14"
+                        LineBreakMode="TailTruncation"
+                        HorizontalOptions="Fill"
+                        Margin="0,0,0,6" />
+
+                    <Grid 
+                        ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto"
+                        VerticalOptions="Center"
+                        Padding="0"
+                        ColumnSpacing="10">
+                        
+                        <!-- Extension -->
+                        <HorizontalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
+                            <Label Text="📦" VerticalTextAlignment="Center" />
+                            <Label Text="{Binding SelectedFormat.Extension}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Resolution -->
+                        <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                            <Label Text="🎞️" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.Resolution}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Size -->
+                        <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
+                            <Label Text="💾" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.FileSize}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- FPS -->
+                        <HorizontalStackLayout Grid.Column="3" Spacing="4" VerticalOptions="Center">
+                            <Label Text="🚀" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.Fps}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Channels -->
+                        <HorizontalStackLayout Grid.Column="4" Spacing="4" VerticalOptions="Center">
+                            <Label Text="🔊" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.Channels}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Video codec -->
+                        <HorizontalStackLayout Grid.Column="5" Spacing="4" VerticalOptions="Center">
+                            <Label Text="📹" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.VCodec}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Audio codec -->
+                        <HorizontalStackLayout Grid.Column="6" Spacing="4" VerticalOptions="Center">
+                            <Label Text="🎧" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.ACodec}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <!-- Extra info -->
+                        <HorizontalStackLayout Grid.Column="7" Spacing="4" VerticalOptions="Center">
+                            <Label Text="📋" VerticalTextAlignment="Center"/>
+                            <Label Text="{Binding SelectedFormat.MoreInfo}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Grid.Column="9" Spacing="4" HorizontalOptions="End" VerticalOptions="Center">
+                            <Label Text="Output Folder:" FontSize="12"  TextColor="LightGrey" MaxLines="1" LineBreakMode="TailTruncation"/>
+                            <Label 
+                                Text="{Binding OutputPath, Mode=TwoWay}"
+                                TextColor="DodgerBlue"
+                                FontSize="12"
+                                LineBreakMode="MiddleTruncation"
+                                MaxLines="1" >
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer 
+                                        Command="{Binding Source={x:Reference ListView}, Path=BindingContext.ChangeOutputFolderCommand}"
+                                        CommandParameter="{Binding OutputPath}"/>
+                                </Label.GestureRecognizers>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroupList>
+                                        <VisualStateGroup x:Name="CommonStates">
+                                            <VisualState x:Name="Normal">
+                                                <VisualState.Setters>
+                                                    <Setter Property="TextDecorations" Value="None" />
+                                                    <Setter Property="TextColor" Value="DodgerBlue" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="PointerOver">
+                                                <VisualState.Setters>
+                                                    <Setter Property="TextDecorations" Value="Underline" />
+                                                    <Setter Property="TextColor" Value="#1E90FF" />
+                                                    <!-- Slightly lighter -->
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                            <VisualState x:Name="Pressed">
+                                                <VisualState.Setters>
+                                                    <Setter Property="TextColor" Value="DarkBlue" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateGroupList>
+                                </VisualStateManager.VisualStateGroups>
+                            </Label>
+                        </HorizontalStackLayout>
+                    </Grid>
+
+                    <!-- Quality label, picker with border, and download button -->
+                    <Grid ColumnDefinitions="Auto,*,*,*" ColumnSpacing="12" VerticalOptions="Center" HorizontalOptions="Fill">
+                        <Label 
+                            Grid.Column="0"
+                            Text="Quality:"
+                            TextColor="LightGray"
+                            FontSize="14"
+                            VerticalOptions="Center" />
+
+                        <!-- Picker wrapped inside Border for visible stroke -->
+                        <Border 
+                            Grid.Column="1"
+                            Stroke="Gray"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            BackgroundColor="#1A1A1A"
+                            HeightRequest="40"
+                            HorizontalOptions="Fill">
+
+                            <Picker
+                                ItemsSource="{Binding Formats}"
+                                SelectedItem="{Binding SelectedFormat, Mode=TwoWay}"
+                                ItemDisplayBinding="{Binding .}"
+                                BackgroundColor="Transparent"
+                                TextColor="White"
+                                FontSize="14"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Center" />
+                        </Border>
+
+                        <Button 
+                            Grid.Column="2"
+                            Text="Add to Que"
+                            TextColor="White"
+                            BackgroundColor="#2E7D32"  
+                            FontAttributes="Bold"
+                            CornerRadius="8"
+                            HeightRequest="40"
+                            ToolTipProperties.Text="Add to download que"
+                            Command="{Binding AddJobCommand}">
+
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup x:Name="CommonStates">
+
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#2E7D32" />
+                                                <Setter Property="Opacity" Value="1" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#388E3C" />
+                                                <!-- lighter green hover -->
+                                                <Setter Property="Opacity" Value="1" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#1B5E20" />
+                                                <!-- darker green pressed -->
+                                                <Setter Property="Opacity" Value="0.9" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#A5D6A7" />
+                                                <!-- pale green disabled -->
+                                                <Setter Property="TextColor" Value="#E0E0E0" />
+                                                <Setter Property="Opacity" Value="0.6" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+                        </Button>
+
+                        <Button 
+                            Grid.Column="3"
+                            Text="Start Download"
+                            TextColor="White"
+                            BackgroundColor="#00897B"  
+                            FontAttributes="Bold"
+                            CornerRadius="8"
+                            HeightRequest="40"
+                            ToolTipProperties.Text="Start Download"
+                            Command="{Binding AddJobAndDownloadCommand}">
+
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup x:Name="CommonStates">
+
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#00897B" />
+                                                <Setter Property="Opacity" Value="1" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#26A69A" />
+                                                <!-- lighter teal hover -->
+                                                <Setter Property="Opacity" Value="1" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#004D40" />
+                                                <!-- darker teal pressed -->
+                                                <Setter Property="Opacity" Value="0.9" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#80CBC4" />
+                                                <!-- pale teal disabled -->
+                                                <Setter Property="TextColor" Value="#E0E0E0" />
+                                                <Setter Property="Opacity" Value="0.6" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+                        </Button>
+
+                    </Grid>
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+
+        <!--Download Que-->
+        <CollectionView 
+            x:Name="ListView"
+            Grid.Row="2"  
+            ItemsSource="{Binding Jobs, Mode=TwoWay}" 
+            Margin="10" 
+            VerticalScrollBarVisibility="Never"  >
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout ItemSpacing="5" Orientation="Vertical" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.EmptyView>
+                <ContentView>
+                    <VerticalStackLayout
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        Spacing="10">
+                        <ActivityIndicator 
+                            IsRunning="{Binding IsBusy}"
+                            HeightRequest="50"
+                            WidthRequest="50"
+                            IsVisible="{Binding IsBusy}"
+                            Color="Green"/>
+                        <Image
+                            Source="appimage.png"
+                            HeightRequest="100"
+                            WidthRequest="100"
+                            IsVisible="{Binding IsNotBusy}"/>
+                        <Label 
+                            TextColor="White"
+                            Text="Your download queue is empty. Paste a URL to begin."
+                            Margin="10,25,10,10"
+                            HorizontalOptions="Fill"
+                            HorizontalTextAlignment="Center"
+                            IsVisible="{Binding IsNotBusy}"/>
+                    </VerticalStackLayout>
+                </ContentView>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="m:DownloadJob">
+                    <Border 
+                        Stroke="Gray"
+                        StrokeThickness="0.5"
+                        BackgroundColor="#1A1A1A"
+                        StrokeShape="RoundRectangle 10"
+                        Padding="10"
+                        Margin="10">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" RowSpacing="10">
+
+                            <!-- Thumbnail -->
+                            <Image 
+                                Source="{Binding ThumbnailImage, Mode=OneWay}"
+                                HeightRequest="80"
+                                WidthRequest="120"
+                                Aspect="AspectFill"
+                                Grid.Column="0"
+                                BackgroundColor="Black"/>
+
+                            <!-- Right side info -->
+                            <VerticalStackLayout Grid.Column="1" Spacing="6">
+                                <!-- URL -->
+                                <HorizontalStackLayout Spacing="5">
+                                    <Label 
+                                        Text="{Binding Url, Mode=OneWay}"
+                                        TextColor="DodgerBlue"
+                                        FontSize="14"
+                                        LineBreakMode="TailTruncation"
+                                        MaxLines="2" >
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer 
+                                                Command="{Binding Source={x:Reference ListView}, Path=BindingContext.OpenLinkCommand}"
+                                                CommandParameter="{Binding Url}"/>
+                                        </Label.GestureRecognizers>
+                                        <VisualStateManager.VisualStateGroups>
+                                            <VisualStateGroupList>
+                                                <VisualStateGroup x:Name="CommonStates">
+                                                    <VisualState x:Name="Normal">
+                                                        <VisualState.Setters>
+                                                            <Setter Property="TextDecorations" Value="None" />
+                                                            <Setter Property="TextColor" Value="DodgerBlue" />
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="PointerOver">
+                                                        <VisualState.Setters>
+                                                            <Setter Property="TextDecorations" Value="Underline" />
+                                                            <Setter Property="TextColor" Value="#1E90FF" />
+                                                            <!-- Slightly lighter -->
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="Pressed">
+                                                        <VisualState.Setters>
+                                                            <Setter Property="TextColor" Value="DarkBlue" />
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                </VisualStateGroup>
+                                            </VisualStateGroupList>
+                                        </VisualStateManager.VisualStateGroups>
+                                    </Label>
+                                </HorizontalStackLayout>
+
+                                <!-- Info row -->
+                                <HorizontalStackLayout Spacing="8">
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="🎞️" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding Format.Resolution, Mode=OneWay}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center"/>
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="💾" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding FormatFileSize, Mode=OneWay}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="🕒" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding Eta, Mode=OneWay}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="⚡" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding Speed, Mode=OneWay}" FontSize="12" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+                                </HorizontalStackLayout>
+
+                                <!-- Progress -->
+                                <ProgressBar 
+                                    Progress="{Binding Progress, Mode=OneWay}"
+                                    HeightRequest="6"
+                                    ProgressColor="#CDDC39"
+                                    BackgroundColor="Gray"/>
+
+                                <!-- Status and Error -->
+                                <HorizontalStackLayout Spacing="10">
+                                    <BoxView 
+                                        WidthRequest="10" 
+                                        HeightRequest="10" 
+                                        CornerRadius="50"
+                                        Color="{Binding Status, Converter={StaticResource StatusToColorConverter}}" 
+                                        VerticalOptions="Center" HorizontalOptions="Center" />
+
+                                    <Label Text="{Binding Status}" FontSize="12" TextColor="LightGray" />
+                                    <!--<Label 
+                                        Text="{Binding Message}"
+                                        FontSize="9"
+                                        TextColor="LightGray"
+                                        VerticalOptions="Center"
+                                        HorizontalOptions="End"/>-->
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+
+                            <!-- Action buttons -->
+                            <HorizontalStackLayout Grid.Column="2" Spacing="5" >
+
+                                <!-- Download -->
+                                <ImageButton 
+                                    Source="play.png"
+                                    BackgroundColor="#00897B"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    CornerRadius="50"
+                                    ToolTipProperties.Text="Start download"
+                                    IsVisible="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter='Pending|Failed|Cancelled'}"
+                                    Command="{Binding Source={x:Reference Root}, Path=BindingContext.StartDownloadCommand}"
+                                    CommandParameter="{Binding .}" >
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroupList>
+                                            <VisualStateGroup x:Name="CommonStates">
+
+                                                <VisualState x:Name="Normal">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#00897B" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="PointerOver">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#26A69A" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Pressed">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#004D40" />
+                                                        <Setter Property="Opacity" Value="0.9" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Disabled">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#80CBC4" />
+                                                        <Setter Property="Opacity" Value="0.6" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                            </VisualStateGroup>
+                                        </VisualStateGroupList>
+                                    </VisualStateManager.VisualStateGroups>
+                                </ImageButton>
+
+                                <!-- Cancel Download -->
+                                <ImageButton 
+                                    Source="stop.png"
+                                    BackgroundColor="#FFB300"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    CornerRadius="50"
+                                    ToolTipProperties.Text="Cancel download"
+                                    IsVisible="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter='Downloading|Merging|Warning'}"
+                                    Command="{Binding Source={x:Reference ListView}, Path=BindingContext.CancelDownloadCommand}"
+                                    CommandParameter="{Binding .}">
+
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroupList>
+                                            <VisualStateGroup x:Name="CommonStates">
+
+                                                <VisualState x:Name="Normal">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFB300" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="PointerOver">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFC107" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Pressed">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFA000" />
+                                                        <Setter Property="Opacity" Value="0.85" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Disabled">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#FFE082" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                            </VisualStateGroup>
+                                        </VisualStateGroupList>
+                                    </VisualStateManager.VisualStateGroups>
+                                </ImageButton>
+
+                                <!--Open Folder-->
+                                <ImageButton 
+                                    Grid.Column="1"
+                                    Source="folder_open.png"
+                                    BackgroundColor="#4B2E00"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    CornerRadius="50"
+                                    ToolTipProperties.Text="Open download folder"
+                                    IsVisible="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter='Completed'}"
+                                    Command="{Binding Source={x:Reference ListView}, Path=BindingContext.OpenFolderCommand}"
+                                    CommandParameter="{Binding .}">
+
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroupList>
+                                            <VisualStateGroup x:Name="CommonStates">
+                                                <VisualState x:Name="Normal"/>
+
+                                                <VisualState x:Name="PointerOver">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#6B3F00" />
+                                                        <Setter Property="Opacity" Value="1.0" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Pressed">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#3A2100" />
+                                                        <Setter Property="Opacity" Value="0.9" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Disabled">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#D7CCC8" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                            </VisualStateGroup>
+                                        </VisualStateGroupList>
+                                    </VisualStateManager.VisualStateGroups>
+                                </ImageButton>
+
+                                <!--Delete-->
+                                <ImageButton 
+                                    Source="trash.png"
+                                    BackgroundColor="#C62828"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    CornerRadius="50"
+                                    ToolTipProperties.Text="Remove from the list"
+                                    IsVisible="{Binding IsNotDownloading}"
+                                    Command="{Binding Source={x:Reference ListView}, Path=BindingContext.RemoveJobCommand}"
+                                    CommandParameter="{Binding .}">
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroupList>
+                                            <VisualStateGroup x:Name="CommonStates">
+                                                <VisualState x:Name="Normal" />
+
+                                                <VisualState x:Name="PointerOver">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#D32F2F" />
+                                                        <Setter Property="Opacity" Value="1.0" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Pressed">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#B71C1C" />
+                                                        <Setter Property="Opacity" Value="0.9" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+
+                                                <VisualState x:Name="Disabled">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#EF9A9A" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                            </VisualStateGroup>
+                                        </VisualStateGroupList>
+                                    </VisualStateManager.VisualStateGroups>
+                                </ImageButton>
+                            </HorizontalStackLayout>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+
+</ContentPage>

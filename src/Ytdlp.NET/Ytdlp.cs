@@ -13,6 +13,7 @@ public sealed class Ytdlp
     private readonly ILogger _logger;
     private string _format = "best";
     private string _outputFolder = ".";
+    private string? _outputTemplate;
 
     // Events for progress and status updates
     public event Action<string>? OnProgress;
@@ -27,16 +28,16 @@ public sealed class Ytdlp
 
     // Valid yt-dlp options for validation
     private static readonly HashSet<string> ValidOptions = new HashSet<string>
-{
-    "--extract-audio", "--audio-format", "--format", "--playlist-items", "--limit-rate", "--proxy",
-    "--simulate", "--write-info-json", "--write-subs", "--sub-langs", "--write-thumbnail",
-    "--live-from-start", "--no-live-from-start", "--retries", "--download-sections",
-    "--concat-playlist", "--replace-in-metadata", "--download-archive", "--user-agent",
-    "--write-log", "--cookies", "--referer", "--merge-output-format", "--add-header",
-    "--dump-json", "--write-video", "--write-audio", "--postprocessor-args",
-    "--download-timeout", "--username", "--password", "--no-ads", "--recode-video",
-    "--timeout"
-};
+    {
+        "--extract-audio", "--audio-format", "--format", "--playlist-items", "--limit-rate", "--proxy",
+        "--simulate", "--write-info-json", "--write-subs", "--sub-langs", "--write-thumbnail",
+        "--live-from-start", "--no-live-from-start", "--retries", "--download-sections",
+        "--concat-playlist", "--replace-in-metadata", "--download-archive", "--user-agent",
+        "--write-log", "--cookies", "--referer", "--merge-output-format", "--add-header",
+        "--dump-json", "--write-video", "--write-audio", "--postprocessor-args",
+        "--download-timeout", "--username", "--password", "--no-ads", "--recode-video",
+        "--timeout", "--restrict-filenames"
+    };
 
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
     {
@@ -132,7 +133,7 @@ public sealed class Ytdlp
     {
         if (string.IsNullOrWhiteSpace(template))
             throw new ArgumentException("Output template cannot be empty.", nameof(template));
-        _commandBuilder.Append($"-o \"{SanitizeInput(template)}\" ");
+        _outputTemplate = template.Replace("\\", "/").Trim();
         return this;
     }
 
@@ -383,7 +384,7 @@ public sealed class Ytdlp
         return _commandBuilder.ToString().Trim();
     }
 
-    public async Task<List<VideoFormat>> GetAvailableFormatsAsync(string videoUrl)
+    public async Task<List<VideoFormat>> GetAvailableFormatsAsync(string videoUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
             throw new ArgumentException("Video URL cannot be empty.", nameof(videoUrl));
@@ -391,12 +392,37 @@ public sealed class Ytdlp
         try
         {
             var process = CreateProcess($"-F {SanitizeInput(videoUrl)}");
+
             process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
+
+            // Read standard output asynchronously
+            var readOutputTask = process.StandardOutput.ReadToEndAsync();
+
+            // Wait for process to exit, observing cancellation
+            using (cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true); // forcefully kill process
+                    }
+                }
+                catch { /* ignore if already exited */ }
+            }))
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
+
+            var output = await readOutputTask;
 
             _logger.Log(LogType.Info, $"Get Format: {output}");
             return ParseFormats(output);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Format fetching cancelled by user.");
+            throw;
         }
         catch (Exception ex)
         {
@@ -406,7 +432,7 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task ExecuteAsync(string url)
+    public async Task ExecuteAsync(string url, CancellationToken cancellationToken = default, string? outputTemplate = null)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -427,14 +453,18 @@ public sealed class Ytdlp
         _progressParser.Reset();
         _logger.Log(LogType.Info, $"Starting download for URL: {url}");
 
+        // Use provided template or default
+        string template = Path.Combine(_outputFolder, _outputTemplate?.Replace("\\", "/")!)
+            ?? Path.Combine(_outputFolder, "%(title)s.%(ext)s").Replace("\\", "/");
+
         // Build command with format and output template
-        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{_outputFolder}/%(title)s.%(ext)s\" \"{SanitizeInput(url)}\"";
+        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" \"{SanitizeInput(url)}\"";
         _commandBuilder.Clear(); // Clear after building arguments
 
-        await RunYtdlpAsync(arguments);
+        await RunYtdlpAsync(arguments, cancellationToken);
     }
 
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls)
+    public async Task ExecuteBatchAsync(IEnumerable<string> urls, CancellationToken cancellationToken = default)
     {
         if (urls == null || !urls.Any())
         {
@@ -458,7 +488,7 @@ public sealed class Ytdlp
         {
             try
             {
-                await ExecuteAsync(url);
+                await ExecuteAsync(url, cancellationToken);
             }
             catch (YtdlpException ex)
             {
@@ -467,10 +497,52 @@ public sealed class Ytdlp
             }
         }
     }
+
+    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken cancellationToken = default)
+    {
+        if (urls == null || !urls.Any())
+        {
+            _logger.Log(LogType.Error, "No URLs provided for batch download");
+            throw new YtdlpException("No URLs provided for batch download");
+        }
+
+        try
+        {
+            Directory.CreateDirectory(_outputFolder);
+            _logger.Log(LogType.Info, $"Output folder for batch: {Path.GetFullPath(_outputFolder)}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Failed to create output folder {_outputFolder}: {ex.Message}");
+            throw new YtdlpException($"Failed to create output folder {_outputFolder}", ex);
+        }
+
+        using SemaphoreSlim throttler = new(maxConcurrency);
+
+        var tasks = urls.Select(async url =>
+        {
+            await throttler.WaitAsync();
+            try
+            {
+                await ExecuteAsync(url, cancellationToken);
+            }
+            catch (YtdlpException ex)
+            {
+                _logger.Log(LogType.Error, $"Skipping URL {url} due to error: {ex.Message}");
+            }
+            finally
+            {
+                throttler.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+    }
+
     #endregion
 
     #region Private Helpers
-    private async Task RunYtdlpAsync(string arguments)
+    private async Task RunYtdlpAsync(string arguments, CancellationToken cancellationToken = default)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -489,6 +561,23 @@ public sealed class Ytdlp
             if (!process.Start())
                 throw new YtdlpException("Failed to start yt-dlp process.");
 
+            // Register cancellation
+            using var registration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                        _logger.Log(LogType.Warning, "yt-dlp process killed due to cancellation.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log(LogType.Error, $"Error killing process: {ex.Message}");
+                }
+            });
+
             // Read output and errors concurrently
             var outputTask = Task.Run(async () =>
             {
@@ -499,7 +588,7 @@ public sealed class Ytdlp
                     _progressParser.ParseProgress(output);
                     OnProgress?.Invoke(output);
                 }
-            });
+            }, cancellationToken);
 
             var errorTask = Task.Run(async () =>
             {
@@ -511,10 +600,10 @@ public sealed class Ytdlp
                     OnError?.Invoke(errorOutput);
                     _logger.Log(LogType.Error, errorOutput);
                 }
-            });
+            }, cancellationToken);
 
             await Task.WhenAll(outputTask, errorTask);
-            await process.WaitForExitAsync();
+            await process.WaitForExitAsync(cancellationToken);
 
             if (process.ExitCode != 0)
             {
@@ -526,6 +615,10 @@ public sealed class Ytdlp
             var message = success ? "Process completed successfully." : $"Process failed with exit code {process.ExitCode}.";
             OnCommandCompleted?.Invoke(success, message);
             _logger.Log(success ? LogType.Info : LogType.Error, message);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // Let your caller handle this
         }
         catch (Exception ex)
         {
