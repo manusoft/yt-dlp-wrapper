@@ -3,18 +3,21 @@
                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
                x:Class="ClipMate.Views.AboutPopup"
+               xmlns:views="clr-namespace:ClipMate.Views"
+               x:DataType="views:AboutPopup"
                BackgroundColor="#1E1E1E"
                HeightRequest="300"
                WidthRequest="400"
                CanBeDismissedByTappingOutsideOfPopup="True"
-               IsClippedToBounds="True">
+               IsClippedToBounds="True" 
+               Loaded="OnPopupLoaded">
 
     <VerticalStackLayout Padding="10" Spacing="10">
         <Image Source="appimage.png" WidthRequest="80" HeightRequest="80" HorizontalOptions="Center" />
 
         <Image Source="logo_1.png" WidthRequest="80" HeightRequest="30" HorizontalOptions="Center" />
 
-        <Label Text="Version 1.0.0"
+        <Label Text="{Binding YtdlpVersion}"
                FontSize="14"
                HorizontalOptions="Center"
                TextColor="LightGray" />

@@ -9,6 +9,21 @@ public class YtdlpService(AppLogger logger)
     private readonly string _ytdlpPath = Path.Combine(AppContext.BaseDirectory, "Tools", "yt-dlp.exe");
     private readonly AppLogger _logger = logger;
 
+    public async Task<string> GetVersionAsync(CancellationToken cancellationToken = default)
+    {
+        var ytdlp = new Ytdlp(_ytdlpPath, _logger);
+        try
+        {
+            var version = await ytdlp.GetVersionAsync();
+            return version ?? "Unknown";
+        }
+        catch (YtdlpException ex)
+        {
+            _logger.Log(LogType.Error, $"Error getting yt-dlp version: {ex.Message}");
+            return "Error";
+        }
+    }
+
     public async Task<List<VideoFormat>> GetFormatsAsync(string url, CancellationToken cancellationToken = default)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
