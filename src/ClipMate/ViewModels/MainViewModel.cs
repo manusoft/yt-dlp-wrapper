@@ -46,9 +46,7 @@ public partial class MainViewModel : BaseViewModel
     [RelayCommand]
     private async Task AnalyzeAsync()
     {
-        if (string.IsNullOrWhiteSpace(Url)) return;
-
-        if (string.IsNullOrWhiteSpace(Url)) //|| IsValidUrl(Url)
+        if (!IsValidUrl(Url)) 
         {
             IsAnalyzed = false;
             IsAnalizing = false;
@@ -391,31 +389,21 @@ public partial class MainViewModel : BaseViewModel
     // Helper method to validate URL format
     private static bool IsValidUrl(string? url)
     {
-        Console.WriteLine($"Checking URL: [{url}]");
-
         if (string.IsNullOrWhiteSpace(url))
-        {
-            Console.WriteLine("URL is null or whitespace.");
             return false;
-        }
 
         url = url.Trim();
-        Console.WriteLine($"Trimmed URL: [{url}]");
 
         if (Uri.TryCreate(url, UriKind.Absolute, out var uriResult))
         {
-            Console.WriteLine($"Parsed Uri: {uriResult.AbsoluteUri}, Scheme: {uriResult.Scheme}");
             bool isValidScheme = uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps;
-            Console.WriteLine($"Valid scheme: {isValidScheme}");
             return isValidScheme;
         }
         else
         {
-            Console.WriteLine("Uri.TryCreate failed.");
             return false;
         }
     }
-
 
     // Toast settings
     public async Task ShowToastAsync(string message)
