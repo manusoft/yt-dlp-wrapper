@@ -16,10 +16,14 @@ public partial class MainViewModel : BaseViewModel
     public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
     public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
+    private readonly ConnectivityCheck _connectivityTest;
     private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
     private readonly AppLogger _logger;
+
+    [ObservableProperty]
+    private string _connectionStatus;
 
     [ObservableProperty]
     private string _outputPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
@@ -32,16 +36,22 @@ public partial class MainViewModel : BaseViewModel
 
     public MainViewModel()
     {
+        _connectivityTest = new ConnectivityCheck(OnConnectivityChanged);
         _logger = new AppLogger();
         _ytdlpService = new YtdlpService(_logger);
         _jsonService = new JsonService();
         InitializeAsync();
     }
 
-    private async void InitializeAsync()
-    {
-        await LoadDownloadListAsync();
-    }
+    private async void InitializeAsync() => await LoadDownloadListAsync();
+    private async void OnConnectivityChanged(string message)
+    { 
+        ConnectionStatus = message;
+        if (!string.IsNullOrWhiteSpace(message))
+            await ShowToastAsync(message);
+    } 
+    public void Dispose() => _connectivityTest.Dispose();
+
 
     [RelayCommand]
     private async Task AnalyzeAsync()
@@ -292,7 +302,7 @@ public partial class MainViewModel : BaseViewModel
         try
         {
             if (job != null)
-                await Clipboard.Default.SetTextAsync(job.Url);
+                await Clipboard.Default.SetTextAsync(job.Url);            
         }
         catch (Exception ex)
         {
@@ -314,7 +324,7 @@ public partial class MainViewModel : BaseViewModel
             else
             {
                 await ShowToastAsync("Clipboard is empty or does not contain a valid URL.");
-            }
+            }            
         }
         catch (Exception ex)
         {
