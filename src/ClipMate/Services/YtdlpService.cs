@@ -128,7 +128,7 @@ public class YtdlpService(AppLogger logger)
                     return;
                 }
 
-                if (msg.Contains("Merging formats", StringComparison.InvariantCultureIgnoreCase))                
+                if (msg.Contains("Merging formats", StringComparison.InvariantCultureIgnoreCase))
                 {
                     await Task.Delay(1000);
                     job.Status = DownloadStatus.Completed;
@@ -169,7 +169,7 @@ public class YtdlpService(AppLogger logger)
         {
             if (cancellationToken.IsCancellationRequested) return;
 
-            await MainThread.InvokeOnMainThreadAsync(async() =>
+            await MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 if (msg.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
                 {
@@ -189,7 +189,7 @@ public class YtdlpService(AppLogger logger)
                     job.Status = DownloadStatus.Failed;
                 }
             });
-        }       
+        }
 
         // Subscribe handlers
         ytdlp.OnOutputMessage += HandleOutput;

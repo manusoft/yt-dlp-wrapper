@@ -16,14 +16,14 @@ public partial class MainViewModel : BaseViewModel
     public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
     public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
-    private readonly ConnectivityCheck _connectivityTest;
+    private readonly ConnectivityCheck? _connectivityCheck;
     private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
     private readonly AppLogger _logger;
 
     [ObservableProperty]
-    private string _connectionStatus;
+    private ConnectionState _connectionStatus;
 
     [ObservableProperty]
     private string _outputPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
@@ -36,7 +36,8 @@ public partial class MainViewModel : BaseViewModel
 
     public MainViewModel()
     {
-        _connectivityTest = new ConnectivityCheck(OnConnectivityChanged);
+        ConnectionStatus = ConnectionState.Available;
+        _connectivityCheck = new ConnectivityCheck(OnConnectivityChanged);
         _logger = new AppLogger();
         _ytdlpService = new YtdlpService(_logger);
         _jsonService = new JsonService();
@@ -44,13 +45,10 @@ public partial class MainViewModel : BaseViewModel
     }
 
     private async void InitializeAsync() => await LoadDownloadListAsync();
-    private async void OnConnectivityChanged(string message)
-    { 
-        ConnectionStatus = message;
-        if (!string.IsNullOrWhiteSpace(message))
-            await ShowToastAsync(message);
-    } 
-    public void Dispose() => _connectivityTest.Dispose();
+
+    private void OnConnectivityChanged(ConnectionState state) => ConnectionStatus = state; 
+
+    public void Dispose() => _connectivityCheck?.Dispose();
 
 
     [RelayCommand]
