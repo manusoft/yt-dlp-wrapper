@@ -524,6 +524,12 @@
                                 StrokeShape="RoundRectangle 5"
                                 VerticalOptions="Center">
                                 <Label Text="All" FontSize="10" BackgroundColor="Teal" Padding="5" VerticalOptions="Center">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer 
+                                            Command="{Binding Source={x:Reference ListView}, Path=BindingContext.FilterJobCommand}"
+                                            CommandParameter="All"/>
+                                    </Label.GestureRecognizers>
+                                    
                                     <VisualStateManager.VisualStateGroups>
                                         <VisualStateGroupList>
                                             <VisualStateGroup x:Name="CommonStates">
@@ -557,41 +563,13 @@
                                 StrokeThickness="0.1"
                                 StrokeShape="RoundRectangle 5"
                                 VerticalOptions="Center">
-                                <Label Text="Pending" FontSize="10" BackgroundColor="DimGray" Padding="5" VerticalOptions="Center">
-                                    <VisualStateManager.VisualStateGroups>
-                                        <VisualStateGroupList>
-                                            <VisualStateGroup x:Name="CommonStates">
-
-                                                <VisualState x:Name="Normal"/>
-
-                                                <VisualState x:Name="PointerOver">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="Gray" />
-                                                        <!-- lighter teal hover -->
-                                                        <Setter Property="Opacity" Value="1" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                                <VisualState x:Name="Pressed">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="#004D40" />
-                                                        <!-- darker teal pressed -->
-                                                        <Setter Property="Opacity" Value="0.9" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                            </VisualStateGroup>
-                                        </VisualStateGroupList>
-                                    </VisualStateManager.VisualStateGroups>
-                                </Label>
-                            </Border>
-
-                            <Border
-                                Stroke="Gray"
-                                StrokeThickness="0.1"
-                                StrokeShape="RoundRectangle 5"
-                                VerticalOptions="Center">
-                                <Label Text="Downloading" FontSize="10" BackgroundColor="DodgerBlue" Padding="5" VerticalOptions="Center">
+                                <Label Text="Active" FontSize="10" BackgroundColor="DodgerBlue" Padding="5" VerticalOptions="Center">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer 
+                                            Command="{Binding Source={x:Reference ListView}, Path=BindingContext.FilterJobCommand}"
+                                            CommandParameter="Downloading"/>
+                                    </Label.GestureRecognizers>
+                                    
                                     <VisualStateManager.VisualStateGroups>
                                         <VisualStateGroupList>
                                             <VisualStateGroup x:Name="CommonStates">
@@ -626,6 +604,12 @@
                                 StrokeShape="RoundRectangle 5"
                                 VerticalOptions="Center">
                                 <Label Text="Completed" FontSize="10" BackgroundColor="Green" Padding="5" VerticalOptions="Center">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer 
+                                            Command="{Binding Source={x:Reference ListView}, Path=BindingContext.FilterJobCommand}"
+                                            CommandParameter="Completed"/>
+                                    </Label.GestureRecognizers>
+                                    
                                     <VisualStateManager.VisualStateGroups>
                                         <VisualStateGroupList>
                                             <VisualStateGroup x:Name="CommonStates">
@@ -654,7 +638,7 @@
                                 </Label>
                             </Border>
                         </HorizontalStackLayout>
-                        <HorizontalStackLayout Grid.Column="1" Spacing="4" >
+                        <HorizontalStackLayout Grid.Column="1" Spacing="4" ToolTipProperties.Text="Connectivity status" >
                             <BoxView 
                                 WidthRequest="10" 
                                 HeightRequest="10" 
@@ -697,11 +681,41 @@
                                         Opacity="0.6"/>
                                     <Label 
                                         TextColor="LightGray"
-                                        Text="Your download queue is empty. Paste a URL to begin."
+                                        Text="{Binding EmptyViewText}"
                                         Margin="10,25,10,10"
+                                        FontSize="18"
                                         HorizontalOptions="Fill"
                                         HorizontalTextAlignment="Center"
                                         IsVisible="{Binding IsNotBusy}"/>
+                                    <Label 
+                                        Text="Show All" 
+                                        FontSize="13" 
+                                        TextColor="DodgerBlue"
+                                        IsVisible="{Binding IsNotDefaultFilter}"
+                                        HorizontalOptions="Fill"
+                                        HorizontalTextAlignment="Center">
+                                        <Label.GestureRecognizers>
+                                            <TapGestureRecognizer 
+                                                 Command="{Binding Source={x:Reference ListView}, Path=BindingContext.FilterJobCommand}"
+                                                 CommandParameter="All"/>
+                                        </Label.GestureRecognizers>
+
+                                        <VisualStateManager.VisualStateGroups>
+                                            <VisualStateGroupList>
+                                                <VisualStateGroup x:Name="CommonStates">
+
+                                                    <VisualState x:Name="Normal"/>
+
+                                                    <VisualState x:Name="PointerOver">
+                                                        <VisualState.Setters>
+                                                            <Setter Property="TextDecorations" Value="Underline" />
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    
+                                                </VisualStateGroup>
+                                            </VisualStateGroupList>
+                                        </VisualStateManager.VisualStateGroups>
+                                    </Label>
                                 </VerticalStackLayout>
                             </ContentView>
                         </CollectionView.EmptyView>

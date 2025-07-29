@@ -1,4 +1,5 @@
-﻿using ClipMate.Models;
+﻿using ClipMate.Helpers;
+using ClipMate.Models;
 using ClipMate.Services;
 using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Maui.Core;
@@ -13,9 +14,10 @@ namespace ClipMate.ViewModels;
 
 public partial class MainViewModel : BaseViewModel
 {
-    public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
+    public SortableObservableCollection<DownloadJob> Jobs { get; set; }   
     public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
+    private List<DownloadJob> _tempJobs = new(); // master list
     private readonly ConnectivityCheck? _connectivityCheck;
     private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
@@ -34,6 +36,13 @@ public partial class MainViewModel : BaseViewModel
     [ObservableProperty]
     private MediaFormat? _selectedFormat;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotDefaultFilter))]
+    private string _currentFilter = "all";
+
+    public bool IsNotDefaultFilter => !string.IsNullOrWhiteSpace(CurrentFilter) && CurrentFilter.ToLowerInvariant() != "all";
+    public string EmptyViewText => IsNotDefaultFilter ? $"No {CurrentFilter.ToLowerInvariant()} downloads" : "Your download queue is empty";
+
     public MainViewModel()
     {
         ConnectionStatus = ConnectionState.Available;
@@ -41,20 +50,25 @@ public partial class MainViewModel : BaseViewModel
         _logger = new AppLogger();
         _ytdlpService = new YtdlpService(_logger);
         _jsonService = new JsonService();
+        Jobs = new SortableObservableCollection<DownloadJob>(sortKeySelector: d => GetStatusPriority(d.Status), propertyToWatch: nameof(DownloadJob.Status));
         InitializeAsync();
     }
 
     private async void InitializeAsync() => await LoadDownloadListAsync();
 
-    private void OnConnectivityChanged(ConnectionState state) => ConnectionStatus = state; 
+    private void OnConnectivityChanged(ConnectionState state) => ConnectionStatus = state;
 
-    public void Dispose() => _connectivityCheck?.Dispose();
+    public void Dispose()
+    {
+        _connectivityCheck?.Dispose();
+        Jobs.Dispose();
+    }
 
-
+    // Relay commands for UI actions
     [RelayCommand]
     private async Task AnalyzeAsync()
     {
-        if (!IsValidUrl(Url)) 
+        if (!IsValidUrl(Url))
         {
             IsAnalyzed = false;
             IsAnalizing = false;
@@ -146,6 +160,7 @@ public partial class MainViewModel : BaseViewModel
             };
 
             Jobs.Insert(0, job);
+            _tempJobs.Insert(0, job); 
             return job;
         }
         catch (Exception ex)
@@ -244,7 +259,7 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    public void CancelDownload(DownloadJob job)
+    private void CancelDownload(DownloadJob job)
     {
         try
         {
@@ -261,6 +276,10 @@ public partial class MainViewModel : BaseViewModel
         {
             _logger.Log(LogType.Error, ex.Message);
         }
+        finally
+        {
+            _jsonService.Save(Jobs);
+        }
     }
 
     [RelayCommand]
@@ -269,12 +288,28 @@ public partial class MainViewModel : BaseViewModel
         try
         {
             Jobs.Remove(job);
+            _tempJobs.Remove(job);
             _jsonService.Save(Jobs);
         }
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, ex.Message);
         }
+    }
+
+    [RelayCommand]
+    private void FilterJob(string filter = "all")
+    {
+        IEnumerable<DownloadJob> filtered;
+
+        if (string.IsNullOrWhiteSpace(filter) || filter.Equals("all", StringComparison.OrdinalIgnoreCase))
+            filtered = _tempJobs;
+        else
+            filtered = _tempJobs.Where(j => j.Status.ToString().Equals(filter, StringComparison.OrdinalIgnoreCase));
+
+        Jobs.Clear();
+        foreach (var job in filtered)
+            Jobs.Add(job);
     }
 
     [RelayCommand]
@@ -300,7 +335,7 @@ public partial class MainViewModel : BaseViewModel
         try
         {
             if (job != null)
-                await Clipboard.Default.SetTextAsync(job.Url);            
+                await Clipboard.Default.SetTextAsync(job.Url);
         }
         catch (Exception ex)
         {
@@ -322,7 +357,7 @@ public partial class MainViewModel : BaseViewModel
             else
             {
                 await ShowToastAsync("Clipboard is empty or does not contain a valid URL.");
-            }            
+            }
         }
         catch (Exception ex)
         {
@@ -360,6 +395,7 @@ public partial class MainViewModel : BaseViewModel
         }
     }
 
+    [RelayCommand]
     private async Task LoadDownloadListAsync()
     {
         IsBusy = true;
@@ -391,8 +427,22 @@ public partial class MainViewModel : BaseViewModel
             Jobs.Add(job);
         }
 
+        // Cache the full list only once after app loads or initial fetch
+        _tempJobs.Clear();
+        _tempJobs.AddRange(Jobs);
+
         IsBusy = false;
     }
+
+    // Sort downloads by status priority
+    private int GetStatusPriority(DownloadStatus status) => status switch
+    {
+        DownloadStatus.Downloading => 0,
+        DownloadStatus.Pending => 1,
+        DownloadStatus.Failed or DownloadStatus.Cancelled => 2,
+        DownloadStatus.Completed => 3,
+        _ => 4
+    };
 
     // Helper method to validate URL format
     private static bool IsValidUrl(string? url)
