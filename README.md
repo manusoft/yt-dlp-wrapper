@@ -6,7 +6,8 @@
 ![icon](https://github.com/user-attachments/assets/2147c398-4e0f-43e2-99cb-32b34be7dc2f)
 
 ### ClipMate - MAUI.NET App
-![Clipmate](https://github.com/user-attachments/assets/f6adb3da-a609-4dc4-bc25-3600acf759a6)
+<img width="986" height="693" alt="5" src="https://github.com/user-attachments/assets/4bdf89e0-c94b-4163-8b9d-8a051bab0cd8" />
+
 
 ### Video Downloader - .NET App
 ![Screenshot 2025-01-23 153252](https://github.com/user-attachments/assets/1b977927-ea26-4220-bd41-9f64d6716058)
