@@ -1,4 +1,5 @@
-﻿using ClipMate.Models;
+﻿using ClipMate.Helpers;
+using ClipMate.Models;
 using ClipMate.Services;
 using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Maui.Core;
@@ -13,13 +14,18 @@ namespace ClipMate.ViewModels;
 
 public partial class MainViewModel : BaseViewModel
 {
-    public ObservableCollection<DownloadJob> Jobs { get; set; } = new ObservableCollection<DownloadJob>();
-    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();    
+    public SortableObservableCollection<DownloadJob> Jobs { get; set; }   
+    public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
+    private readonly ConnectivityCheck? _connectivityCheck;
     private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
     private readonly AppLogger _logger;
+    private CancellationTokenSource _cts;
+
+    [ObservableProperty]
+    private ConnectionState _connectionStatus;
 
     [ObservableProperty]
     private string _outputPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
@@ -30,39 +36,54 @@ public partial class MainViewModel : BaseViewModel
     [ObservableProperty]
     private MediaFormat? _selectedFormat;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNotDefaultFilter))]
+    private string _currentFilter = "all";
+
+    public bool IsNotDefaultFilter => !string.IsNullOrWhiteSpace(CurrentFilter) && CurrentFilter.ToLowerInvariant() != "all";
+    public string EmptyViewText => IsNotDefaultFilter ? $"No {CurrentFilter.ToLowerInvariant()} downloads" : "Your download queue is empty";
+
     public MainViewModel()
     {
+        ConnectionStatus = ConnectionState.Available;
+        _connectivityCheck = new ConnectivityCheck(OnConnectivityChanged);
         _logger = new AppLogger();
         _ytdlpService = new YtdlpService(_logger);
         _jsonService = new JsonService();
+        Jobs = new SortableObservableCollection<DownloadJob>(sortKeySelector: d => GetStatusPriority(d.Status), propertyToWatch: nameof(DownloadJob.Status));
         InitializeAsync();
     }
 
-    private async void InitializeAsync()
+    private async void InitializeAsync() => await LoadDownloadListAsync();
+
+    private void OnConnectivityChanged(ConnectionState state) => ConnectionStatus = state;
+
+    public void Dispose()
     {
-        await LoadDownloadListAsync();
+        _connectivityCheck?.Dispose();
+        Jobs.Dispose();
     }
 
+    // Relay commands for UI actions
     [RelayCommand]
     private async Task AnalyzeAsync()
     {
-        if (string.IsNullOrWhiteSpace(Url)) return;
-
-        if (string.IsNullOrWhiteSpace(Url) || !Url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        if (!IsValidUrl(Url))
         {
             IsAnalyzed = false;
             IsAnalizing = false;
-            await ShowToastAsync("🚫 Please enter a valid video URL.");
+            await ShowToastAsync("Please enter a valid video URL.");
             return;
         }
 
         try
         {
+            _cts = new CancellationTokenSource();
             IsAnalizing = true;
             IsAnalyzed = false;
 
             Formats.Clear();
-            var results = await _ytdlpService.GetFormatsAsync(Url);
+            var results = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
 
             var autoFormat = new MediaFormat
             {
@@ -99,6 +120,8 @@ public partial class MainViewModel : BaseViewModel
 
             if (Formats.Any())
                 SelectedFormat = Formats.First();
+
+            IsAnalyzed = true;
         }
         catch (Exception ex)
         {
@@ -106,8 +129,24 @@ public partial class MainViewModel : BaseViewModel
         }
         finally
         {
-            IsAnalizing = false;
-            IsAnalyzed = true;
+            IsAnalizing = false;            
+        }
+    }
+
+    [RelayCommand]
+    private void CancelAnalyze()
+    {
+        try
+        {
+            if(!_cts.IsCancellationRequested)
+            {
+                _cts.Cancel();
+                IsAnalyzed = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
         }
     }
 
@@ -121,7 +160,7 @@ public partial class MainViewModel : BaseViewModel
         bool alreadyExists = Jobs.Any(j => string.Equals(j.Url, Url, StringComparison.OrdinalIgnoreCase));
         if (alreadyExists)
         {
-            await ShowToastAsync("⚠️ This download is already in your queue!");
+            await ShowToastAsync("This download is already in your queue!");
             return null;
         }
 
@@ -206,7 +245,7 @@ public partial class MainViewModel : BaseViewModel
             _jsonService.Save(Jobs);
 
             if (string.IsNullOrWhiteSpace(job.ErrorMessage))
-                await ShowToastAsync($"✅ Download finished successfully for: {job.Url}");
+                await ShowToastAsync($"Download finished successfully for: {job.Url}");
             else
                 await ShowToastAsync(job.ErrorMessage);
         }
@@ -215,7 +254,7 @@ public partial class MainViewModel : BaseViewModel
             job.Status = DownloadStatus.Cancelled;
             job.Progress = 0;
             job.IsDownloading = false;
-            job.ErrorMessage = "⛔ Download canceled.";
+            job.ErrorMessage = "Download canceled.";
 
             _jsonService.Save(Jobs);
             await ShowToastAsync(job.ErrorMessage);
@@ -225,7 +264,7 @@ public partial class MainViewModel : BaseViewModel
             job.Status = DownloadStatus.Failed;
             job.Progress = 0;
             job.IsDownloading = false;
-            job.ErrorMessage = $"❌ Unexpected error: {ex.Message}";
+            job.ErrorMessage = $"Unexpected error: {ex.Message}";
 
             _logger.Log(LogType.Error, ex.Message);
             _jsonService.Save(Jobs);
@@ -238,7 +277,7 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    public void CancelDownload(DownloadJob job)
+    private void CancelDownload(DownloadJob job)
     {
         try
         {
@@ -254,7 +293,11 @@ public partial class MainViewModel : BaseViewModel
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, ex.Message);
-        }        
+        }
+        finally
+        {
+            _jsonService.Save(Jobs);
+        }
     }
 
     [RelayCommand]
@@ -303,6 +346,28 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
+    private async Task ClipboardPasteAsync()
+    {
+        try
+        {
+            var clipboardText = await Clipboard.Default.GetTextAsync();
+            if (!string.IsNullOrWhiteSpace(clipboardText) && IsValidUrl(clipboardText))
+            {
+                Url = clipboardText;
+                await AnalyzeAsync();
+            }
+            else
+            {
+                await ShowToastAsync("Clipboard is empty or does not contain a valid URL.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }
+    }
+
+    [RelayCommand]
     private async Task OpenLinkAsync(string url)
     {
         try
@@ -332,6 +397,7 @@ public partial class MainViewModel : BaseViewModel
         }
     }
 
+    [RelayCommand]
     private async Task LoadDownloadListAsync()
     {
         IsBusy = true;
@@ -366,6 +432,34 @@ public partial class MainViewModel : BaseViewModel
         IsBusy = false;
     }
 
+    // Sort downloads by status priority
+    private int GetStatusPriority(DownloadStatus status) => status switch
+    {
+        DownloadStatus.Downloading => 0,
+        DownloadStatus.Pending => 1,
+        DownloadStatus.Failed or DownloadStatus.Cancelled => 2,
+        DownloadStatus.Completed => 3,
+        _ => 4
+    };
+
+    // Helper method to validate URL format
+    private static bool IsValidUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        url = url.Trim();
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uriResult))
+        {
+            bool isValidScheme = uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps;
+            return isValidScheme;
+        }
+        else
+        {
+            return false;
+        }
+    }
 
     // Toast settings
     public async Task ShowToastAsync(string message)

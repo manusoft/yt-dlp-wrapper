@@ -11,6 +11,7 @@
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
+            <converters:ConnectionStateToColorConverter x:Key="ConnectionStateToColorConverter" />
             <converters:DownloadStatusToVisibilityConverter x:Key="StatusToVisibility" />
         </ResourceDictionary>
     </Application.Resources>

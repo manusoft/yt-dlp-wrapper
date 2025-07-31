@@ -4,7 +4,6 @@ using ClipMate.Views;
 using CommunityToolkit.Maui;
 using CommunityToolkit.Maui.Storage;
 
-
 #if DEBUG
 using Microsoft.Extensions.Logging;
 #endif
