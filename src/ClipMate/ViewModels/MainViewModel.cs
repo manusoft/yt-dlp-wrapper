@@ -17,12 +17,12 @@ public partial class MainViewModel : BaseViewModel
     public SortableObservableCollection<DownloadJob> Jobs { get; set; }   
     public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
-    private List<DownloadJob> _tempJobs = new(); // master list
     private readonly ConnectivityCheck? _connectivityCheck;
     private readonly Dictionary<DownloadJob, CancellationTokenSource> _downloadTokens = new();
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
     private readonly AppLogger _logger;
+    private CancellationTokenSource _cts;
 
     [ObservableProperty]
     private ConnectionState _connectionStatus;
@@ -78,11 +78,12 @@ public partial class MainViewModel : BaseViewModel
 
         try
         {
+            _cts = new CancellationTokenSource();
             IsAnalizing = true;
             IsAnalyzed = false;
 
             Formats.Clear();
-            var results = await _ytdlpService.GetFormatsAsync(Url);
+            var results = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
 
             var autoFormat = new MediaFormat
             {
@@ -119,6 +120,8 @@ public partial class MainViewModel : BaseViewModel
 
             if (Formats.Any())
                 SelectedFormat = Formats.First();
+
+            IsAnalyzed = true;
         }
         catch (Exception ex)
         {
@@ -126,8 +129,24 @@ public partial class MainViewModel : BaseViewModel
         }
         finally
         {
-            IsAnalizing = false;
-            IsAnalyzed = true;
+            IsAnalizing = false;            
+        }
+    }
+
+    [RelayCommand]
+    private void CancelAnalyze()
+    {
+        try
+        {
+            if(!_cts.IsCancellationRequested)
+            {
+                _cts.Cancel();
+                IsAnalyzed = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
         }
     }
 
@@ -160,7 +179,6 @@ public partial class MainViewModel : BaseViewModel
             };
 
             Jobs.Insert(0, job);
-            _tempJobs.Insert(0, job); 
             return job;
         }
         catch (Exception ex)
@@ -288,28 +306,12 @@ public partial class MainViewModel : BaseViewModel
         try
         {
             Jobs.Remove(job);
-            _tempJobs.Remove(job);
             _jsonService.Save(Jobs);
         }
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, ex.Message);
         }
-    }
-
-    [RelayCommand]
-    private void FilterJob(string filter = "all")
-    {
-        IEnumerable<DownloadJob> filtered;
-
-        if (string.IsNullOrWhiteSpace(filter) || filter.Equals("all", StringComparison.OrdinalIgnoreCase))
-            filtered = _tempJobs;
-        else
-            filtered = _tempJobs.Where(j => j.Status.ToString().Equals(filter, StringComparison.OrdinalIgnoreCase));
-
-        Jobs.Clear();
-        foreach (var job in filtered)
-            Jobs.Add(job);
     }
 
     [RelayCommand]
@@ -426,10 +428,6 @@ public partial class MainViewModel : BaseViewModel
 
             Jobs.Add(job);
         }
-
-        // Cache the full list only once after app loads or initial fetch
-        _tempJobs.Clear();
-        _tempJobs.AddRange(Jobs);
 
         IsBusy = false;
     }

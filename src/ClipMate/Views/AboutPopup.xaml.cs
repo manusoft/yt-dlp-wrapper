@@ -9,7 +9,7 @@ public partial class AboutPopup : Popup, INotifyPropertyChanged
     private readonly YtdlpService _ytdlpService;
     private readonly AppLogger _logger;
 
-    private string _ytdlpVersion = "v1.0.0";
+    private string _ytdlpVersion = $"v{AppInfo.VersionString}";
     public string YtdlpVersion
     {
         get => _ytdlpVersion;
@@ -35,10 +35,11 @@ public partial class AboutPopup : Popup, INotifyPropertyChanged
     {
         try
         {
-            var version = await _ytdlpService.GetVersionAsync();
-            var formattedVersion = string.IsNullOrEmpty(version) ? "" : $" • {version}";
+            var ytdlpVersion = await _ytdlpService.GetVersionAsync();
+            var formattedVersion = string.IsNullOrEmpty(ytdlpVersion) ? "" : $" • {ytdlpVersion}";
+            var appVersion = AppInfo.VersionString;
 
-            YtdlpVersion = $"v1.0.0{formattedVersion}";
+            YtdlpVersion = $"v{appVersion}{formattedVersion}";
         }
         catch (Exception)
         {

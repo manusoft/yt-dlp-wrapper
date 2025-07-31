@@ -10,38 +10,18 @@
              Shell.NavBarIsVisible="False">
 
     <Grid>
-
-        <Border
-            IsVisible="False"
-            Margin="10"
-            Padding="8"
-            Stroke="Gray" 
-            StrokeThickness="0.5" 
-            StrokeShape="RoundRectangle 10" 
-            WidthRequest="700"
-            HeightRequest="150"
-            BackgroundColor="Black"
-            HorizontalOptions="Center"
-            VerticalOptions="Center"
-            ZIndex="1">
-            <VerticalStackLayout Spacing="5">
-                <Label Text="Connection Status" TextColor="Red" />
-
-            </VerticalStackLayout>
-            <Border.Shadow>
-                <Shadow Brush="DimGray" Offset="2,1" Opacity="0.8"/>
-            </Border.Shadow>
-        </Border>
-
         <Grid RowDefinitions="Auto,Auto, *" RowSpacing="5">
 
             <!-- Title View-->
             <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,Auto,1*" Padding="10" ColumnSpacing="5" BackgroundColor="#1A1A1A">
+                <!--Logo-->
                 <Image 
                     Grid.Column="0"
                     Source="logo_1.png"
                     HeightRequest="30"
                     HorizontalOptions="Start"/>
+                
+                <!--Search Entry and Button-->
                 <Border 
                     Grid.Column="1"
                     Stroke="Gray"
@@ -105,33 +85,47 @@
 
                             <Grid >
                                 <ImageButton
-                                Source="search.png"                            
-                                BackgroundColor="Transparent"
-                                IsVisible="{Binding IsNotAnalizing}"
-                                Command="{Binding AnalyzeCommand}"
-                                Aspect="AspectFit"
-                                Margin="-5"
-                                HeightRequest="20"
-                                WidthRequest="20"
-                                HorizontalOptions="Center"
-                                VerticalOptions="Center" 
-                                ToolTipProperties.Text="Analyze download URL">
+                                    Source="search.png"                            
+                                    BackgroundColor="Transparent"
+                                    IsVisible="{Binding IsNotAnalizing}"
+                                    Command="{Binding AnalyzeCommand}"
+                                    Aspect="AspectFit"
+                                    Margin="-5"
+                                    HeightRequest="20"
+                                    WidthRequest="20"
+                                    HorizontalOptions="Center"
+                                    VerticalOptions="Center" 
+                                    ToolTipProperties.Text="Analyze download URL">
                                 </ImageButton>
-                                <ActivityIndicator 
-                                IsVisible="{Binding IsAnalizing}" 
-                                IsRunning="{Binding IsAnalizing}" 
-                                HeightRequest="20"
-                                WidthRequest="20"
-                                Color="#FFFFFF" 
-                                HorizontalOptions="Center"
-                                VerticalOptions="Center"/>
+                                <ImageButton
+                                    Source="x.png"                            
+                                    BackgroundColor="Transparent"
+                                    IsVisible="{Binding IsAnalizing}"
+                                    Command="{Binding CancelAnalyzeCommand}"
+                                    Aspect="AspectFit"
+                                    Margin="-5"
+                                    HeightRequest="20"
+                                    WidthRequest="20"
+                                    HorizontalOptions="Center"
+                                    VerticalOptions="Center" 
+                                    ToolTipProperties.Text="Cancel Analyzing">
+                                </ImageButton>                               
                             </Grid>
                         </Border>
 
                     </Grid>
                 </Border>
 
-                <!--Clipboard Button-->
+                <!--Indicator and Clipboard Button-->
+                <ActivityIndicator 
+                    Grid.Column="2"
+                    IsVisible="{Binding IsAnalizing}" 
+                    IsRunning="{Binding IsAnalizing}" 
+                    HeightRequest="20"
+                    WidthRequest="20"
+                    Color="DodgerBlue" 
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"/>
                 <Border 
                     Grid.Column="2"
                     Stroke="LightGrey"
@@ -186,7 +180,7 @@
 
                 <!-- About Button -->
                 <Border 
-                    Grid.Column="3"
+                    Grid.Column="4"
                     Stroke="LightGrey"
                     StrokeThickness="0.1"
                     StrokeShape="RoundRectangle 50"
@@ -515,133 +509,12 @@
 
             <!--Download Que-->
             <Border Grid.Row="2" Margin="10,0,10,10" Stroke="LightGray" StrokeThickness="0.1" >
-                <Grid RowDefinitions="Auto,*">
-                    <Grid ColumnDefinitions="*,Auto" Padding="10,8,10,0">
-                        <HorizontalStackLayout Spacing="4" >
-                            <Border
-                                Stroke="Gray"
-                                StrokeThickness="0.1"
-                                StrokeShape="RoundRectangle 5"
-                                VerticalOptions="Center">
-                                <Label Text="All" FontSize="10" BackgroundColor="Teal" Padding="5" VerticalOptions="Center">
-                                    <Label.GestureRecognizers>
-                                        <TapGestureRecognizer 
-                                            Command="{Binding Source={x:Reference ListView}, Path=BindingContext.FilterJobCommand}"
-                                            CommandParameter="All"/>
-                                    </Label.GestureRecognizers>
-                                    
-                                    <VisualStateManager.VisualStateGroups>
-                                        <VisualStateGroupList>
-                                            <VisualStateGroup x:Name="CommonStates">
-
-                                                <VisualState x:Name="Normal"/>
-
-                                                <VisualState x:Name="PointerOver">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="#26A69A" />
-                                                        <!-- lighter teal hover -->
-                                                        <Setter Property="Opacity" Value="1" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                                <VisualState x:Name="Pressed">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="#004D40" />
-                                                        <!-- darker teal pressed -->
-                                                        <Setter Property="Opacity" Value="0.9" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                            </VisualStateGroup>
-                                        </VisualStateGroupList>
-                                    </VisualStateManager.VisualStateGroups>
-                                </Label>
-                            </Border>
-
-                            <Border
-                                Stroke="Gray"
-                                StrokeThickness="0.1"
-                                StrokeShape="RoundRectangle 5"
-                                VerticalOptions="Center">
-                                <Label Text="Active" FontSize="10" BackgroundColor="DodgerBlue" Padding="5" VerticalOptions="Center">
-                                    <Label.GestureRecognizers>
-                                        <TapGestureRecognizer 
-                                            Command="{Binding Source={x:Reference ListView}, Path=BindingContext.FilterJobCommand}"
-                                            CommandParameter="Downloading"/>
-                                    </Label.GestureRecognizers>
-                                    
-                                    <VisualStateManager.VisualStateGroups>
-                                        <VisualStateGroupList>
-                                            <VisualStateGroup x:Name="CommonStates">
-
-                                                <VisualState x:Name="Normal"/>
-
-                                                <VisualState x:Name="PointerOver">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="DeepSkyBlue" />
-                                                        <!-- lighter teal hover -->
-                                                        <Setter Property="Opacity" Value="1" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                                <VisualState x:Name="Pressed">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="#004D40" />
-                                                        <!-- darker teal pressed -->
-                                                        <Setter Property="Opacity" Value="0.9" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                            </VisualStateGroup>
-                                        </VisualStateGroupList>
-                                    </VisualStateManager.VisualStateGroups>
-                                </Label>
-                            </Border>
-
-                            <Border
-                                Stroke="Gray"
-                                StrokeThickness="0.1"
-                                StrokeShape="RoundRectangle 5"
-                                VerticalOptions="Center">
-                                <Label Text="Completed" FontSize="10" BackgroundColor="Green" Padding="5" VerticalOptions="Center">
-                                    <Label.GestureRecognizers>
-                                        <TapGestureRecognizer 
-                                            Command="{Binding Source={x:Reference ListView}, Path=BindingContext.FilterJobCommand}"
-                                            CommandParameter="Completed"/>
-                                    </Label.GestureRecognizers>
-                                    
-                                    <VisualStateManager.VisualStateGroups>
-                                        <VisualStateGroupList>
-                                            <VisualStateGroup x:Name="CommonStates">
-
-                                                <VisualState x:Name="Normal"/>
-
-                                                <VisualState x:Name="PointerOver">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="LimeGreen" />
-                                                        <!-- lighter teal hover -->
-                                                        <Setter Property="Opacity" Value="1" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                                <VisualState x:Name="Pressed">
-                                                    <VisualState.Setters>
-                                                        <Setter Property="BackgroundColor" Value="#004D40" />
-                                                        <!-- darker teal pressed -->
-                                                        <Setter Property="Opacity" Value="0.9" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                            </VisualStateGroup>
-                                        </VisualStateGroupList>
-                                    </VisualStateManager.VisualStateGroups>
-                                </Label>
-                            </Border>
-                        </HorizontalStackLayout>
-                        <HorizontalStackLayout Grid.Column="1" Spacing="4" ToolTipProperties.Text="Connectivity status" >
+                <Grid RowDefinitions="*,Auto">
+                    <Grid Grid.Row="1" ColumnDefinitions="*,*" VerticalOptions="Center" Padding="5" >
+                        <HorizontalStackLayout Grid.Column="0" Spacing="4" ToolTipProperties.Text="Connectivity status" >
                             <BoxView 
-                                WidthRequest="10" 
-                                HeightRequest="10" 
+                                WidthRequest="8" 
+                                HeightRequest="8" 
                                 CornerRadius="50"
                                 Color="{Binding ConnectionStatus, Converter={StaticResource ConnectionStateToColorConverter}}" 
                                 VerticalOptions="Center" HorizontalOptions="End" />
@@ -651,10 +524,12 @@
                                 VerticalOptions="Center"
                                 TextColor="{Binding ConnectionStatus, Converter={StaticResource ConnectionStateToColorConverter}}" />
                         </HorizontalStackLayout>
+
+                        <Label Grid.Column="1" Text="Manuhub" TextColor="Gray" FontSize="10" HorizontalOptions="End"/>
                     </Grid>
                     <CollectionView 
                         x:Name="ListView"  
-                        Grid.Row="1"
+                        Grid.Row="0"
                         ItemsSource="{Binding Jobs, Mode=TwoWay}" 
                         Margin="10" 
                         VerticalScrollBarVisibility="Never"  >
@@ -711,7 +586,7 @@
                                                             <Setter Property="TextDecorations" Value="Underline" />
                                                         </VisualState.Setters>
                                                     </VisualState>
-                                                    
+
                                                 </VisualStateGroup>
                                             </VisualStateGroupList>
                                         </VisualStateManager.VisualStateGroups>

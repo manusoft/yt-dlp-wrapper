@@ -1,4 +1,5 @@
 ﻿using ClipMate.Models;
+using SkiaSharp;
 using System.Text.RegularExpressions;
 using YtdlpDotNet;
 
@@ -71,7 +72,7 @@ public class YtdlpService(AppLogger logger)
             {
                 if (File.Exists(originalPath))
                 {
-                    job.ThumbnailBase64 = ConvertImageToBase64(originalPath);
+                    job.ThumbnailBase64 = ConvertImageToThumbnailBase64(originalPath);
                     job.Thumbnail = null;
                     try { File.Delete(originalPath); } catch (Exception ex) { _logger.Log(LogType.Info, ex.Message); }
                 }
@@ -247,9 +248,35 @@ public class YtdlpService(AppLogger logger)
         }
     }
 
-    private string ConvertImageToBase64(string imagePath)
+    private string ConvertImageToThumbnailBase64(string imagePath, int maxWidth = 150, int maxHeight = 150)
     {
-        byte[] imageBytes = File.ReadAllBytes(imagePath);
+        using var inputStream = File.OpenRead(imagePath);
+        using var original = SKBitmap.Decode(inputStream);
+
+        if (original == null)
+            throw new Exception("Could not load image.");
+
+        // Maintain aspect ratio
+        float widthRatio = (float)maxWidth / original.Width;
+        float heightRatio = (float)maxHeight / original.Height;
+        float scale = Math.Min(widthRatio, heightRatio);
+
+        int newWidth = (int)(original.Width * scale);
+        int newHeight = (int)(original.Height * scale);
+
+        var resizedBitmap = new SKBitmap(newWidth, newHeight);
+
+        // Use SKSamplingOptions instead of obsolete SKFilterQuality
+        var sampling = new SKSamplingOptions(SKFilterMode.Nearest);
+
+        original.ScalePixels(resizedBitmap, sampling);
+
+        using var image = SKImage.FromBitmap(resizedBitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+
+        byte[] imageBytes = encoded.ToArray();
         return $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
     }
+
+
 }

@@ -22,7 +22,7 @@
                HorizontalOptions="Center"
                TextColor="LightGray" />
 
-        <Label Text="A modern yt-dlp powered video downloader built with .NET MAUI. from ManuHub"
+        <Label Text="Download videos from popular platforms in high quality. Fast, easy, and reliable with ClipMate – your ultimate Windows video downloader from ManuHub"
                FontSize="12"
                TextColor="Gray"
                HorizontalTextAlignment="Center" />
