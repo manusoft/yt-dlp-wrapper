@@ -10,9 +10,11 @@
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
+            var version = AppInfo.Version;
+
             return new Window(new AppShell())
             {                 
-                Title = "ClipMate v1.0",
+                Title = $"ClipMate v{version.Major}.{version.Minor}",
                 Width = 1000,
                 Height = 700,
                 X = 100,

@@ -14,7 +14,7 @@ namespace ClipMate.ViewModels;
 
 public partial class MainViewModel : BaseViewModel
 {
-    public SortableObservableCollection<DownloadJob> Jobs { get; set; }   
+    public SortableObservableCollection<DownloadJob> Jobs { get; set; }
     public ObservableCollection<MediaFormat> Formats { get; } = new ObservableCollection<MediaFormat>();
 
     private readonly ConnectivityCheck? _connectivityCheck;
@@ -22,7 +22,7 @@ public partial class MainViewModel : BaseViewModel
     private readonly YtdlpService _ytdlpService;
     private readonly JsonService _jsonService;
     private readonly AppLogger _logger;
-    private CancellationTokenSource _cts;
+    private CancellationTokenSource? _cts;
 
     [ObservableProperty]
     private ConnectionState _connectionStatus;
@@ -32,6 +32,12 @@ public partial class MainViewModel : BaseViewModel
 
     [ObservableProperty]
     private string _url = string.Empty;
+
+    [ObservableProperty]
+    private string _videoTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _thumbnailUrl = string.Empty;
 
     [ObservableProperty]
     private MediaFormat? _selectedFormat;
@@ -83,36 +89,61 @@ public partial class MainViewModel : BaseViewModel
             IsAnalyzed = false;
 
             Formats.Clear();
-            var results = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
+
+            var metadata = await _ytdlpService.GetMetadataAsync(Url, _cts.Token);
+
+            Console.WriteLine($"Metadata for {Url}: {metadata}");
+
+            if (metadata == null)
+            {
+                IsAnalyzed = false;
+                IsAnalizing = false;
+                await ShowToastAsync("Failed to retrieve video metadata. Please check the URL.");
+                return;
+            }
+
+            // Set video title
+            VideoTitle = metadata.Title ?? Url;
+            // Set thumbnail URL
+            ThumbnailUrl = metadata.Thumbnail ?? string.Empty;
+
+            //var results = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
+
+            var fileSize = metadata.RequestedFormats?.Sum(x => x.Filesize) ?? 0; // bytes   
+            var fileSizeFormatted = fileSize > 0 ? $"{fileSize / (1024 * 1024):F2} Mb" : "n/a";
 
             var autoFormat = new MediaFormat
             {
                 Id = "b",
                 Extension = "mp4",
-                Resolution = "Auto",
-                FileSize = "N/A",
-                Fps = "Auto",
-                Channels = "2",
-                VCodec = "Best",
-                ACodec = "Best",
-                MoreInfo = "N/A",
+                Resolution = $"auto {metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Resolution}" ?? "auto",
+                FileSize = fileSizeFormatted,
+                Fps = $"{metadata.RequestedFormats?.FirstOrDefault()?.Fps} fps" ?? "n/a",
+                Channels = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.AudioChannels.ToString() ?? "n/a",
+                VCodec = metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Vcodec ?? "n/a",
+                ACodec = metadata.RequestedFormats?.FirstOrDefault(x=> x.IsAudio)?.Acodec ?? "n/a",
+                MoreInfo = "n/a",
             };
 
             Formats.Add(autoFormat);
 
-            foreach (var f in results)
+            foreach (var f in metadata?.Formats!)
             {
+                fileSizeFormatted = f.Filesize.HasValue
+                    ? $"{f.Filesize.Value / (1024 * 1024):F2} Mb"
+                    : "n/a";
+
                 var mediaFormat = new MediaFormat
                 {
-                    Id = f.ID,
-                    Extension = f.Extension ?? "N/A",
-                    Resolution = f.Resolution ?? "N/A",
-                    FileSize = f.FileSize ?? "N/A",
-                    Fps = f.FPS ?? "N/A",
-                    Channels = f.Channels ?? "N/A",
-                    VCodec = f.VCodec ?? "N/A",
-                    ACodec = f.ACodec ?? "N/A",
-                    MoreInfo = f.MoreInfo ?? "N/A",
+                    Id = f.FormatId,
+                    Extension = f.Ext ?? "n/a",
+                    Resolution = f.Resolution ?? "n/a",
+                    FileSize = fileSizeFormatted,
+                    Fps = f.Fps.ToString() ?? "n/a",
+                    Channels = f.AudioChannels.ToString() ?? "n/a",
+                    VCodec = f.Vcodec ?? "n/a",
+                    ACodec = f.Acodec ?? "n/a",
+                    MoreInfo = "n/a",
                 };
 
                 Formats.Add(mediaFormat);
@@ -129,7 +160,7 @@ public partial class MainViewModel : BaseViewModel
         }
         finally
         {
-            IsAnalizing = false;            
+            IsAnalizing = false;
         }
     }
 
@@ -138,7 +169,7 @@ public partial class MainViewModel : BaseViewModel
     {
         try
         {
-            if(!_cts.IsCancellationRequested)
+            if (!_cts.IsCancellationRequested)
             {
                 _cts.Cancel();
                 IsAnalyzed = false;
@@ -169,6 +200,8 @@ public partial class MainViewModel : BaseViewModel
             var job = new DownloadJob
             {
                 Url = Url,
+                Title = VideoTitle,
+                Thumbnail = ThumbnailUrl,
                 Format = SelectedFormat,
                 OutputPath = OutputPath,
                 ErrorMessage = string.Empty,

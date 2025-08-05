@@ -235,15 +235,23 @@
                 BackgroundColor="#1A1A1A"
                 StrokeShape="RoundRectangle 0"
                 HorizontalOptions="Fill"
-                Padding="10"
+                Padding="8"
                 IsVisible="{Binding IsAnalyzed}">
 
-                <Grid ColumnDefinitions="*,*">
-                    <VerticalStackLayout Spacing="0" >
+                <Grid ColumnDefinitions="2*,*">
+                    <HorizontalStackLayout Spacing="5">
+                        <Image 
+                            Source="{Binding ThumbnailUrl}"
+                            MinimumHeightRequest="60"
+                            WidthRequest="120"
+                            Aspect="AspectFill"
+                            BackgroundColor="Black"
+                            HorizontalOptions="Start" />
+                        <VerticalStackLayout Spacing="0" >
 
                         <!-- Video URL -->
                         <Label 
-                            Text="{Binding Url}"
+                            Text="{Binding VideoTitle}"
                             TextColor="LightGray"
                             FontSize="13"
                             LineBreakMode="TailTruncation"
@@ -301,13 +309,15 @@
                                 </HorizontalStackLayout>
 
                             </HorizontalStackLayout>
-                            <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="5" VerticalOptions="Center">
                                 <Label 
+                                    Grid.Column="0"
                                     Text="Output Folder:" 
                                     FontSize="11"  
                                     TextColor="LightGrey" 
                                     VerticalOptions="Center"/>
                                 <Border 
+                                    Grid.Column="1"
                                     Stroke="Gray"
                                     StrokeThickness="0.1"
                                     StrokeShape="RoundRectangle 0"
@@ -354,6 +364,7 @@
                                 </Border>
                                 <!-- Quality label, picker with border, and download button -->
                                 <Label 
+                                    Grid.Column="2"
                                     Text="Quality:"
                                     TextColor="LightGray"
                                     FontSize="11"
@@ -361,12 +372,13 @@
 
                                 <!-- Picker wrapped inside Border for visible stroke -->
                                 <Border 
+                                    Grid.Column="3"
                                     Stroke="Gray"
                                     StrokeThickness="0.1"
                                     StrokeShape="RoundRectangle 0"
                                     BackgroundColor="Transparent"
                                     HeightRequest="25"
-                                    HorizontalOptions="End">
+                                    HorizontalOptions="Fill">
                                     <Picker
                                         ItemsSource="{Binding Formats}"
                                         SelectedItem="{Binding SelectedFormat, Mode=TwoWay}"
@@ -375,13 +387,15 @@
                                         TextColor="Teal"
                                         FontSize="12"
                                         HorizontalOptions="Fill"
-                                        VerticalOptions="Center" />
+                                        VerticalOptions="Center"
+                                        ToolTipProperties.Text="{Binding SelectedFormat}"/>
                                 </Border>
-                            </HorizontalStackLayout>
+                            </Grid>
                         </VerticalStackLayout>
 
 
                     </VerticalStackLayout>
+                    </HorizontalStackLayout>
 
                     <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" VerticalOptions="Center" Spacing="5">
                         <Border 
@@ -607,10 +621,10 @@
                                         <!-- Thumbnail -->
                                         <Image 
                                             Grid.Column="0"
-                                            Source="{Binding ThumbnailImage, Mode=OneWay}"
+                                            Source="{Binding Thumbnail, Mode=OneWay}"
                                             MaximumHeightRequest="60"
                                             WidthRequest="120"
-                                            Aspect="AspectFill"                                            
+                                            Aspect="AspectFit"                                            
                                             BackgroundColor="Black"/>
 
                                         <!-- Right side info -->
@@ -618,7 +632,7 @@
                                             <!-- URL -->
                                             <HorizontalStackLayout Spacing="5">
                                                 <Label 
-                                                    Text="{Binding Url, Mode=OneWay}"
+                                                    Text="{Binding Title, Mode=OneWay}"
                                                     TextColor="DodgerBlue"
                                                     FontSize="13"
                                                     LineBreakMode="TailTruncation"

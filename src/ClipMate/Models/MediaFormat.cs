@@ -15,19 +15,19 @@ public partial class MediaFormat : ObservableObject
     public string resolution = "Best";
 
     [ObservableProperty]
-    public string? fileSize = "Unknown";
+    public string? fileSize = "n/a";
 
     [ObservableProperty]
-    public string? fps = "Unknown";
+    public string? fps = "n/a";
 
     [ObservableProperty]
-    public string? channels = "Unknown";
+    public string? channels = "n/a";
 
     [ObservableProperty]
-    public string? vCodec = "Unknown";
+    public string? vCodec = "n/a";
 
     [ObservableProperty]
-    public string? aCodec = "Unknown";
+    public string? aCodec = "n/a";
 
     [ObservableProperty]
     public string? moreInfo;
