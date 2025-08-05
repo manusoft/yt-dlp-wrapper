@@ -23,7 +23,7 @@ public class YtdlpService(AppLogger logger)
         }
     }
 
-    public async Task<DumpRoot> GetMetadataAsync(string url, CancellationToken cancellationToken = default)
+    public async Task<Metadata> GetMetadataAsync(string url, CancellationToken cancellationToken = default)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
         try
