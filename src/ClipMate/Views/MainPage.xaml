@@ -20,7 +20,7 @@
                     Source="logo_1.png"
                     HeightRequest="30"
                     HorizontalOptions="Start"/>
-                
+
                 <!--Search Entry and Button-->
                 <Border 
                     Grid.Column="1"
@@ -109,7 +109,7 @@
                                     HorizontalOptions="Center"
                                     VerticalOptions="Center" 
                                     ToolTipProperties.Text="Cancel Analyzing">
-                                </ImageButton>                               
+                                </ImageButton>
                             </Grid>
                         </Border>
 
@@ -238,8 +238,52 @@
                 Padding="8"
                 IsVisible="{Binding IsAnalyzed}">
 
-                <Grid ColumnDefinitions="2*,*">
-                    <HorizontalStackLayout Spacing="5">
+                <Grid ColumnDefinitions="3*,*" >
+
+                    <!--Close Button-->
+                    <Border 
+                        Grid.ColumnSpan="2"
+                        Stroke="LightGrey"
+                        StrokeThickness="0.1"
+                        StrokeShape="RoundRectangle 50"
+                        HeightRequest="25"             
+                        WidthRequest="25"
+                        HorizontalOptions="End"
+                        VerticalOptions="Start"
+                        Padding="-10">
+                        <ImageButton 
+                            Source="close.png" 
+                            BackgroundColor="Transparent"
+                            Aspect="AspectFit"
+                            Command="{Binding CloseAnalyzeViewCommand}"
+                            ToolTipProperties.Text="Close">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup Name="CommonStates">
+
+                                        <VisualState Name="Normal" />
+
+                                        <VisualState Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="IndianRed" />
+                                                <Setter Property="Opacity" Value="0.8" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#334d89ff" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+                        </ImageButton>
+                    </Border>
+
+
+                    <HorizontalStackLayout Spacing="5" >
                         <Image 
                             Source="{Binding ThumbnailUrl}"
                             MinimumHeightRequest="60"
@@ -249,8 +293,8 @@
                             HorizontalOptions="Start" />
                         <VerticalStackLayout Spacing="0" >
 
-                        <!-- Video URL -->
-                        <Label 
+                            <!-- Video URL -->
+                            <Label 
                             Text="{Binding VideoTitle}"
                             TextColor="LightGray"
                             FontSize="13"
@@ -258,146 +302,149 @@
                             HorizontalOptions="Fill"
                             Margin="0,0,0,6" />
 
-                        <VerticalStackLayout Spacing="4">
-                            <HorizontalStackLayout Spacing="4">
-                                <!-- Extension -->
-                                <HorizontalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="📦" FontSize="11" VerticalTextAlignment="Center" />
-                                    <Label Text="{Binding SelectedFormat.Extension}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                            <VerticalStackLayout Spacing="4">
+                                <HorizontalStackLayout Spacing="4">
+                                    <!-- Extension -->
+                                    <HorizontalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="📦" FontSize="11" VerticalTextAlignment="Center" />
+                                        <Label Text="{Binding SelectedFormat.Extension}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                                <!-- Resolution -->
-                                <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="🎞️" FontSize="11" VerticalTextAlignment="Center"/>
-                                    <Label Text="{Binding SelectedFormat.Resolution}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                                    <!-- Resolution -->
+                                    <HorizontalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="🎞️" FontSize="11" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding SelectedFormat.Resolution}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                                <!-- Size -->
-                                <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="💾" FontSize="11" VerticalTextAlignment="Center"/>
-                                    <Label Text="{Binding SelectedFormat.FileSize}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                                    <!-- Size -->
+                                    <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="💾" FontSize="11" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding SelectedFormat.FileSize}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                                <!-- FPS -->
-                                <HorizontalStackLayout Grid.Column="3" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="🚀" FontSize="11" VerticalTextAlignment="Center"/>
-                                    <Label Text="{Binding SelectedFormat.Fps}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                                    <!-- FPS -->
+                                    <HorizontalStackLayout Grid.Column="3" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="🚀" FontSize="11" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding SelectedFormat.Fps}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                                <!-- Channels -->
-                                <HorizontalStackLayout Grid.Column="4" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="🔊" FontSize="11" VerticalTextAlignment="Center"/>
-                                    <Label Text="{Binding SelectedFormat.Channels}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                                    <!-- Channels -->
+                                    <HorizontalStackLayout Grid.Column="4" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="🔊" FontSize="11" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding SelectedFormat.Channels}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                                <!-- Video codec -->
-                                <HorizontalStackLayout Grid.Column="5" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="📹" FontSize="11" VerticalTextAlignment="Center"/>
-                                    <Label Text="{Binding SelectedFormat.VCodec}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                                    <!-- Video codec -->
+                                    <HorizontalStackLayout Grid.Column="5" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="📹" FontSize="11" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding SelectedFormat.VCodec}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                                <!-- Audio codec -->
-                                <HorizontalStackLayout Grid.Column="6" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="🎧" FontSize="11" VerticalTextAlignment="Center"/>
-                                    <Label Text="{Binding SelectedFormat.ACodec}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                                    <!-- Audio codec -->
+                                    <HorizontalStackLayout Grid.Column="6" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="🎧" FontSize="11" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding SelectedFormat.ACodec}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                                <!-- Extra info -->
-                                <HorizontalStackLayout Grid.Column="7" Spacing="4" VerticalOptions="Center">
-                                    <Label Text="📋" FontSize="11" VerticalTextAlignment="Center"/>
-                                    <Label Text="{Binding SelectedFormat.MoreInfo}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
+                                    <!-- Extra info -->
+                                    <HorizontalStackLayout Grid.Column="7" Spacing="4" VerticalOptions="Center">
+                                        <Label Text="📋" FontSize="11" VerticalTextAlignment="Center"/>
+                                        <Label Text="{Binding SelectedFormat.MoreInfo}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
 
-                            </HorizontalStackLayout>
-                            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="5" VerticalOptions="Center">
-                                <Label 
-                                    Grid.Column="0"
-                                    Text="Output Folder:" 
-                                    FontSize="11"  
-                                    TextColor="LightGrey" 
-                                    VerticalOptions="Center"/>
-                                <Border 
-                                    Grid.Column="1"
-                                    Stroke="Gray"
-                                    StrokeThickness="0.1"
-                                    StrokeShape="RoundRectangle 0"
-                                    BackgroundColor="Transparent"
-                                    HeightRequest="25"
-                                    Padding="5,0">
-                                    <Label 
-                                         Text="{Binding OutputPath, Mode=TwoWay}"
-                                         TextColor="DodgerBlue"
-                                         FontSize="11"
-                                         VerticalOptions="Center"
-                                         LineBreakMode="MiddleTruncation"
-                                         MaxLines="1" >
-                                        <Label.GestureRecognizers>
-                                            <TapGestureRecognizer 
+                                </HorizontalStackLayout>
+                                <Grid ColumnDefinitions="*,2*" ColumnSpacing="5" VerticalOptions="Center">
+                                    <HorizontalStackLayout  Grid.Column="0" Spacing="5">
+                                        <Label 
+                                            Text="Output Folder:" 
+                                            FontSize="11"  
+                                            TextColor="LightGrey" 
+                                            VerticalOptions="Center"/>
+                                        <Border 
+                                            Stroke="Gray"
+                                            StrokeThickness="0.1"
+                                            StrokeShape="RoundRectangle 0"
+                                            BackgroundColor="Transparent"
+                                            HeightRequest="25"
+                                            Padding="5,0">
+                                            <Label 
+                                                Text="{Binding OutputPath, Mode=TwoWay}"
+                                                TextColor="DodgerBlue"
+                                                FontSize="11"
+                                                VerticalOptions="Center"
+                                                WidthRequest="200"
+                                                LineBreakMode="TailTruncation"
+                                                MaxLines="1" >
+                                                <Label.GestureRecognizers>
+                                                    <TapGestureRecognizer 
                                                 Command="{Binding Source={x:Reference ListView}, Path=BindingContext.ChangeOutputFolderCommand}"
                                                 CommandParameter="{Binding OutputPath}"/>
-                                        </Label.GestureRecognizers>
-                                        <VisualStateManager.VisualStateGroups>
-                                            <VisualStateGroupList>
-                                                <VisualStateGroup x:Name="CommonStates">
-                                                    <VisualState x:Name="Normal">
-                                                        <VisualState.Setters>
-                                                            <Setter Property="TextDecorations" Value="None" />
-                                                            <Setter Property="TextColor" Value="DodgerBlue" />
-                                                        </VisualState.Setters>
-                                                    </VisualState>
-                                                    <VisualState x:Name="PointerOver">
-                                                        <VisualState.Setters>
-                                                            <Setter Property="TextDecorations" Value="Underline" />
-                                                            <Setter Property="TextColor" Value="#1E90FF" />
-                                                            <!-- Slightly lighter -->
-                                                        </VisualState.Setters>
-                                                    </VisualState>
-                                                    <VisualState x:Name="Pressed">
-                                                        <VisualState.Setters>
-                                                            <Setter Property="TextColor" Value="DarkBlue" />
-                                                        </VisualState.Setters>
-                                                    </VisualState>
-                                                </VisualStateGroup>
-                                            </VisualStateGroupList>
-                                        </VisualStateManager.VisualStateGroups>
-                                    </Label>
-                                </Border>
-                                <!-- Quality label, picker with border, and download button -->
-                                <Label 
-                                    Grid.Column="2"
-                                    Text="Quality:"
-                                    TextColor="LightGray"
-                                    FontSize="11"
-                                    VerticalOptions="Center" />
+                                                </Label.GestureRecognizers>
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroupList>
+                                                        <VisualStateGroup x:Name="CommonStates">
+                                                            <VisualState x:Name="Normal">
+                                                                <VisualState.Setters>
+                                                                    <Setter Property="TextDecorations" Value="None" />
+                                                                    <Setter Property="TextColor" Value="DodgerBlue" />
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="PointerOver">
+                                                                <VisualState.Setters>
+                                                                    <Setter Property="TextDecorations" Value="Underline" />
+                                                                    <Setter Property="TextColor" Value="#1E90FF" />
+                                                                    <!-- Slightly lighter -->
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="Pressed">
+                                                                <VisualState.Setters>
+                                                                    <Setter Property="TextColor" Value="DarkBlue" />
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                        </VisualStateGroup>
+                                                    </VisualStateGroupList>
+                                                </VisualStateManager.VisualStateGroups>
+                                            </Label>
+                                        </Border>
+                                    </HorizontalStackLayout>
 
-                                <!-- Picker wrapped inside Border for visible stroke -->
-                                <Border 
-                                    Grid.Column="3"
-                                    Stroke="Gray"
-                                    StrokeThickness="0.1"
-                                    StrokeShape="RoundRectangle 0"
-                                    BackgroundColor="Transparent"
-                                    HeightRequest="25"
-                                    HorizontalOptions="Fill">
-                                    <Picker
-                                        ItemsSource="{Binding Formats}"
-                                        SelectedItem="{Binding SelectedFormat, Mode=TwoWay}"
-                                        ItemDisplayBinding="{Binding .}"
-                                        BackgroundColor="Transparent"
-                                        TextColor="Teal"
-                                        FontSize="12"
-                                        HorizontalOptions="Fill"
-                                        VerticalOptions="Center"
-                                        ToolTipProperties.Text="{Binding SelectedFormat}"/>
-                                </Border>
-                            </Grid>
+                                    <!-- Quality label, picker with border, and download button -->
+                                    <HorizontalStackLayout  Grid.Column="1"  Spacing="5">
+                                        <Label 
+                                            Text="Quality:"
+                                            TextColor="LightGray"
+                                            FontSize="11"
+                                            VerticalOptions="Center" />
+
+                                        <!-- Picker wrapped inside Border for visible stroke -->
+                                        <Border 
+                                            Stroke="Gray"
+                                            StrokeThickness="0.1"
+                                            StrokeShape="RoundRectangle 0"
+                                            BackgroundColor="Transparent"
+                                            HeightRequest="25"
+                                            WidthRequest="300"
+                                            HorizontalOptions="Fill">
+                                            <Picker
+                                                ItemsSource="{Binding Formats}"
+                                                SelectedItem="{Binding SelectedFormat, Mode=TwoWay}"
+                                                ItemDisplayBinding="{Binding .}"
+                                                BackgroundColor="Transparent"
+                                                TextColor="Teal"
+                                                FontSize="12"                                                
+                                                HorizontalOptions="Fill"
+                                                VerticalOptions="Center"
+                                                ToolTipProperties.Text="{Binding SelectedFormat}"/>
+                                        </Border>
+                                    </HorizontalStackLayout>
+                                </Grid>
+                            </VerticalStackLayout>
+
+
                         </VerticalStackLayout>
-
-
-                    </VerticalStackLayout>
                     </HorizontalStackLayout>
 
-                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" VerticalOptions="Center" Spacing="5">
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" VerticalOptions="End" Spacing="5" Padding="0,0,70,0">
                         <Border 
                             Stroke="Gray"
                             StrokeThickness="0.1"
@@ -636,7 +683,8 @@
                                                     TextColor="DodgerBlue"
                                                     FontSize="13"
                                                     LineBreakMode="TailTruncation"
-                                                    MaxLines="2" >
+                                                    MaxLines="2" 
+                                                    ToolTipProperties.Text="{Binding Url}">
                                                     <Label.GestureRecognizers>
                                                         <TapGestureRecognizer 
                                                             Command="{Binding Source={x:Reference ListView}, Path=BindingContext.OpenLinkCommand}"

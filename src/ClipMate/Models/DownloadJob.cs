@@ -20,12 +20,7 @@ public partial class DownloadJob : ObservableObject
     private DownloadStatus status = DownloadStatus.Pending;
 
     [ObservableProperty]
-    //[NotifyPropertyChangedFor(nameof(ThumbnailImage))]
     private string? thumbnail = "videoimage.png";
-
-    //[ObservableProperty]
-    //[NotifyPropertyChangedFor(nameof(ThumbnailImage))]
-    //private string? thumbnailBase64;
 
     [ObservableProperty]
     private double progress;

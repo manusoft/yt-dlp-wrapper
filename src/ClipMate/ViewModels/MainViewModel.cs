@@ -31,6 +31,9 @@ public partial class MainViewModel : BaseViewModel
     private string _outputPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
 
     [ObservableProperty]
+    private string _outputTemplate = "%(upload_date)s_%(title)s_.%(ext)s";
+
+    [ObservableProperty]
     private string _url = string.Empty;
 
     [ObservableProperty]
@@ -52,11 +55,16 @@ public partial class MainViewModel : BaseViewModel
     public MainViewModel()
     {
         ConnectionStatus = ConnectionState.Available;
+        OutputPath = AppSettings.OutputFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+        OutputTemplate = AppSettings.OutputTemplate ?? "%(upload_date)s_%(title).80s_%(format_id)s.%(ext)s";
+
         _connectivityCheck = new ConnectivityCheck(OnConnectivityChanged);
         _logger = new AppLogger();
         _ytdlpService = new YtdlpService(_logger);
         _jsonService = new JsonService();
+
         Jobs = new SortableObservableCollection<DownloadJob>(sortKeySelector: d => GetStatusPriority(d.Status), propertyToWatch: nameof(DownloadJob.Status));
+
         InitializeAsync();
     }
 
@@ -88,11 +96,11 @@ public partial class MainViewModel : BaseViewModel
             IsAnalizing = true;
             IsAnalyzed = false;
 
+            ThumbnailUrl = "videoimage.png";
+
             Formats.Clear();
 
             var metadata = await _ytdlpService.GetMetadataAsync(Url, _cts.Token);
-
-            Console.WriteLine($"Metadata for {Url}: {metadata}");
 
             if (metadata == null)
             {
@@ -154,6 +162,10 @@ public partial class MainViewModel : BaseViewModel
 
             IsAnalyzed = true;
         }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Info, "Analysis cancelled by user.");
+        }
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, ex.Message);
@@ -169,11 +181,28 @@ public partial class MainViewModel : BaseViewModel
     {
         try
         {
-            if (!_cts.IsCancellationRequested)
+            if (!_cts!.IsCancellationRequested)
             {
                 _cts.Cancel();
                 IsAnalyzed = false;
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private void CloseAnalyzeView()
+    {
+        try
+        {
+            IsAnalyzed = false;         
+            VideoTitle = string.Empty;
+            ThumbnailUrl = "videoimage.png";
+            Formats.Clear();
+            SelectedFormat = null;
         }
         catch (Exception ex)
         {
@@ -188,10 +217,13 @@ public partial class MainViewModel : BaseViewModel
             return null;
 
         // Check for duplicate URL (case-insensitive)
-        bool alreadyExists = Jobs.Any(j => string.Equals(j.Url, Url, StringComparison.OrdinalIgnoreCase));
+        bool alreadyExists = Jobs.Any(j =>
+            string.Equals(j.Url, Url, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(j.Format?.Id, SelectedFormat?.Id, StringComparison.OrdinalIgnoreCase));
+
         if (alreadyExists)
         {
-            await ShowToastAsync("This download is already in your queue!");
+            await ShowToastAsync("This format is already in your queue for this video!");
             return null;
         }
 
@@ -257,21 +289,6 @@ public partial class MainViewModel : BaseViewModel
             job.IsDownloading = true;
 
             await _ytdlpService.ExecuteDownloadAsync(job, cts.Token);
-
-            // Download completed successfully (no OperationCanceledException)
-            // Delete temp thumbnail file
-            if (File.Exists(job.Thumbnail))
-            {
-                try
-                {
-                    File.Delete(job.Thumbnail);
-                    job.Thumbnail = null;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Log(LogType.Error, $"Thumbnail delete error: {ex.Message}");
-                }
-            }
 
             job.Progress = 0;
 
@@ -421,7 +438,8 @@ public partial class MainViewModel : BaseViewModel
             var result = await FolderPicker.Default.PickAsync(cancellationToken);
             if (result.IsSuccessful)
             {
-                OutputPath = result.Folder.Path;
+                AppSettings.OutputFolder = result.Folder.Path;
+                OutputPath = AppSettings.OutputFolder;
             }
         }
         catch (Exception ex)

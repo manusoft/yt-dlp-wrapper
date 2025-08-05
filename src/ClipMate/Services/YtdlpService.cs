@@ -54,25 +54,10 @@ public class YtdlpService(AppLogger logger)
     public async Task ExecuteDownloadAsync(DownloadJob job, CancellationToken cancellationToken)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
-        string originalPath = "";
 
         void HandleOutput(object? s, string msg)
         {
             if (cancellationToken.IsCancellationRequested) return;
-
-            //if (msg.StartsWith("[info] Writing video thumbnail"))
-            //{
-            //    var match = Regex.Match(msg, @"to:\s(.+)$");
-            //    if (match.Success)
-            //    {
-            //        originalPath = match.Groups[1].Value.Trim();
-            //        _logger.Log(LogType.Info, $"Thumbnail saved at: {originalPath}");
-            //    }
-            //    else
-            //    {
-            //        job.Thumbnail = "videoimage.png";
-            //    }
-            //}
 
             job.Message = msg;
         }
@@ -83,13 +68,6 @@ public class YtdlpService(AppLogger logger)
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                //if (File.Exists(originalPath))
-                //{
-                //    job.ThumbnailBase64 = ConvertImageToThumbnailBase64(originalPath);
-                //    job.Thumbnail = null;
-                //    try { File.Delete(originalPath); } catch (Exception ex) { _logger.Log(LogType.Info, ex.Message); }
-                //}
-
                 if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Completed;
@@ -125,19 +103,6 @@ public class YtdlpService(AppLogger logger)
                     job.IsCompleted = true;
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
                     _logger.Log(LogType.Info, msg);
-
-                    //if (File.Exists(job.Thumbnail))
-                    //{
-                    //    try
-                    //    {
-                    //        File.Delete(job.Thumbnail);
-                    //        job.Thumbnail = null;
-                    //    }
-                    //    catch (Exception ex)
-                    //    {
-                    //        _logger.Log(LogType.Error, $"Thumbnail delete error: {ex.Message}");
-                    //    }
-                    //}
 
                     return;
                 }
@@ -220,8 +185,7 @@ public class YtdlpService(AppLogger logger)
                 .SetOutputFolder(job.OutputPath)
                 .SetFormat(job.Format?.Id ?? "b")
                 .AddCustomCommand("--restrict-filenames")
-                .SetOutputTemplate("%(upload_date)s_%(title)s_.%(ext)s")
-                //.DownloadThumbnails()
+                .SetOutputTemplate(AppSettings.OutputTemplate)
                 .ExecuteAsync(job.Url, cancellationToken);
         }
         catch (OperationCanceledException)
