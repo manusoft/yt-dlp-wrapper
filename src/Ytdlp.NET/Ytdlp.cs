@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace YtdlpDotNet;
@@ -101,6 +102,56 @@ public sealed class Ytdlp
             return string.Empty;
         }
     }
+
+    public async Task<DumpRoot?> GetVideoMetadataJsonAsync(string url, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        var arguments = $"--dump-json {SanitizeInput(url)}";
+        _logger.Log(LogType.Info, $"Executing dump-json for: {url}");
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = _ytDlpPath,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = new Process { StartInfo = startInfo };
+
+        try
+        {
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                _logger.Log(LogType.Error, $"yt-dlp error: {error}");
+                throw new YtdlpException($"yt-dlp failed with error: {error}");
+            }
+
+            _logger.Log(LogType.Info, "Parsing yt-dlp metadata output");
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            return JsonSerializer.Deserialize<DumpRoot>(output, options);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Error parsing yt-dlp metadata: {ex.Message}");
+            throw new YtdlpException("Failed to parse yt-dlp dump-json output.", ex);
+        }
+    }
+
 
     #region Command Building Methods
     public Ytdlp Version()
@@ -585,6 +636,7 @@ public sealed class Ytdlp
                 string? output;
                 while ((output = await reader.ReadLineAsync()) != null)
                 {
+                    cancellationToken.ThrowIfCancellationRequested(); // <- required
                     _progressParser.ParseProgress(output);
                     OnProgress?.Invoke(output);
                 }
@@ -596,6 +648,7 @@ public sealed class Ytdlp
                 string? errorOutput;
                 while ((errorOutput = await errorReader.ReadLineAsync()) != null)
                 {
+                    cancellationToken.ThrowIfCancellationRequested(); // <- required
                     OnErrorMessage?.Invoke(this, errorOutput);
                     OnError?.Invoke(errorOutput);
                     _logger.Log(LogType.Error, errorOutput);
