@@ -76,7 +76,6 @@ public sealed class Ytdlp
         "--break-on-existing", "--break-per-input", "--windows-filenames", "--restrict-filenames"
     };
 
-
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
     {
         _ytDlpPath = ValidatePath(ytDlpPath);
@@ -436,12 +435,43 @@ public sealed class Ytdlp
 
         using var process = new Process { StartInfo = startInfo };
 
+        bool wasCanceled = false;
+
         try
         {
             process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync(cancellationToken);
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
+            using (cancellationToken.Register(() =>
+            {
+                wasCanceled = true;
+
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                        _logger.Log(LogType.Warning, "yt-dlp process killed due to cancellation.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log(LogType.Error, $"Failed to kill yt-dlp: {ex.Message}");
+                }
+            }))
+            {
+                await process.WaitForExitAsync();
+            }
+
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (wasCanceled)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
 
             if (process.ExitCode != 0)
             {
@@ -451,12 +481,13 @@ public sealed class Ytdlp
 
             _logger.Log(LogType.Info, "Parsing yt-dlp metadata output");
 
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             return JsonSerializer.Deserialize<Metadata>(output, options);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Metadata fetch cancelled by user.");
+            throw;
         }
         catch (Exception ex)
         {
