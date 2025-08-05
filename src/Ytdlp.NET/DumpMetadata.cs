@@ -2,7 +2,7 @@
 
 namespace YtdlpDotNet;
 
-public class DumpRoot
+public class Metadata
 {
     [JsonPropertyName("id")]
     public string Id { get; set; } = default!;
@@ -11,7 +11,7 @@ public class DumpRoot
     public string Title { get; set; } = default!;
 
     [JsonPropertyName("description")]
-    public string Description { get; set; } = default!;   
+    public string Description { get; set; } = default!;
 
     [JsonPropertyName("thumbnail")]
     public string Thumbnail { get; set; } = default!;
@@ -20,7 +20,7 @@ public class DumpRoot
     public List<Format>? Formats { get; set; }
 
     [JsonPropertyName("requested_formats")]
-    public List<Format>?    RequestedFormats { get; set; }
+    public List<Format>? RequestedFormats { get; set; }
 }
 
 public class Format

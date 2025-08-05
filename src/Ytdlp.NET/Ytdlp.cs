@@ -30,15 +30,52 @@ public sealed class Ytdlp
     // Valid yt-dlp options for validation
     private static readonly HashSet<string> ValidOptions = new HashSet<string>
     {
-        "--extract-audio", "--audio-format", "--format", "--playlist-items", "--limit-rate", "--proxy",
-        "--simulate", "--write-info-json", "--write-subs", "--sub-langs", "--write-thumbnail",
-        "--live-from-start", "--no-live-from-start", "--retries", "--download-sections",
-        "--concat-playlist", "--replace-in-metadata", "--download-archive", "--user-agent",
-        "--write-log", "--cookies", "--referer", "--merge-output-format", "--add-header",
-        "--dump-json", "--write-video", "--write-audio", "--postprocessor-args",
-        "--download-timeout", "--username", "--password", "--no-ads", "--recode-video",
-        "--timeout", "--restrict-filenames"
+        // General Download
+        "--format", "--output", "-o", "--no-overwrites", "--continue", "--no-continue",
+        "--ignore-errors", "--no-part", "--no-mtime", "--write-description", "--write-info-json",
+        "--write-annotations", "--write-thumbnail", "--write-all-thumbnails", "--write-sub",
+        "--write-auto-sub", "--sub-format", "--sub-langs", "--skip-download", "--no-playlist",
+        "--yes-playlist", "--playlist-items", "--playlist-start", "--playlist-end", "--match-title",
+        "--reject-title", "--no-check-certificate", "--user-agent", "--referer", "--cookies",
+        "--add-header", "--limit-rate", "--retries", "--fragment-retries", "--timeout",
+        "--source-address", "--force-ipv4", "--force-ipv6",
+
+        // Authentication
+        "--username", "--password", "--twofactor", "--netrc", "--netrc-location", "--video-password",
+
+        // Proxy / Network
+        "--proxy", "--geo-bypass", "--geo-bypass-country", "--geo-bypass-ip-block", "--no-geo-bypass",
+
+        // Download Archive
+        "--download-archive", "--max-downloads", "--min-filesize", "--max-filesize", "--date",
+        "--datebefore", "--dateafter", "--match-filter",
+
+        // Post-processing
+        "--extract-audio", "--audio-format", "--audio-quality", "--recode-video",
+        "--postprocessor-args", "--embed-subs", "--embed-thumbnail", "--embed-metadata",
+        "--embed-chapters", "--embed-info-json", "--convert-subs", "--merge-output-format",
+
+        // Subtitle & Thumbnail
+        "--write-sub", "--write-auto-sub", "--sub-lang", "--sub-format", "--write-thumbnail",
+        "--write-all-thumbnails", "--convert-subs", "--embed-subs", "--embed-thumbnail",
+
+        // Simulation / Debug
+        "--simulate", "--skip-download", "--print", "--quiet", "--no-warnings", "--verbose",
+        "--dump-json", "--force-write-archive", "--no-progress", "--newline", "--write-log",
+
+        // Advanced
+        "--download-sections", "--concat-playlist", "--replace-in-metadata", "--call-home",
+        "--write-pages", "--sleep-interval", "--max-sleep-interval", "--min-sleep-interval",
+        "--sleep-subtitles", "--write-link", "--live-from-start", "--no-live-from-start",
+        "--no-ads", "--force-keyframes-at-cuts", "--remux-video", "--no-color",
+        "--paths", "--output-na-placeholder", "--playlist-random", "--sponsorblock-mark",
+        "--sponsorblock-remove", "--sponsorblock-chapter-title",
+
+        // Others (use with caution depending on context)
+        "--config-location", "--write-video", "--write-audio", "--no-post-overwrites",
+        "--break-on-existing", "--break-per-input", "--windows-filenames", "--restrict-filenames"
     };
+
 
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
     {
@@ -57,101 +94,6 @@ public sealed class Ytdlp
         _progressParser.OnErrorMessage += (sender, e) => OnErrorMessage?.Invoke(this, e);
         _progressParser.OnPostProcessingComplete += (s, e) => OnPostProcessingComplete?.Invoke(this, e);
     }
-
-    private bool IsInPath(string executable)
-    {
-        var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? Array.Empty<string>();
-        return paths.Any(path => File.Exists(Path.Combine(path, executable)));
-    }
-
-    public async Task<string> GetVersionAsync()
-    {
-        try
-        {
-            var processInfo = new ProcessStartInfo
-            {
-                FileName = _ytDlpPath,
-                Arguments = "--version",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = processInfo };
-            process.Start();
-
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                _logger.Log(LogType.Error, $"Failed to get yt-dlp version: {error}");
-                return string.Empty;
-            }
-
-            string version = output.Trim();
-            _logger.Log(LogType.Info, $"yt-dlp version: {version}");
-            return version;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Error getting yt-dlp version: {ex.Message}");
-            return string.Empty;
-        }
-    }
-
-    public async Task<DumpRoot?> GetVideoMetadataJsonAsync(string url, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            throw new ArgumentException("URL cannot be empty.", nameof(url));
-
-        var arguments = $"--dump-json {SanitizeInput(url)}";
-        _logger.Log(LogType.Info, $"Executing dump-json for: {url}");
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = _ytDlpPath,
-            Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = new Process { StartInfo = startInfo };
-
-        try
-        {
-            process.Start();
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync(cancellationToken);
-
-            if (process.ExitCode != 0)
-            {
-                _logger.Log(LogType.Error, $"yt-dlp error: {error}");
-                throw new YtdlpException($"yt-dlp failed with error: {error}");
-            }
-
-            _logger.Log(LogType.Info, "Parsing yt-dlp metadata output");
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            return JsonSerializer.Deserialize<DumpRoot>(output, options);
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Error parsing yt-dlp metadata: {ex.Message}");
-            throw new YtdlpException("Failed to parse yt-dlp dump-json output.", ex);
-        }
-    }
-
 
     #region Command Building Methods
     public Ytdlp Version()
@@ -433,6 +375,94 @@ public sealed class Ytdlp
     public string PreviewCommand()
     {
         return _commandBuilder.ToString().Trim();
+    }
+
+    public async Task<string> GetVersionAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var processInfo = new ProcessStartInfo
+            {
+                FileName = _ytDlpPath,
+                Arguments = "--version",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = new Process { StartInfo = processInfo };
+            process.Start();
+
+            string output = await process.StandardOutput.ReadToEndAsync();
+            string error = await process.StandardError.ReadToEndAsync();
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                _logger.Log(LogType.Error, $"Failed to get yt-dlp version: {error}");
+                return string.Empty;
+            }
+
+            string version = output.Trim();
+            _logger.Log(LogType.Info, $"yt-dlp version: {version}");
+            return version;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Error getting yt-dlp version: {ex.Message}");
+            return string.Empty;
+        }
+    }
+
+    public async Task<Metadata?> GetVideoMetadataJsonAsync(string url, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        var arguments = $"--dump-json {SanitizeInput(url)}";
+        _logger.Log(LogType.Info, $"Executing dump-json for: {url}");
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = _ytDlpPath,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = new Process { StartInfo = startInfo };
+
+        try
+        {
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                _logger.Log(LogType.Error, $"yt-dlp error: {error}");
+                throw new YtdlpException($"yt-dlp failed with error: {error}");
+            }
+
+            _logger.Log(LogType.Info, "Parsing yt-dlp metadata output");
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            return JsonSerializer.Deserialize<Metadata>(output, options);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Error parsing yt-dlp metadata: {ex.Message}");
+            throw new YtdlpException("Failed to parse yt-dlp dump-json output.", ex);
+        }
     }
 
     public async Task<List<VideoFormat>> GetAvailableFormatsAsync(string videoUrl, CancellationToken cancellationToken = default)
@@ -899,6 +929,12 @@ public sealed class Ytdlp
 
         _logger.Log(LogType.Info, $"Parsed {formats.Count} formats");
         return formats;
+    }
+
+    private bool IsInPath(string executable)
+    {
+        var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? Array.Empty<string>();
+        return paths.Any(path => File.Exists(Path.Combine(path, executable)));
     }
 
     private static string ValidatePath(string path)
