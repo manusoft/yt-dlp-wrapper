@@ -119,6 +119,8 @@ public partial class MainViewModel : BaseViewModel
 
             var fileSize = metadata.RequestedFormats?.Sum(x => x.Filesize) ?? 0; // bytes   
             var fileSizeFormatted = fileSize > 0 ? $"{fileSize / (1024 * 1024):F2} Mb" : "n/a";
+            var fps = metadata.RequestedFormats?.FirstOrDefault()?.Fps ?? 0;
+            var formatedFps = fps > 0 ? $"{fps} fps" : "n/a";
 
             var autoFormat = new MediaFormat
             {
@@ -126,10 +128,10 @@ public partial class MainViewModel : BaseViewModel
                 Extension = "mp4",
                 Resolution = $"auto {metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Resolution}" ?? "auto",
                 FileSize = fileSizeFormatted,
-                Fps = $"{metadata.RequestedFormats?.FirstOrDefault()?.Fps} fps" ?? "n/a",
+                Fps = formatedFps,
                 Channels = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.AudioChannels.ToString() ?? "n/a",
                 VCodec = metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Vcodec ?? "n/a",
-                ACodec = metadata.RequestedFormats?.FirstOrDefault(x=> x.IsAudio)?.Acodec ?? "n/a",
+                ACodec = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.Acodec ?? "n/a",
                 MoreInfo = "n/a",
             };
 
@@ -137,9 +139,8 @@ public partial class MainViewModel : BaseViewModel
 
             foreach (var f in metadata?.Formats!)
             {
-                fileSizeFormatted = f.Filesize.HasValue
-                    ? $"{f.Filesize.Value / (1024 * 1024):F2} Mb"
-                    : "n/a";
+                fileSizeFormatted = f.Filesize.HasValue ? $"{f.Filesize.Value / (1024 * 1024):F2} Mb" : "n/a";
+                formatedFps = f.Fps > 0 ? $"{f.Fps} fps" : "n/a";
 
                 var mediaFormat = new MediaFormat
                 {
@@ -198,7 +199,7 @@ public partial class MainViewModel : BaseViewModel
     {
         try
         {
-            IsAnalyzed = false;         
+            IsAnalyzed = false;
             VideoTitle = string.Empty;
             ThumbnailUrl = "videoimage.png";
             Formats.Clear();
@@ -219,7 +220,7 @@ public partial class MainViewModel : BaseViewModel
         // Check for duplicate URL (case-insensitive)
         bool alreadyExists = Jobs.Any(j =>
             string.Equals(j.Url, Url, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(j.Format?.Id, SelectedFormat?.Id, StringComparison.OrdinalIgnoreCase));
+            string.Equals(j.FormatId, SelectedFormat?.Id, StringComparison.OrdinalIgnoreCase));
 
         if (alreadyExists)
         {
@@ -234,7 +235,9 @@ public partial class MainViewModel : BaseViewModel
                 Url = Url,
                 Title = VideoTitle,
                 Thumbnail = ThumbnailUrl,
-                Format = SelectedFormat,
+                FormatId = SelectedFormat?.Id ?? "b",
+                MediaFormat = SelectedFormat,
+                FileSize = SelectedFormat?.FileSize ?? "n/a",
                 OutputPath = OutputPath,
                 ErrorMessage = string.Empty,
                 IsCompleted = false,
@@ -474,8 +477,8 @@ public partial class MainViewModel : BaseViewModel
             job.IsDownloading = false;
             job.ErrorMessage = string.Empty;
             job.Progress = 0;
-            job.Eta = string.IsNullOrWhiteSpace(job.Eta) ? "N/A" : job.Eta;
-            job.Speed = string.IsNullOrWhiteSpace(job.Speed) ? "N/A" : job.Speed;
+            //job.Eta = string.IsNullOrWhiteSpace(job.Eta) ? "N/A" : job.Eta;
+            //job.Speed = string.IsNullOrWhiteSpace(job.Speed) ? "N/A" : job.Speed;
 
             Jobs.Add(job);
         }

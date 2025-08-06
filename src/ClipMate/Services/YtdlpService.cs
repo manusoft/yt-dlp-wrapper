@@ -73,7 +73,7 @@ public class YtdlpService(AppLogger logger)
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
-                    job.Format!.FileSize = e.Size;
+                    job.FileSize = e.Size;
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
                     _logger.Log(LogType.Info, e.Message);
                     return;
@@ -85,7 +85,7 @@ public class YtdlpService(AppLogger logger)
                 job.Status = DownloadStatus.Downloading;
                 job.IsDownloading = true;
                 job.IsCompleted = false;
-                job.Format!.FileSize = e.Size;
+                job.FileSize = e.Size;
                 job.ErrorMessage = string.Empty;
             });
         }
@@ -183,7 +183,7 @@ public class YtdlpService(AppLogger logger)
 
             await ytdlp
                 .SetOutputFolder(job.OutputPath)
-                .SetFormat(job.Format?.Id ?? "b")
+                .SetFormat(job.FormatId ?? "b")
                 .AddCustomCommand("--restrict-filenames")
                 .SetOutputTemplate(AppSettings.OutputTemplate)
                 .ExecuteAsync(job.Url, cancellationToken);

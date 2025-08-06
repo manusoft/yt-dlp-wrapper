@@ -11,10 +11,15 @@ public partial class DownloadJob : ObservableObject
     [ObservableProperty]
     private string title = string.Empty;
 
-    [ObservableProperty]
-    private MediaFormat? format;
+    [ObservableProperty]    
+    private string formatId;
 
-    public string OutputPath { get; set; } = string.Empty;
+    [ObservableProperty]
+    private MediaFormat? mediaFormat;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormatFileSize))]
+    private string fileSize = "0";
 
     [ObservableProperty]
     private DownloadStatus status = DownloadStatus.Pending;
@@ -25,9 +30,11 @@ public partial class DownloadJob : ObservableObject
     [ObservableProperty]
     private double progress;
 
+    [JsonIgnore]
     [ObservableProperty]
     private string? speed;
 
+    [JsonIgnore]
     [ObservableProperty]
     private string? eta;
 
@@ -51,28 +58,32 @@ public partial class DownloadJob : ObservableObject
     public bool IsNotDownloading => !IsDownloading;
 
     [JsonIgnore]
-    public string FormatFileSize => Format?.FileSize ?? "N/A";
+    public string FormatFileSize => FileSize ?? "n/a";
 
-    //[JsonIgnore]
-    //public ImageSource? ThumbnailImage
-    //{
-    //    get
-    //    {
-    //        if (!string.IsNullOrWhiteSpace(ThumbnailBase64) && ThumbnailBase64.StartsWith("data:image"))
-    //        {
-    //            try
-    //            {
-    //                var base64Data = ThumbnailBase64.Split(',')[1];
-    //                byte[] imageBytes = Convert.FromBase64String(base64Data);
-    //                return ImageSource.FromStream(() => new MemoryStream(imageBytes));
-    //            }
-    //            catch
-    //            {
-    //                return null;
-    //            }
-    //        }
+    public string OutputPath { get; set; } = string.Empty;
 
-    //        return !string.IsNullOrWhiteSpace(Thumbnail) ? ImageSource.FromFile(Thumbnail) : null;
-    //    }
-    //}
 }
+
+
+//[JsonIgnore]
+//public ImageSource? ThumbnailImage
+//{
+//    get
+//    {
+//        if (!string.IsNullOrWhiteSpace(ThumbnailBase64) && ThumbnailBase64.StartsWith("data:image"))
+//        {
+//            try
+//            {
+//                var base64Data = ThumbnailBase64.Split(',')[1];
+//                byte[] imageBytes = Convert.FromBase64String(base64Data);
+//                return ImageSource.FromStream(() => new MemoryStream(imageBytes));
+//            }
+//            catch
+//            {
+//                return null;
+//            }
+//        }
+
+//        return !string.IsNullOrWhiteSpace(Thumbnail) ? ImageSource.FromFile(Thumbnail) : null;
+//    }
+//}
