@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               x:Class="ClipMate.Views.SettingsPopup"
+               xmlns:views="clr-namespace:ClipMate.Views"
+               x:DataType="views:SettingsPopup"
+               BackgroundColor="#1E1E1E"
+               HeightRequest="275"
+               WidthRequest="400"
+               IsClippedToBounds="True">
+
+    <VerticalStackLayout Spacing="20">
+
+        <VerticalStackLayout Spacing="5">
+            <Label Text="Download Directory" TextColor="White" FontSize="16" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
+                <Entry 
+                    Grid.Column="0"
+                    Text="{Binding OutputDirectory}" 
+                    BackgroundColor="#2C2C2C"
+                    TextColor="White"
+                    Placeholder="Choose folder..." />
+                <Button 
+                    Grid.Column="1"
+                    Text="Browse"
+                    BackgroundColor="#444"
+                    TextColor="White"
+                    Clicked="OnBrowseClicked"/>
+            </Grid>
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Spacing="5">
+            <Label Text="Output Template" TextColor="White" FontSize="16" />
+            <Entry 
+                Text="{Binding OutputTemplate}" 
+                BackgroundColor="#2C2C2C"
+                TextColor="White"
+                Placeholder="e.g., %(title)s.%(ext)s" />
+        </VerticalStackLayout>
+
+        <HorizontalStackLayout HorizontalOptions="Center" Spacing="20" >
+            <Button Text="Save" Clicked="OnSaveClicked" WidthRequest="100" />
+            <Button Text="Cancel" Clicked="OnCancelClicked" WidthRequest="100" />
+        </HorizontalStackLayout>
+
+    </VerticalStackLayout>
+</toolkit:Popup>

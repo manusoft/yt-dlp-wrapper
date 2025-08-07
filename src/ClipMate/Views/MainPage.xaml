@@ -12,16 +12,16 @@
     <Grid>
         <Grid RowDefinitions="Auto,Auto,*" RowSpacing="5">
 
-            <!-- Title View-->
+            <!-- Title View -->
             <Grid Grid.Row="0"  ColumnDefinitions="1*,2*,Auto,1*" Padding="10" ColumnSpacing="5" BackgroundColor="#1A1A1A">
-                <!--Logo-->
+                <!-- Logo -->
                 <Image 
                     Grid.Column="0"
                     Source="logo_1.png"
                     HeightRequest="30"
                     HorizontalOptions="Start"/>
 
-                <!--Search Entry and Button-->
+                <!-- Search Entry and Button -->
                 <Border 
                     Grid.Column="1"
                     Stroke="Gray"
@@ -118,7 +118,7 @@
                     </Grid>
                 </Border>
 
-                <!--Indicator and Clipboard Button-->
+                <!-- Indicator and Clipboard Button -->
                 <ActivityIndicator 
                     Grid.Column="2"
                     IsVisible="{Binding IsAnalizing}" 
@@ -128,6 +128,7 @@
                     Color="DodgerBlue" 
                     HorizontalOptions="Center"
                     VerticalOptions="Center"/>
+
                 <Border 
                     Grid.Column="2"
                     Stroke="LightGrey"
@@ -180,54 +181,101 @@
                     </ImageButton>
                 </Border>
 
-                <!-- About Button -->
-                <Border 
-                    Grid.Column="4"
-                    Stroke="LightGrey"
-                    StrokeThickness="0.1"
-                    StrokeShape="RoundRectangle 50"
-                    HeightRequest="30"             
-                    WidthRequest="30"
-                    Padding="-10"
-                    HorizontalOptions="End" Opacity="0.8">
-                    <ImageButton 
-                        Source="info.png"
-                        BackgroundColor="Transparent"  
-                        Aspect="AspectFit"
-                        CornerRadius="50"
-                        HeightRequest="20"
-                        WidthRequest="20"
-                        ToolTipProperties.Text="About ClipMate"
-                        Clicked="OnAboutClicked"
-                        HorizontalOptions="Center"
-                        VerticalOptions="Center" >
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroupList>
-                                <VisualStateGroup x:Name="CommonStates">
+                <!-- Settings Button & About Button -->
+                <HorizontalStackLayout Grid.Column="4" Spacing="4" HorizontalOptions="End">
+                    <!-- Setting -->
+                    <Border                    
+                        Stroke="LightGrey"
+                        StrokeThickness="0.1"
+                        StrokeShape="RoundRectangle 50"
+                        HeightRequest="30"             
+                        WidthRequest="30"
+                        Padding="-10"
+                        Opacity="0.8">
+                        <ImageButton 
+                            Source="gear.png"
+                            BackgroundColor="Transparent"  
+                            Aspect="AspectFit"
+                            CornerRadius="50"
+                            HeightRequest="20"
+                            WidthRequest="20"
+                            ToolTipProperties.Text="About ClipMate"
+                            Clicked="OnSettingsClicked"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center" >
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup x:Name="CommonStates">
 
-                                    <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="Normal"/>
 
-                                    <VisualState Name="PointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#334d89ff" />
-                                        </VisualState.Setters>
-                                    </VisualState>
+                                        <VisualState Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#334d89ff" />
+                                            </VisualState.Setters>
+                                        </VisualState>
 
-                                    <VisualState x:Name="Pressed">
-                                        <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#37474F" />
-                                            <Setter Property="Opacity" Value="0.85" />
-                                        </VisualState.Setters>
-                                    </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#37474F" />
+                                                <Setter Property="Opacity" Value="0.85" />
+                                            </VisualState.Setters>
+                                        </VisualState>
 
-                                </VisualStateGroup>
-                            </VisualStateGroupList>
-                        </VisualStateManager.VisualStateGroups>
-                    </ImageButton>
-                </Border>
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+                        </ImageButton>
+                    </Border>
+
+                    <!-- About -->
+                    <Border 
+                        Stroke="LightGrey"
+                        StrokeThickness="0.1"
+                        StrokeShape="RoundRectangle 50"
+                        HeightRequest="30"             
+                        WidthRequest="30"
+                        Padding="-10"
+                        Opacity="0.8">
+                        <ImageButton 
+                            Source="info.png"
+                            BackgroundColor="Transparent"  
+                            Aspect="AspectFit"
+                            CornerRadius="50"
+                            HeightRequest="20"
+                            WidthRequest="20"
+                            ToolTipProperties.Text="About ClipMate"
+                            Clicked="OnAboutClicked"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center" >
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup x:Name="CommonStates">
+
+                                        <VisualState x:Name="Normal"/>
+
+                                        <VisualState Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#334d89ff" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#37474F" />
+                                                <Setter Property="Opacity" Value="0.85" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+                        </ImageButton>
+                    </Border>
+                </HorizontalStackLayout>
             </Grid>
 
-            <!--Analyzed View-->
+            <!-- Analyzed View -->
             <Border 
                 x:Name="AnalyzedBorder"
                 Grid.Row="1"
@@ -566,7 +614,7 @@
                 </Grid>
             </Border>
 
-            <!--Download Que-->
+            <!-- Download Que -->
             <Border Grid.Row="2" Margin="12,0,12,10" Stroke="LightGray" StrokeThickness="0.1" >
                 <Grid RowDefinitions="*,Auto">
                     <Grid Grid.Row="1" ColumnDefinitions="*,*" VerticalOptions="Center" Padding="12,0,12,5" >
@@ -666,7 +714,7 @@
                                         <!-- Thumbnail -->
                                         <Image 
                                             Grid.Column="0"
-                                            Source="{Binding Thumbnail, Mode=OneWay}"
+                                            Source="{Binding ThumbnailImage, Mode=OneWay}"
                                             MaximumHeightRequest="60"
                                             WidthRequest="120"
                                             Aspect="AspectFit"                                            
@@ -721,7 +769,7 @@
                                                     <Label Text="📦" FontSize="11" VerticalTextAlignment="Center"/>
                                                     <Label Text="{Binding MediaFormat.Extension, Mode=OneWay}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center"/>
                                                 </HorizontalStackLayout>
-                                                
+
                                                 <HorizontalStackLayout Spacing="4">
                                                     <Label Text="🎞️" FontSize="11" VerticalTextAlignment="Center"/>
                                                     <Label Text="{Binding MediaFormat.Resolution, Mode=OneWay}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center"/>
@@ -970,7 +1018,7 @@
                                                     <VisualStateManager.VisualStateGroups>
                                                         <VisualStateGroupList>
                                                             <VisualStateGroup x:Name="CommonStates">
-                                                                
+
                                                                 <VisualState x:Name="Normal" />
 
                                                                 <VisualState x:Name="PointerOver">

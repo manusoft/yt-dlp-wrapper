@@ -25,7 +25,8 @@ public partial class DownloadJob : ObservableObject
     private DownloadStatus status = DownloadStatus.Pending;
 
     [ObservableProperty]
-    private string? thumbnail = "videoimage.png";
+    [NotifyPropertyChangedFor(nameof(ThumbnailImage))]
+    private string? thumbnail;
 
     [ObservableProperty]
     private double progress;
@@ -56,6 +57,12 @@ public partial class DownloadJob : ObservableObject
 
     [JsonIgnore]
     public bool IsNotDownloading => !IsDownloading;
+
+    [JsonIgnore]
+    public string FormattedProgress => $"{0.00}%";
+
+    [JsonIgnore]
+    public string ThumbnailImage => Thumbnail ?? "videoimage.png"; 
 
     [JsonIgnore]
     public string FormatFileSize => FileSize ?? "n/a";

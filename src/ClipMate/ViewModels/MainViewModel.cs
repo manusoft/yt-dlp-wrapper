@@ -1,8 +1,6 @@
 ﻿using ClipMate.Helpers;
 using ClipMate.Models;
 using ClipMate.Services;
-using CommunityToolkit.Maui.Alerts;
-using CommunityToolkit.Maui.Core;
 using CommunityToolkit.Maui.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -513,20 +511,5 @@ public partial class MainViewModel : BaseViewModel
         {
             return false;
         }
-    }
-
-    // Toast settings
-    public async Task ShowToastAsync(string message)
-    {
-        try
-        {
-            var toast = Toast.Make(message, ToastDuration.Long, 14);
-            await toast.Show(new CancellationTokenSource().Token);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-    }
-
+    }   
 }

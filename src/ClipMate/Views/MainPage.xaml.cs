@@ -28,4 +28,18 @@ public partial class MainPage : ContentPage
             }
         });
     }
+
+    private async void OnSettingsClicked(object sender, EventArgs e)
+    {
+        var popup = new SettingsPopup();
+
+        await this.ShowPopupAsync(popup, new PopupOptions
+        {
+            Shape = new RoundRectangle
+            {
+                CornerRadius = new CornerRadius(8),
+                StrokeThickness = 0
+            }
+        });
+    }
 }
