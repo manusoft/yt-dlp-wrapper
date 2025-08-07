@@ -5,7 +5,7 @@
 # Ytdlp.NET
 ![icon](https://github.com/user-attachments/assets/2147c398-4e0f-43e2-99cb-32b34be7dc2f)
 
-### ClipMate - MAUI.NET App
+### ClipMate - MAUI.NET App - [Download](https://apps.microsoft.com/detail/9NTP1DH4CQ4X?hl=en&gl=IN&ocid=pdpshare)
 <img width="986" height="693" alt="5" src="https://github.com/user-attachments/assets/4bdf89e0-c94b-4163-8b9d-8a051bab0cd8" />
 
 

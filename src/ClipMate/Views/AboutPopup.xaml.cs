@@ -37,9 +37,9 @@ public partial class AboutPopup : Popup, INotifyPropertyChanged
         {
             var ytdlpVersion = await _ytdlpService.GetVersionAsync();
             var formattedVersion = string.IsNullOrEmpty(ytdlpVersion) ? "" : $" • {ytdlpVersion}";
-            var appVersion = AppInfo.VersionString;
+            var appVersion = AppInfo.Version;
 
-            YtdlpVersion = $"v{appVersion}{formattedVersion}";
+            YtdlpVersion = $"v{appVersion.ToString()}{formattedVersion}";
         }
         catch (Exception)
         {

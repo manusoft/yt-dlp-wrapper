@@ -6,7 +6,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap rescap">
 
-  <Identity Name="Manuhub.ClipMate" Publisher="CN=8F09EC4C-C217-4E2F-BC6D-865A31F7EE04" Version="1.0.2.0" />
+  <Identity Name="Manuhub.ClipMate" Publisher="CN=8F09EC4C-C217-4E2F-BC6D-865A31F7EE04" Version="1.1.3.0" />
 
   <mp:PhoneIdentity PhoneProductId="728193DE-1869-4737-930D-8AD715FB576F" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

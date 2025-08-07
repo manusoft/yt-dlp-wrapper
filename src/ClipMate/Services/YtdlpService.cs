@@ -1,6 +1,4 @@
 ﻿using ClipMate.Models;
-using SkiaSharp;
-using System.Text.RegularExpressions;
 using YtdlpDotNet;
 
 namespace ClipMate.Services;
@@ -25,6 +23,21 @@ public class YtdlpService(AppLogger logger)
         }
     }
 
+    public async Task<Metadata> GetMetadataAsync(string url, CancellationToken cancellationToken = default)
+    {
+        var ytdlp = new Ytdlp(_ytdlpPath, _logger);
+        try
+        {
+            var metadata = await ytdlp.GetVideoMetadataJsonAsync(url, cancellationToken);
+            return metadata ?? throw new YtdlpException("Failed to retrieve metadata.");
+        }
+        catch (YtdlpException ex)
+        {
+            _logger.Log(LogType.Error, $"Error getting metadata: {ex.Message}");
+            throw new YtdlpException("Failed to retrieve metadata.");
+        }
+    }
+
     public async Task<List<VideoFormat>> GetFormatsAsync(string url, CancellationToken cancellationToken = default)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
@@ -41,25 +54,10 @@ public class YtdlpService(AppLogger logger)
     public async Task ExecuteDownloadAsync(DownloadJob job, CancellationToken cancellationToken)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
-        string originalPath = "";
 
         void HandleOutput(object? s, string msg)
         {
             if (cancellationToken.IsCancellationRequested) return;
-
-            if (msg.StartsWith("[info] Writing video thumbnail"))
-            {
-                var match = Regex.Match(msg, @"to:\s(.+)$");
-                if (match.Success)
-                {
-                    originalPath = match.Groups[1].Value.Trim();
-                    _logger.Log(LogType.Info, $"Thumbnail saved at: {originalPath}");
-                }
-                else
-                {
-                    job.Thumbnail = "videoimage.png";
-                }
-            }
 
             job.Message = msg;
         }
@@ -70,19 +68,12 @@ public class YtdlpService(AppLogger logger)
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (File.Exists(originalPath))
-                {
-                    job.ThumbnailBase64 = ConvertImageToThumbnailBase64(originalPath);
-                    job.Thumbnail = null;
-                    try { File.Delete(originalPath); } catch (Exception ex) { _logger.Log(LogType.Info, ex.Message); }
-                }
-
                 if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
-                    job.Format!.FileSize = e.Size;
+                    job.FileSize = e.Size;
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
                     _logger.Log(LogType.Info, e.Message);
                     return;
@@ -94,7 +85,7 @@ public class YtdlpService(AppLogger logger)
                 job.Status = DownloadStatus.Downloading;
                 job.IsDownloading = true;
                 job.IsCompleted = false;
-                job.Format!.FileSize = e.Size;
+                job.FileSize = e.Size;
                 job.ErrorMessage = string.Empty;
             });
         }
@@ -112,19 +103,6 @@ public class YtdlpService(AppLogger logger)
                     job.IsCompleted = true;
                     job.ErrorMessage = $"✅ {job.Url} has already been downloaded.";
                     _logger.Log(LogType.Info, msg);
-
-                    if (File.Exists(job.Thumbnail))
-                    {
-                        try
-                        {
-                            File.Delete(job.Thumbnail);
-                            job.Thumbnail = null;
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Log(LogType.Error, $"Thumbnail delete error: {ex.Message}");
-                        }
-                    }
 
                     return;
                 }
@@ -205,10 +183,9 @@ public class YtdlpService(AppLogger logger)
 
             await ytdlp
                 .SetOutputFolder(job.OutputPath)
-                .SetFormat(job.Format?.Id ?? "b")
+                .SetFormat(job.FormatId ?? "b")
                 .AddCustomCommand("--restrict-filenames")
-                .SetOutputTemplate("%(upload_date)s_%(title)s_.%(ext)s")
-                .DownloadThumbnails()
+                .SetOutputTemplate(AppSettings.OutputTemplate)
                 .ExecuteAsync(job.Url, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -220,19 +197,22 @@ public class YtdlpService(AppLogger logger)
         }
         catch (YtdlpException ex)
         {
+            var userMessage = GetFriendlyErrorMessage(ex.Message);
+                
             _logger.Log(LogType.Error, ex.Message);
             if (ex.Message.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
             {
-                job.ErrorMessage = ex.Message;
+                job.ErrorMessage = userMessage;
                 await Task.Delay(3000);
                 job.IsCompleted = true;
                 job.IsDownloading = false;
                 job.Progress = 100;
+                job.Eta = "n/a";
                 job.Status = DownloadStatus.Completed;
             }
             else
             {
-                job.ErrorMessage = ex.Message;
+                job.ErrorMessage = userMessage;
                 job.IsDownloading = false;
                 job.Status = DownloadStatus.Failed;
             }
@@ -248,35 +228,97 @@ public class YtdlpService(AppLogger logger)
         }
     }
 
-    private string ConvertImageToThumbnailBase64(string imagePath, int maxWidth = 150, int maxHeight = 150)
+    private string GetFriendlyErrorMessage(string message)
     {
-        using var inputStream = File.OpenRead(imagePath);
-        using var original = SKBitmap.Decode(inputStream);
+        message = message.ToLowerInvariant();
 
-        if (original == null)
-            throw new Exception("Could not load image.");
+        if (message.Contains("403") || message.Contains("access denied"))
+            return "🔒 Access denied. This video may be private, age-restricted, or region-locked.";
 
-        // Maintain aspect ratio
-        float widthRatio = (float)maxWidth / original.Width;
-        float heightRatio = (float)maxHeight / original.Height;
-        float scale = Math.Min(widthRatio, heightRatio);
+        if (message.Contains("404") || message.Contains("not found"))
+            return "❌ Video not found. The URL may be invalid or the video has been removed.";
 
-        int newWidth = (int)(original.Width * scale);
-        int newHeight = (int)(original.Height * scale);
+        if (message.Contains("yt-dlp executable"))
+            return "⚠️ yt-dlp is not installed or the path is incorrect.";
 
-        var resizedBitmap = new SKBitmap(newWidth, newHeight);
+        if (message.Contains("unsupported url"))
+            return "🚫 The provided URL is not supported by yt-dlp. Please check the source.";
 
-        // Use SKSamplingOptions instead of obsolete SKFilterQuality
-        var sampling = new SKSamplingOptions(SKFilterMode.Nearest);
+        if (message.Contains("no video formats found"))
+            return "🎞️ No downloadable video formats were found. This may be a livestream or DRM-protected.";
 
-        original.ScalePixels(resizedBitmap, sampling);
+        if (message.Contains("ffmpeg") && message.Contains("not found"))
+            return "🛠️ ffmpeg is required but not found. Please install it and ensure it's in your system PATH.";
 
-        using var image = SKImage.FromBitmap(resizedBitmap);
-        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+        if (message.Contains("merge") && message.Contains("failed"))
+            return "⚠️ Failed to merge audio and video. The selected formats may be incompatible.";
 
-        byte[] imageBytes = encoded.ToArray();
-        return $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
+        if (message.Contains("ssl") && message.Contains("certificate"))
+            return "🔐 SSL certificate error. Try updating Python/yt-dlp or checking your internet settings.";
+
+        if (message.Contains("timed out") || message.Contains("timeout"))
+            return "⏱️ The download timed out. Check your internet connection and try again.";
+
+        if (message.Contains("proxy") && message.Contains("refused"))
+            return "🌐 Proxy connection failed. Check your proxy settings.";
+
+        if (message.Contains("too many requests") || message.Contains("429"))
+            return "🚧 Too many requests. Please wait a while and try again later (rate-limited).";
+
+        if (message.Contains("cookies"))
+            return "🍪 This video may require authentication. Try adding cookies with `--cookies`.";
+
+        if (message.Contains("extractor error"))
+            return "❌ Failed to process this video. The site may have changed or yt-dlp needs an update.";
+
+        if (message.Contains("postprocessing"))
+            return "🧩 An error occurred during post-processing. Check ffmpeg and format settings.";
+
+        if (message.Contains("already downloaded"))
+            return "📁 This video has already been downloaded (duplicate).";
+
+        if (message.Contains("file not found"))
+            return "🗂️ File or path not found. Please check your output folder or filename template.";
+
+        if (message.Contains("error") || message.Contains("failed"))
+            return "❌ An unexpected error occurred during download.";
+
+        // Default fallback
+        return "⚠️ An error occurred. Please check logs or try again.";
     }
+
+
+    // Method to convert image to thumbnail base64, but not used in the current implementation
+
+    //private string ConvertImageToThumbnailBase64(string imagePath, int maxWidth = 150, int maxHeight = 150)
+    //{
+    //    using var inputStream = File.OpenRead(imagePath);
+    //    using var original = SKBitmap.Decode(inputStream);
+
+    //    if (original == null)
+    //        throw new Exception("Could not load image.");
+
+    //    // Maintain aspect ratio
+    //    float widthRatio = (float)maxWidth / original.Width;
+    //    float heightRatio = (float)maxHeight / original.Height;
+    //    float scale = Math.Min(widthRatio, heightRatio);
+
+    //    int newWidth = (int)(original.Width * scale);
+    //    int newHeight = (int)(original.Height * scale);
+
+    //    var resizedBitmap = new SKBitmap(newWidth, newHeight);
+
+    //    // Use SKSamplingOptions instead of obsolete SKFilterQuality
+    //    var sampling = new SKSamplingOptions(SKFilterMode.Nearest);
+
+    //    original.ScalePixels(resizedBitmap, sampling);
+
+    //    using var image = SKImage.FromBitmap(resizedBitmap);
+    //    using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+
+    //    byte[] imageBytes = encoded.ToArray();
+    //    return $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
+    //}
 
 
 }

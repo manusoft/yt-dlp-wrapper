@@ -17,7 +17,7 @@ public class StatusToColorConverter : IValueConverter
             DownloadStatus.Downloading => Colors.DodgerBlue,
             DownloadStatus.Completed => Colors.LimeGreen,
             DownloadStatus.Failed => Colors.Red,
-            DownloadStatus.Cancelled => Colors.DarkGray,
+            DownloadStatus.Cancelled => Colors.Orange,
             _ => Colors.Transparent
         };
     }
