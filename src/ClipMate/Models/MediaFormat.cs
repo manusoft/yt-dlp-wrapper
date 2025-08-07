@@ -1,5 +1,4 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using System.Text.Json.Serialization;
 
 namespace ClipMate.Models;
 

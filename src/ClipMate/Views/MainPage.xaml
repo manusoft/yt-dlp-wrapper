@@ -199,7 +199,7 @@
                             CornerRadius="50"
                             HeightRequest="20"
                             WidthRequest="20"
-                            ToolTipProperties.Text="About ClipMate"
+                            ToolTipProperties.Text="Settings"
                             Clicked="OnSettingsClicked"
                             HorizontalOptions="Center"
                             VerticalOptions="Center" >
@@ -290,7 +290,7 @@
                     <Shadow Brush="#E50914" Offset="5,5" Radius="150" Opacity="0.8"/>
                 </Border.Shadow>
 
-                <Grid ColumnDefinitions="3*,*" >
+                <Grid ColumnDefinitions="*,Auto" >
 
                     <!--Cancel Job Button-->
                     <Border 
@@ -340,7 +340,8 @@
                             Source="{Binding ThumbnailUrl}"
                             MinimumHeightRequest="60"
                             MaximumHeightRequest="60"
-                            WidthRequest="120"
+                            HeightRequest="60"
+                            WidthRequest="100"
                             Aspect="Fill"
                             BackgroundColor="Black"
                             HorizontalOptions="Start" />
@@ -400,14 +401,8 @@
                                         <Label Text="{Binding SelectedFormat.ACodec}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
                                     </HorizontalStackLayout>
 
-                                    <!-- Extra info -->
-                                    <HorizontalStackLayout Grid.Column="7" Spacing="4" VerticalOptions="Center">
-                                        <Label Text="📋" FontSize="11" VerticalTextAlignment="Center"/>
-                                        <Label Text="{Binding SelectedFormat.MoreInfo}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                    </HorizontalStackLayout>
-
                                 </HorizontalStackLayout>
-                                <Grid ColumnDefinitions="*,2*" ColumnSpacing="5" VerticalOptions="Center">
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="5" VerticalOptions="Center">
                                     <HorizontalStackLayout  Grid.Column="0" Spacing="5">
                                         <Label 
                                             Text="Output Folder:" 
@@ -478,7 +473,7 @@
                                             StrokeShape="RoundRectangle 0"
                                             BackgroundColor="Transparent"
                                             HeightRequest="25"
-                                            WidthRequest="300"
+                                            WidthRequest="220"
                                             HorizontalOptions="Fill">
                                             <Picker
                                                 ItemsSource="{Binding Formats}"
@@ -499,7 +494,7 @@
                         </VerticalStackLayout>
                     </HorizontalStackLayout>
 
-                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" VerticalOptions="End" Spacing="5" Padding="0,0,70,0">
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" VerticalOptions="End" Spacing="5" Padding="0,0,60,0">
                         <Border 
                             Stroke="Gray"
                             StrokeThickness="0.1"
@@ -512,7 +507,7 @@
                                 TextColor="White"
                                 BackgroundColor="Gray"
                                 HeightRequest="15"
-                                WidthRequest="150"
+                                WidthRequest="130"
                                 FontSize="12"
                                 Margin="-10"
                                 ToolTipProperties.Text="Add to download queue"
@@ -562,7 +557,7 @@
                                 TextColor="White"
                                 BackgroundColor="#00897B"  
                                 HeightRequest="15"
-                                WidthRequest="150"
+                                WidthRequest="130"
                                 FontSize="12"
                                 Margin="-10"
                                 ToolTipProperties.Text="Start Download"
@@ -717,7 +712,7 @@
                                             Source="{Binding ThumbnailImage, Mode=OneWay}"
                                             MaximumHeightRequest="60"
                                             WidthRequest="120"
-                                            Aspect="AspectFit"                                            
+                                            Aspect="Fill"    
                                             BackgroundColor="Black"/>
 
                                         <!-- Right side info -->
@@ -803,16 +798,7 @@
                                                     <Label Text="🎧" FontSize="11" VerticalTextAlignment="Center"/>
                                                     <Label Text="{Binding MediaFormat.ACodec}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
                                                 </HorizontalStackLayout>
-
-                                                <HorizontalStackLayout Spacing="4" IsVisible="{Binding IsDownloading}">
-                                                    <Label Text="🕒" FontSize="11" VerticalTextAlignment="Center"/>
-                                                    <Label Text="{Binding Eta, Mode=OneWay}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                                </HorizontalStackLayout>
-
-                                                <HorizontalStackLayout Spacing="4" IsVisible="{Binding IsDownloading}">
-                                                    <Label Text="⚡" FontSize="11" VerticalTextAlignment="Center"/>
-                                                    <Label Text="{Binding Speed, Mode=OneWay}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
-                                                </HorizontalStackLayout>
+                                                
                                             </HorizontalStackLayout>
 
                                             <!-- Progress -->
@@ -823,16 +809,39 @@
                                                 BackgroundColor="Gray"/>
 
                                             <!-- Status and Error -->
-                                            <HorizontalStackLayout Spacing="10">
-                                                <BoxView 
-                                                    WidthRequest="10" 
-                                                    HeightRequest="10" 
-                                                    CornerRadius="50"
-                                                    Color="{Binding Status, Converter={StaticResource StatusToColorConverter}}" 
-                                                    VerticalOptions="Center" HorizontalOptions="Center" />
+                                            <Grid Padding="2,0">
+                                                <HorizontalStackLayout Spacing="8">
+                                                    <BoxView 
+                                                        WidthRequest="10" 
+                                                        HeightRequest="10" 
+                                                        CornerRadius="50"
+                                                        Color="{Binding Status, Converter={StaticResource StatusToColorConverter}}" 
+                                                        VerticalOptions="Center" 
+                                                        HorizontalOptions="Center" />
 
-                                                <Label Text="{Binding Status}" FontSize="11" TextColor="LightGray" />
-                                            </HorizontalStackLayout>
+                                                    <Label 
+                                                        Text="{Binding Status}" 
+                                                        FontSize="11" 
+                                                        TextColor="LightGray" />
+                                                </HorizontalStackLayout>
+
+                                                <HorizontalStackLayout Spacing="5" HorizontalOptions="End" IsVisible="{Binding IsDownloading}">
+                                                    <HorizontalStackLayout Spacing="4" >
+                                                        <Label Text="🕒" FontSize="11" VerticalTextAlignment="Center"/>
+                                                        <Label Text="{Binding Eta, Mode=OneWay}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                                    </HorizontalStackLayout>
+
+                                                    <HorizontalStackLayout Spacing="4" >
+                                                        <Label Text="⚡" FontSize="11" VerticalTextAlignment="Center"/>
+                                                        <Label Text="{Binding Speed, Mode=OneWay}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />
+                                                    </HorizontalStackLayout>
+
+                                                    <HorizontalStackLayout Spacing="4" >
+                                                        <Label Text="📥" FontSize="11" VerticalTextAlignment="Center"/>
+                                                        <Label Text="{Binding FormattedProgress}" FontSize="11" TextColor="LightGray" VerticalTextAlignment="Center" />                                             
+                                                    </HorizontalStackLayout>
+                                                </HorizontalStackLayout>
+                                            </Grid>
                                         </VerticalStackLayout>
 
                                         <!-- Action buttons -->

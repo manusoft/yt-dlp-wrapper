@@ -14,9 +14,11 @@
 
             return new Window(new AppShell())
             {                 
-                Title = $"ClipMate v{version.Major}.{version.Minor}",
-                Width = 1000,
+                Title = $"ClipMate v{version.Major}.{version.Minor}.{version.Build}",
+                MinimumHeight = 600,
+                MinimumWidth = 900,
                 Height = 700,
+                Width = 1000,                
                 X = 100,
                 Y = 100
             };

@@ -29,6 +29,7 @@ public partial class DownloadJob : ObservableObject
     private string? thumbnail;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedProgress))]
     private double progress;
 
     [JsonIgnore]
@@ -59,7 +60,7 @@ public partial class DownloadJob : ObservableObject
     public bool IsNotDownloading => !IsDownloading;
 
     [JsonIgnore]
-    public string FormattedProgress => $"{0.00}%";
+    public string FormattedProgress => $"{Progress * 100:0.00}%";
 
     [JsonIgnore]
     public string ThumbnailImage => Thumbnail ?? "videoimage.png"; 
