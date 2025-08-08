@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -380,29 +381,30 @@ public sealed class Ytdlp
     {
         try
         {
-            var processInfo = new ProcessStartInfo
-            {
-                FileName = _ytDlpPath,
-                Arguments = "--version",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            var process = CreateProcess($"--version");
 
-            using var process = new Process { StartInfo = processInfo };
             process.Start();
 
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
+            // Read standard output asynchronously
+            var readOutputTask = process.StandardOutput.ReadToEndAsync();
 
-            await process.WaitForExitAsync(cancellationToken);
-
-            if (process.ExitCode != 0)
+            // Wait for process to exit, observing cancellation
+            using (cancellationToken.Register(() =>
             {
-                _logger.Log(LogType.Error, $"Failed to get yt-dlp version: {error}");
-                return string.Empty;
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true); // forcefully kill process
+                    }
+                }
+                catch { /* ignore if already exited */ }
+            }))
+            {
+                await process.WaitForExitAsync(cancellationToken);
             }
+
+            var output = await readOutputTask;
 
             string version = output.Trim();
             _logger.Log(LogType.Info, $"yt-dlp version: {version}");
@@ -420,79 +422,55 @@ public sealed class Ytdlp
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
 
-        var arguments = $"--dump-json {SanitizeInput(url)}";
-        _logger.Log(LogType.Info, $"Executing dump-json for: {url}");
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = _ytDlpPath,
-            Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = new Process { StartInfo = startInfo };
-
-        bool wasCanceled = false;
-
         try
         {
+            var process = CreateProcess($"--dump-json {SanitizeInput(url)}");
+
             process.Start();
 
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
+            // Read standard output asynchronously
+            var readOutputTask = process.StandardOutput.ReadToEndAsync();
 
+            // Drain stderr so it never blocks (we don't await unless needed)
+            //var readErrorTask = Task.Run(() => process.StandardError.ReadToEndAsync());
+
+            // Wait for process to exit, observing cancellation
             using (cancellationToken.Register(() =>
             {
-                wasCanceled = true;
-
                 try
                 {
                     if (!process.HasExited)
-                    {
-                        process.Kill(entireProcessTree: true);
-                        _logger.Log(LogType.Warning, "yt-dlp process killed due to cancellation.");
-                    }
+                        process.Kill(true); // forcefully kill process
                 }
-                catch (Exception ex)
-                {
-                    _logger.Log(LogType.Error, $"Failed to kill yt-dlp: {ex.Message}");
-                }
+                catch { /* ignore if already exited */ }
             }))
             {
-                await process.WaitForExitAsync();
+                await process.WaitForExitAsync(cancellationToken);
             }
 
-            var output = await outputTask;
-            var error = await errorTask;
+            // Get stdout result
+            var output = await readOutputTask;
 
-            if (wasCanceled)
-            {
-                throw new OperationCanceledException(cancellationToken);
-            }
+            // Optionally capture errors for logging
+            //var errorOutput = await readErrorTask;
+            //if (!string.IsNullOrWhiteSpace(errorOutput))
+            //    _logger.Log(LogType.Debug, $"yt-dlp stderr: {errorOutput}");
 
-            if (process.ExitCode != 0)
-            {
-                _logger.Log(LogType.Error, $"yt-dlp error: {error}");
-                throw new YtdlpException($"yt-dlp failed with error: {error}");
-            }
-
-            _logger.Log(LogType.Info, "Parsing yt-dlp metadata output");
+            _logger.Log(LogType.Info, $"Get Format: {output}");
 
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             return JsonSerializer.Deserialize<Metadata>(output, options);
         }
         catch (OperationCanceledException)
         {
-            _logger.Log(LogType.Warning, "Metadata fetch cancelled by user.");
+            _logger.Log(LogType.Warning, "Format fetching cancelled by user.");
             throw;
         }
         catch (Exception ex)
         {
-            _logger.Log(LogType.Error, $"Error parsing yt-dlp metadata: {ex.Message}");
-            throw new YtdlpException("Failed to parse yt-dlp dump-json output.", ex);
+            var errorMessage = $"Failed to fetch available formats: {ex.Message}";
+            _logger.Log(LogType.Error, errorMessage);
+            throw new YtdlpException(errorMessage, ex);
         }
     }
 

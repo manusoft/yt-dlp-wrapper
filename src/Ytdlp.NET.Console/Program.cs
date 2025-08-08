@@ -2,7 +2,7 @@
 
 // Initialize Ytdlp with a custom logger
 var logger = new ConsoleLogger();
-var ytdlp = new Ytdlp($"yt-dlp.exe", logger);
+var ytdlp = new Ytdlp($"tools\\yt-dlp.exe", logger);
 string version = await ytdlp.GetVersionAsync();
 Console.Clear();
 Console.WriteLine($"Version: {version}");
@@ -17,7 +17,7 @@ ytdlp.OnProgressDownload += (sender, e) => Console.WriteLine($"Download Progress
 ytdlp.OnCompleteDownload += (sender, message) => Console.WriteLine($"Download Complete: {message}");
 ytdlp.OnErrorMessage += (sender, message) => Console.WriteLine($"Error Message: {message}");
 
-var videoUrl = "https://www.youtube.com/watch?v=Gk0WHyRUcgM";
+var videoUrl = "https://www.youtube.com/watch?v=jlaau62cLKI";
 
 // Example 1: Download a video with specific options
 //Console.WriteLine("=== Example 1: Downloading a video ===");
@@ -93,6 +93,10 @@ var videoUrl = "https://www.youtube.com/watch?v=Gk0WHyRUcgM";
 //{
 //    Console.WriteLine($"Failed to batch download: {ex.Message}");
 //}
+
+
+var metadata = await ytdlp.GetVideoMetadataJsonAsync(videoUrl);
+Console.WriteLine($"Title: {metadata?.Title}, Duration: {metadata?.Formats?.Count}");
 
 // Custom logger implementation for demonstration
 public class ConsoleLogger : ILogger
