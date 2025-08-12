@@ -54,8 +54,8 @@ public partial class MainViewModel : BaseViewModel
     public MainViewModel()
     {
         ConnectionStatus = ConnectionState.Available;
-        OutputPath = AppSettings.OutputFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-        OutputTemplate = AppSettings.OutputTemplate ?? "%(upload_date)s_%(title).80s_%(format_id)s.%(ext)s";
+        OutputPath = AppSettings.OutputFolder;
+        OutputTemplate = AppSettings.OutputTemplate;
 
         _connectivityCheck = new ConnectivityCheck(OnConnectivityChanged);
         _logger = new AppLogger();
@@ -94,66 +94,98 @@ public partial class MainViewModel : BaseViewModel
             _cts = new CancellationTokenSource();
             IsAnalizing = true;
             IsAnalyzed = false;
-
             ThumbnailUrl = "videoimage.png";
-
             Formats.Clear();
 
-            //var videoFormats = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
+            Metadata? metadata = null;
 
-            var metadata = await _ytdlpService.GetMetadataAsync(Url, _cts.Token);
-
-            if (metadata == null)
+            // Try getting metadata with 20-second timeout
+            try
             {
-                IsAnalyzed = false;
-                IsAnalizing = false;
-                await ShowToastAsync("Failed to retrieve video metadata. Please check the URL.");
-                return;
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(AppSettings.MetadataTimeout));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, timeoutCts.Token);
+
+                metadata = await _ytdlpService.GetMetadataAsync(Url, linkedCts.Token);
+            }
+            catch (OperationCanceledException) when (!_cts.IsCancellationRequested)
+            {
+                _logger.Log(LogType.Warning, "Metadata fetch timed out.");
+                await ShowToastAsync("⚠️ Metadata request took too long. Loading basic formats instead...");
             }
 
-            // Set video title
+            // If metadata is null, fallback to GetFormatsAsync()
+            if (metadata == null)
+            {
+                _logger.Log(LogType.Info, "Falling back to GetFormatsAsync...");
+                var formatsOnly = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
+
+                if (formatsOnly == null || !formatsOnly.Any())
+                {
+                    IsAnalyzed = false;
+                    IsAnalizing = false;
+                    await ShowToastAsync("❌ Failed to retrieve video information.");
+                    return;
+                }
+
+                // Build minimal metadata from formats
+                metadata = new Metadata
+                {
+                    Title = Url,
+                    Formats = formatsOnly.Select(f => new Format
+                    {
+                        FormatId = f.ID,
+                        Ext = f.Extension ?? "n/a",
+                        Resolution = f.Resolution ?? "n/a",
+                        Filesize = ParseFileSize(f.FileSize),
+                        Fps = ParseFps(f.FPS),
+                        AudioChannels = ParseInt(f.Channels),
+                        Vcodec = f.VCodec ?? "n/a",
+                        Acodec = f.ACodec ?? "n/a",
+                    }).ToList()
+                };
+            }
+
+            // Populate UI from metadata
             VideoTitle = metadata.Title ?? Url;
-            // Set thumbnail URL
-            ThumbnailUrl = metadata.Thumbnail ?? string.Empty;
+            ThumbnailUrl = metadata.Thumbnail ?? "videoimage.png";
 
-            //var results = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
-
-            var fileSize = metadata.RequestedFormats?.Sum(x => x.Filesize) ?? 0; // bytes   
-            var fileSizeFormatted = fileSize > 0 ? $"{fileSize / (1024 * 1024):F2} Mb" : "n/a";
+            var fileSize = metadata.RequestedFormats?.Sum(x => x.Filesize) ?? 0;
+            var fileSizeFormatted = fileSize > 0 ? $"{fileSize / (1024 * 1024):F2} Mb" : "N/A";
             var fps = metadata.RequestedFormats?.FirstOrDefault()?.Fps ?? 0;
-            var formatedFps = fps > 0 ? $"{fps} fps" : "n/a";
+            var formattedFps = fps > 0 ? $"{fps} fps" : "N/A";
+
 
             var autoFormat = new MediaFormat
             {
                 Id = "b",
                 Extension = "mp4",
-                Resolution = $"auto {metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Resolution}" ?? "auto",
+                Resolution = $"Auto {metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Resolution}" ?? "Auto",
                 FileSize = fileSizeFormatted,
-                Fps = formatedFps,
-                Channels = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.AudioChannels.ToString() ?? "n/a",
-                VCodec = metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Vcodec ?? "n/a",
-                ACodec = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.Acodec ?? "n/a",
-                MoreInfo = "n/a",
+                Fps = formattedFps,
+                Channels = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.AudioChannels?.ToString() ?? "N/A",
+                VCodec = metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Vcodec ?? "N/A",
+                ACodec = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.Acodec ?? "N/A",
+                MoreInfo = "N/A",
             };
 
             Formats.Add(autoFormat);
 
-            foreach (var f in metadata?.Formats!)
+            foreach (var f in metadata.Formats ?? Enumerable.Empty<Format>())
             {
-                fileSizeFormatted = f.Filesize.HasValue ? $"{f.Filesize.Value / (1024 * 1024):F2} Mb" : "n/a";
-                formatedFps = f.Fps > 0 ? $"{f.Fps} fps" : "n/a";
+                fileSizeFormatted = f.Filesize.HasValue ? $"{f.Filesize.Value / (1024 * 1024):F2} Mb" : "N/A";
+                formattedFps = f.Fps > 0 ? $"{f.Fps} fps" : "N/A";
 
                 var mediaFormat = new MediaFormat
                 {
-                    Id = f.FormatId,
-                    Extension = f.Ext ?? "n/a",
-                    Resolution = f.Resolution ?? "n/a",
+                    Id = f.FormatId ?? "N/A",
+                    Extension = f.Ext ?? "N/A",
+                    Resolution = f.Resolution ?? "N/A",
                     FileSize = fileSizeFormatted,
-                    Fps = f.Fps.ToString() ?? "n/a",
-                    Channels = f.AudioChannels.ToString() ?? "n/a",
-                    VCodec = f.Vcodec ?? "n/a",
-                    ACodec = f.Acodec ?? "n/a",
-                    MoreInfo = "n/a",
+                    Fps = formattedFps,
+                    Channels = f.AudioChannels?.ToString() ?? "N/A",
+                    VCodec = f.Vcodec ?? "N/A",
+                    ACodec = f.Acodec ?? "N/A",
+                    MoreInfo = "N/A",
                 };
 
                 Formats.Add(mediaFormat);
@@ -162,7 +194,7 @@ public partial class MainViewModel : BaseViewModel
             if (Formats.Any())
                 SelectedFormat = Formats.First();
 
-            IsAnalyzed = true;
+            IsAnalyzed = true;           
         }
         catch (OperationCanceledException)
         {
@@ -518,5 +550,31 @@ public partial class MainViewModel : BaseViewModel
         {
             return false;
         }
+    }
+
+    // Helper parsing methods for fallback mode
+    private static long? ParseFileSize(string? fileSizeStr)
+    {
+        if (string.IsNullOrWhiteSpace(fileSizeStr)) return null;
+        if (fileSizeStr.EndsWith("Mb", StringComparison.OrdinalIgnoreCase) &&
+            double.TryParse(fileSizeStr.Replace("Mb", "").Trim(), out var mb))
+            return (long)(mb * 1024 * 1024);
+        return null;
+    }
+
+    private static int? ParseFps(string? fpsStr)
+    {
+        if (string.IsNullOrWhiteSpace(fpsStr)) return null;
+        if (fpsStr.EndsWith("fps", StringComparison.OrdinalIgnoreCase) &&
+            int.TryParse(fpsStr.Replace("fps", "").Trim(), out var fps))
+            return fps;
+        return null;
+    }
+
+    private static int? ParseInt(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (int.TryParse(value, out var result)) return result;
+        return null;
     }
 }

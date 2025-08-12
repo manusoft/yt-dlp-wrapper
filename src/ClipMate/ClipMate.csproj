@@ -77,11 +77,11 @@
 	</Target>
 
 	<ItemGroup>
-		<PackageReference Include="CommunityToolkit.Maui" Version="12.1.0" />
+		<PackageReference Include="CommunityToolkit.Maui" Version="12.2.0" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.90" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.8" />
-		<PackageReference Include="ytdlp-executable" Version="2025.7.21" />
+		<PackageReference Include="ytdlp-executable" Version="2025.8.11" />
 		<PackageReference Include="Ytdlp.NET" Version="1.2.2" />
 	</ItemGroup>
 

@@ -6,7 +6,7 @@ namespace ClipMate.Services;
 
 public class JsonService
 {
-    private static string _filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "clipmate.json");
+    private static string _filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "clipmate.data.json");
 
     public void Save(object obj)
     {
