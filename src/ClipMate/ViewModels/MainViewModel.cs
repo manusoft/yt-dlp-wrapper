@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using YtdlpDotNet;
 
 namespace ClipMate.ViewModels;
@@ -97,6 +98,8 @@ public partial class MainViewModel : BaseViewModel
             ThumbnailUrl = "videoimage.png";
 
             Formats.Clear();
+
+            //var videoFormats = await _ytdlpService.GetFormatsAsync(Url, _cts.Token);
 
             var metadata = await _ytdlpService.GetMetadataAsync(Url, _cts.Token);
 
@@ -352,12 +355,16 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void RemoveJob(DownloadJob job)
+    private async Task RemoveJobAsync(DownloadJob job)
     {
         try
         {
+            //var confirm = await App.Current.MainPage.DisplayAlert("Confirm Delete", $"Are you sure you want to delete the job for {job.Url}?", "Delete", "Cancel");
+            //if (confirm)
+            //{
             Jobs.Remove(job);
             _jsonService.Save(Jobs);
+            //}
         }
         catch (Exception ex)
         {
@@ -511,5 +518,5 @@ public partial class MainViewModel : BaseViewModel
         {
             return false;
         }
-    }   
+    }
 }

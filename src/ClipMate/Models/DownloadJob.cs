@@ -51,8 +51,9 @@ public partial class DownloadJob : ObservableObject
     private bool isCompleted;
 
     [ObservableProperty]
-    private string errorMessage = "";
+    private string errorMessage;
 
+    [JsonIgnore]
     [ObservableProperty]
     private string message;
 
