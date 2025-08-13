@@ -93,7 +93,7 @@
         </VerticalStackLayout>
 
         <VerticalStackLayout Spacing="5">
-            <Label Text="Analyzing Timout" TextColor="White" FontSize="14" />
+            <Label Text="Metadata Timout" TextColor="White" FontSize="14" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
                 <Slider 
                     Grid.Column="0"

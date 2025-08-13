@@ -1,6 +1,8 @@
 ﻿using ClipMate.Helpers;
 using ClipMate.Models;
 using ClipMate.Services;
+using CommunityToolkit.Maui.Alerts;
+using CommunityToolkit.Maui.Core;
 using CommunityToolkit.Maui.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -194,7 +196,7 @@ public partial class MainViewModel : BaseViewModel
             if (Formats.Any())
                 SelectedFormat = Formats.First();
 
-            IsAnalyzed = true;           
+            IsAnalyzed = true;
         }
         catch (OperationCanceledException)
         {

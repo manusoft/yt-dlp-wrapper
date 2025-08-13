@@ -17,29 +17,41 @@ public partial class MainPage : ContentPage
 
     private async void OnAboutClicked(object sender, EventArgs e)
     {
-        var popup = new AboutPopup();
-
-        await this.ShowPopupAsync(popup, new PopupOptions
+        try
         {
-            Shape = new RoundRectangle
+            var popup = new AboutPopup();
+
+            await this.ShowPopupAsync(popup, new PopupOptions
             {
-                CornerRadius = new CornerRadius(8),
-                StrokeThickness = 0
-            }
-        });
+                Shape = new RoundRectangle
+                {
+                    CornerRadius = new CornerRadius(8),
+                    StrokeThickness = 0
+                }
+            });
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private async void OnSettingsClicked(object sender, EventArgs e)
     {
-        var popup = new SettingsPopup();
-
-        await this.ShowPopupAsync(popup, new PopupOptions
+        try
         {
-            Shape = new RoundRectangle
+            var popup = new SettingsPopup();
+
+            await this.ShowPopupAsync(popup, new PopupOptions
             {
-                CornerRadius = new CornerRadius(8),
-                StrokeThickness = 0
-            }
-        });
+                Shape = new RoundRectangle
+                {
+                    CornerRadius = new CornerRadius(8),
+                    StrokeThickness = 0
+                }
+            });
+        }
+        catch (Exception)
+        {
+        }
     }
 }

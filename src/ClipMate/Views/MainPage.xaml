@@ -1023,8 +1023,7 @@
                                                     Margin="-10"
                                                     ToolTipProperties.Text="Remove from the list"                                                
                                                     Command="{Binding Source={x:Reference ListView}, Path=BindingContext.RemoveJobCommand}"
-                                                    CommandParameter="{Binding .}"
-                                                    IsVisible="{Binding ConfirmDelete, Converter={toolkit:InvertedBoolConverter}}">
+                                                    CommandParameter="{Binding .}">
                                                     <VisualStateManager.VisualStateGroups>
                                                         <VisualStateGroupList>
                                                             <VisualStateGroup x:Name="CommonStates">

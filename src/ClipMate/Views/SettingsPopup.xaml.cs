@@ -34,31 +34,47 @@ public partial class SettingsPopup : Popup, INotifyPropertyChanged
         }
     }
 
-    private async void OnResetClicked(object sender, EventArgs e)
+    private void OnResetClicked(object sender, EventArgs e)
     {
-        // Save settings logic here
-        OutputDirectory = AppSettings.OutputFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-        OutputTemplate = AppSettings.OutputTemplate = "%(upload_date)s_%(title).80s_%(format_id)s.%(ext)s";
-        MetadataTimeout = AppSettings.MetadataTimeout = 15;
+        try
+        {
+            // Save settings logic here
+            OutputDirectory = AppSettings.OutputFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+            OutputTemplate = AppSettings.OutputTemplate = "%(upload_date)s_%(title).80s_%(format_id)s.%(ext)s";
+            MetadataTimeout = AppSettings.MetadataTimeout = 15;
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private async void OnSaveClicked(object sender, EventArgs e)
     {
-        // Save settings logic here
-        AppSettings.OutputFolder = OutputDirectory;
-        AppSettings.OutputTemplate = OutputTemplate;
-        AppSettings.MetadataTimeout = MetadataTimeout;
+        try
+        {
+            // Save settings logic here
+            AppSettings.OutputFolder = OutputDirectory;
+            AppSettings.OutputTemplate = OutputTemplate;
+            AppSettings.MetadataTimeout = MetadataTimeout;
 
-        // Optionally, you can notify the user that settings have been saved
-        await CloseAsync();
-
+            // Optionally, you can notify the user that settings have been saved
+            await CloseAsync();
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private async void OnCancelClicked(object sender, EventArgs e)
     {
-        await CloseAsync();
+        try
+        {
+            await CloseAsync();
+        }
+        catch (Exception)
+        {
+        }
     }
-
 
     // Properties for the settings can be added here
     private string _outputDirectory = AppSettings.OutputFolder;
@@ -105,7 +121,5 @@ public partial class SettingsPopup : Popup, INotifyPropertyChanged
 
     // Implementing INotifyPropertyChanged to notify changes in properties
     public new event PropertyChangedEventHandler? PropertyChanged;
-    protected override void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-   
+    protected override void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));   
 }

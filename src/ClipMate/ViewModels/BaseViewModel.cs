@@ -47,7 +47,15 @@ public partial class BaseViewModel : ObservableRecipient
     {
         try
         {
-            var snackbar = Snackbar.Make(message,null, "OK");
+            TimeSpan duration = TimeSpan.FromSeconds(3);
+
+            var snackbarOptions = new SnackbarOptions
+            {
+                CornerRadius = new CornerRadius(10),
+                CharacterSpacing = 0.5
+            };
+
+            var snackbar = Snackbar.Make(message,null, "OK", duration, snackbarOptions);
             await snackbar.Show(new CancellationTokenSource().Token);
         }
         catch (Exception ex)
