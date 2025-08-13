@@ -11,9 +11,11 @@ public partial class SettingsPopup : Popup, INotifyPropertyChanged
 	{
 		InitializeComponent();
         BindingContext = this;
+
         // Initialize properties with current settings
         OutputDirectory = AppSettings.OutputFolder;
         OutputTemplate = AppSettings.OutputTemplate;
+        MetadataTimeout = AppSettings.MetadataTimeout;
     }
 
     private async void OnBrowseClicked(object sender, EventArgs e)
@@ -32,12 +34,20 @@ public partial class SettingsPopup : Popup, INotifyPropertyChanged
         }
     }
 
+    private async void OnResetClicked(object sender, EventArgs e)
+    {
+        // Save settings logic here
+        OutputDirectory = AppSettings.OutputFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+        OutputTemplate = AppSettings.OutputTemplate = "%(upload_date)s_%(title).80s_%(format_id)s.%(ext)s";
+        MetadataTimeout = AppSettings.MetadataTimeout = 15;
+    }
 
     private async void OnSaveClicked(object sender, EventArgs e)
     {
         // Save settings logic here
         AppSettings.OutputFolder = OutputDirectory;
         AppSettings.OutputTemplate = OutputTemplate;
+        AppSettings.MetadataTimeout = MetadataTimeout;
 
         // Optionally, you can notify the user that settings have been saved
         await CloseAsync();
@@ -65,20 +75,33 @@ public partial class SettingsPopup : Popup, INotifyPropertyChanged
         }
     }
 
-    private string outputTemplate = AppSettings.OutputTemplate;
+    private string _outputTemplate = AppSettings.OutputTemplate;
     public string OutputTemplate
     {
-        get => outputTemplate;
+        get => _outputTemplate;
         set
         {
-            if (outputTemplate != value)
+            if (_outputTemplate != value)
             {
-                outputTemplate = value;
+                _outputTemplate = value;
                 OnPropertyChanged(nameof(OutputTemplate));
             }
         }
     }
 
+    private int _metadataTimeout = AppSettings.MetadataTimeout;
+    public int MetadataTimeout
+    {
+        get => _metadataTimeout;
+        set
+        {
+            if (_metadataTimeout != value)
+            {
+                _metadataTimeout = value;
+                OnPropertyChanged(nameof(MetadataTimeout));
+            }
+        }
+    }
 
     // Implementing INotifyPropertyChanged to notify changes in properties
     public new event PropertyChangedEventHandler? PropertyChanged;

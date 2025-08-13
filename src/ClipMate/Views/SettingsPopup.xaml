@@ -6,43 +6,240 @@
                xmlns:views="clr-namespace:ClipMate.Views"
                x:DataType="views:SettingsPopup"
                BackgroundColor="#1E1E1E"
-               HeightRequest="275"
+               HeightRequest="290"
                WidthRequest="400"
                IsClippedToBounds="True">
 
-    <VerticalStackLayout Spacing="20">
+    <VerticalStackLayout Spacing="10">
 
         <VerticalStackLayout Spacing="5">
-            <Label Text="Download Directory" TextColor="White" FontSize="16" />
+            <Label Text="Download Directory" TextColor="White" FontSize="14" />
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
-                <Entry 
+                <Border 
                     Grid.Column="0"
-                    Text="{Binding OutputDirectory}" 
-                    BackgroundColor="#2C2C2C"
-                    TextColor="White"
-                    Placeholder="Choose folder..." />
-                <Button 
+                    Stroke="Gray"
+                    HeightRequest="30" 
+                    StrokeThickness="0.3"
+                    StrokeShape="RoundRectangle 5">
+                    <Entry                     
+                        Text="{Binding OutputDirectory}" 
+                        FontSize="12"
+                        BackgroundColor="Transparent"
+                        TextColor="Teal"
+                        HeightRequest="30"
+                        VerticalOptions="Center"
+                        Margin="0,-10"
+                        Placeholder="Choose folder..." />
+                </Border>
+                <Border 
                     Grid.Column="1"
-                    Text="Browse"
-                    BackgroundColor="#444"
-                    TextColor="White"
-                    Clicked="OnBrowseClicked"/>
+                    Stroke="Gray"                   
+                    StrokeThickness="0.3"
+                    HeightRequest="30"
+                    StrokeShape="RoundRectangle 5">
+                    <Button                         
+                        Text="Browse"
+                        BackgroundColor="#444"
+                        TextColor="White"
+                        HeightRequest="30"       
+                        FontSize="13"
+                        VerticalOptions="Center"
+                        Margin="0,-20"
+                        Clicked="OnBrowseClicked">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroupList>
+                                <VisualStateGroup x:Name="CommonStates">
+
+                                    <VisualState x:Name="Normal" />
+
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#334d89ff" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#37474F" />
+                                            <Setter Property="Opacity" Value="0.85" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                </VisualStateGroup>
+                            </VisualStateGroupList>
+                        </VisualStateManager.VisualStateGroups>
+                    </Button>
+                </Border>
             </Grid>
         </VerticalStackLayout>
 
         <VerticalStackLayout Spacing="5">
-            <Label Text="Output Template" TextColor="White" FontSize="16" />
-            <Entry 
-                Text="{Binding OutputTemplate}" 
-                BackgroundColor="#2C2C2C"
-                TextColor="White"
-                Placeholder="e.g., %(title)s.%(ext)s" />
+            <Label Text="Output Template" TextColor="White" FontSize="14" />
+            <Border 
+                Stroke="Gray"
+                HeightRequest="30" 
+                StrokeThickness="0.3"
+                StrokeShape="RoundRectangle 5">
+                <Entry 
+                    Text="{Binding OutputTemplate}" 
+                    FontSize="12"
+                    BackgroundColor="Transparent"
+                    TextColor="Teal"
+                    HeightRequest="30"
+                    VerticalOptions="Center"
+                    Margin="0,-10"
+                    Placeholder="e.g., %(title)s.%(ext)s" />
+            </Border>
         </VerticalStackLayout>
 
-        <HorizontalStackLayout HorizontalOptions="Center" Spacing="20" >
-            <Button Text="Save" Clicked="OnSaveClicked" WidthRequest="100" />
-            <Button Text="Cancel" Clicked="OnCancelClicked" WidthRequest="100" />
-        </HorizontalStackLayout>
+        <VerticalStackLayout Spacing="5">
+            <Label Text="Analyzing Timout" TextColor="White" FontSize="14" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5">
+                <Slider 
+                    Grid.Column="0"
+                    ThumbColor="Teal" 
+                    Minimum="10" 
+                    Maximum="60" 
+                    Value="{Binding MetadataTimeout}"
+                    Margin="2,0"
+                    MinimumTrackColor="Teal"                    
+                    ToolTipProperties.Text="{Binding MetadataTimeout}"/>
+                <Border
+                    Grid.Column="1"
+                    Stroke="Gray"
+                    HeightRequest="30" 
+                    WidthRequest="30"
+                    StrokeThickness="0.3"
+                    StrokeShape="RoundRectangle 5">
+                    <Label                     
+                        FontSize="12"
+                        Text="{Binding MetadataTimeout}" 
+                        HorizontalTextAlignment="Center"
+                        TextColor="Teal"
+                        VerticalOptions="Center"/>
+                </Border>
+            </Grid>
+        </VerticalStackLayout>
+
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto"  ColumnSpacing="5" Margin="0,20" >
+            <Border  
+                Grid.Column="0"
+                Stroke="Gray"
+                HeightRequest="35" 
+                StrokeThickness="0.3"
+                StrokeShape="RoundRectangle 5">
+                <Button 
+                    Text="Reset" 
+                    BackgroundColor="Transparent"
+                    TextColor="WhiteSmoke"
+                    Clicked="OnResetClicked" 
+                    FontSize="14"
+                    Margin="0,-10"
+                    WidthRequest="90" 
+                    HeightRequest="20" >
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroupList>
+                            <VisualStateGroup Name="CommonStates">
+                                <VisualState Name="Normal">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="Transparent" />
+                                        <Setter Property="TextColor" Value="WhiteSmoke" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#333" />
+                                        <Setter Property="TextColor" Value="White" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#555" />
+                                        <Setter Property="TextColor" Value="LightGray" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateGroupList>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+            </Border>
+            <Border  
+                Grid.Column="2"
+                Stroke="Gray"
+                HeightRequest="35" 
+                StrokeThickness="0.3"
+                StrokeShape="RoundRectangle 5">
+                <Button 
+                    Text="Save" 
+                    TextColor="White"
+                    Clicked="OnSaveClicked" 
+                    Margin="0,-10"
+                    FontSize="14"
+                    WidthRequest="90" 
+                    HeightRequest="20">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroupList>
+                            <VisualStateGroup Name="CommonStates">
+                                <VisualState Name="Normal">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#2196F3" />
+                                        <Setter Property="TextColor" Value="White" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#1976D2" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#0D47A1" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateGroupList>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+            </Border>
+            <Border  
+                Grid.Column="3"
+                Stroke="Gray"
+                HeightRequest="35" 
+                StrokeThickness="0.3"
+                StrokeShape="RoundRectangle 5">
+                <Button 
+                    Text="Cancel" 
+                    TextColor="White"
+                    Clicked="OnCancelClicked" 
+                    Margin="0,-10"
+                    FontSize="14"
+                    WidthRequest="90"
+                    HeightRequest="20">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroupList>
+                            <VisualStateGroup Name="CommonStates">
+                                <VisualState Name="Normal">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#F44336" />
+                                        <Setter Property="TextColor" Value="White" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#D32F2F" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#B71C1C" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateGroupList>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+            </Border>
+        </Grid>
 
     </VerticalStackLayout>
 </toolkit:Popup>

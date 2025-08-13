@@ -110,7 +110,7 @@ public partial class MainViewModel : BaseViewModel
             catch (OperationCanceledException) when (!_cts.IsCancellationRequested)
             {
                 _logger.Log(LogType.Warning, "Metadata fetch timed out.");
-                await ShowToastAsync("⚠️ Metadata request took too long. Loading basic formats instead...");
+                await ShowToastAsync("Metadata request took too long. Loading basic formats instead...");
             }
 
             // If metadata is null, fallback to GetFormatsAsync()
@@ -123,7 +123,7 @@ public partial class MainViewModel : BaseViewModel
                 {
                     IsAnalyzed = false;
                     IsAnalizing = false;
-                    await ShowToastAsync("❌ Failed to retrieve video information.");
+                    await ShowToastAsync("Failed to retrieve video information.");
                     return;
                 }
 

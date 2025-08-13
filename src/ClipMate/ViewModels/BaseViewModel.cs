@@ -29,11 +29,11 @@ public partial class BaseViewModel : ObservableRecipient
 
 
     // Toast settings
-    public async Task ShowToastAsync(string message)
+    public async Task ShowToastAsync(string message, ToastDuration toastDuration = ToastDuration.Short)
     {
         try
         {
-            var toast = Toast.Make(message, ToastDuration.Long, 14);
+            var toast = Toast.Make(message, toastDuration, 14);
             await toast.Show(new CancellationTokenSource().Token);
         }
         catch (Exception ex)
