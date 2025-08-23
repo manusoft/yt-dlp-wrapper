@@ -74,7 +74,8 @@ public sealed class Ytdlp
 
         // Others (use with caution depending on context)
         "--config-location", "--write-video", "--write-audio", "--no-post-overwrites",
-        "--break-on-existing", "--break-per-input", "--windows-filenames", "--restrict-filenames"
+        "--break-on-existing", "--break-per-input", "--windows-filenames", "--restrict-filenames",
+        "--ffmpeg-location"
     };
 
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
