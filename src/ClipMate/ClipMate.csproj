@@ -81,8 +81,8 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.120" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.10" />
-		<PackageReference Include="ytdlp-executable" Version="2025.10.14" />
-		<PackageReference Include="Ytdlp.NET" Version="1.2.2" />
+		<PackageReference Include="ytdlp-executable" Version="2025.10.22" />
+		<PackageReference Include="Ytdlp.NET" Version="1.2.3" />
 	</ItemGroup>
 
 	<ItemGroup>
