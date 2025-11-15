@@ -23,6 +23,20 @@ public class YtdlpService(AppLogger logger)
         }
     }
 
+    public async Task<string> GetUpdateAsync(CancellationToken cancellationToken = default)
+    {
+        var ytdlp = new Ytdlp(_ytdlpPath, _logger);
+        try
+        {
+            return await ytdlp.UpdateAsync();
+        }
+        catch (YtdlpException ex)
+        {
+            _logger.Log(LogType.Error, $"Error getting yt-dlp version: {ex.Message}");
+            return "Error";
+        }
+    }
+
     public async Task<Metadata> GetMetadataAsync(string url, CancellationToken cancellationToken = default)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
@@ -59,7 +73,7 @@ public class YtdlpService(AppLogger logger)
         {
             if (cancellationToken.IsCancellationRequested) return;
 
-            job.Message = msg;
+            job.Message = msg.Length > 300 ? msg[..300] + "..." : msg;
         }
 
         void HandleProgress(object? s, DownloadProgressEventArgs e)
@@ -144,31 +158,59 @@ public class YtdlpService(AppLogger logger)
             });
         }
 
+        // Working method ignore all WARNINGS
+        //async void HandleError(object? s, string msg)
+        //{
+        //    if (cancellationToken.IsCancellationRequested)
+        //        return;
+
+        //    await MainThread.InvokeOnMainThreadAsync(() =>
+        //    {
+        //        // Skip all WARNING-prefixed messages
+        //        if (msg.StartsWith("WARNING:", StringComparison.OrdinalIgnoreCase))
+        //            return Task.CompletedTask;
+
+        //        // Real errors
+        //        job.ErrorMessage = msg;
+        //        job.IsDownloading = false;
+        //        job.Status = DownloadStatus.Failed;
+
+        //        return Task.CompletedTask;
+        //    });
+        //}
+
+        // Ignor selected WARNINGS
         async void HandleError(object? s, string msg)
         {
-            if (cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested)
+                return;
 
-            await MainThread.InvokeOnMainThreadAsync(async () =>
+            var ignoredWarnings = new[]
             {
-                if (msg.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    job.ErrorMessage = msg;
-                    await Task.Delay(3000);
+                "No supported JavaScript runtime",
+                "web_safari client https formats have been skipped",
+                "SABR streaming"
+            };
 
-                    job.IsCompleted = true;
-                    job.Progress = 100;
-                    job.ErrorMessage = string.Empty;
-                    job.IsDownloading = false;
-                    job.Status = DownloadStatus.Completed;
-                }
-                else
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                if (msg.StartsWith("WARNING:", StringComparison.OrdinalIgnoreCase) &&
+                    ignoredWarnings.Any(w => msg.Contains(w, StringComparison.OrdinalIgnoreCase)))
                 {
-                    job.ErrorMessage = msg;
-                    job.IsDownloading = false;
-                    job.Status = DownloadStatus.Failed;
+                    // Ignore only these known warnings
+                    return Task.CompletedTask;
                 }
+
+                // Real errors
+                job.ErrorMessage = msg;
+                job.IsDownloading = false;
+                job.Status = DownloadStatus.Failed;
+
+                return Task.CompletedTask;
             });
         }
+
+
 
         // Subscribe handlers
         ytdlp.OnOutputMessage += HandleOutput;
@@ -181,10 +223,19 @@ public class YtdlpService(AppLogger logger)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            var isAudio = job.MediaFormat?.IsAudio ?? false;
+
+            // If audio, just use formatId or "b" for best
+            // If video, merge with best audio
+            string format = isAudio
+                ? (job.FormatId ?? "b")
+                : (job.FormatId != null ? $"{job.FormatId}+bestaudio" : "best");
+
             await ytdlp
                 .SetOutputFolder(job.OutputPath)
-                .SetFormat(job.FormatId ?? "b")
+                .SetFormat(format) // job.FormatId ?? "b"
                 .AddCustomCommand("--restrict-filenames")
+                .AddCustomCommand("--remote-components ejs:npm")
                 .SetOutputTemplate(AppSettings.OutputTemplate)
                 .ExecuteAsync(job.Url, cancellationToken);
         }

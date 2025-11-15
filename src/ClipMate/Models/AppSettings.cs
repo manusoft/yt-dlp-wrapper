@@ -5,6 +5,8 @@ public static class AppSettings
     const string OutputFolderKey = "OutputFolder";
     const string OutputTemplateKey = "OutputTemplate";
     const string MetadataTimeoutKey = "MetadataTimeout"; // in seconds
+    const string LastUpdateCheckKey = "LastUpdateCheck";
+    const string LastUpdatedKey = "LastUpdatedKey";
 
     private const int DefaultMetadataTimeout = 15;
     private const int MinMetadataTimeout = 5;
@@ -33,6 +35,18 @@ public static class AppSettings
         {
             Preferences.Set(MetadataTimeoutKey, Clamp(value, MinMetadataTimeout, MaxMetadataTimeout));
         }
+    }
+
+    public static string LastUpdateCheck
+    {
+        get => Preferences.Get(LastUpdateCheckKey, DateTime.Now.ToString("O"));
+        set => Preferences.Set(LastUpdateCheckKey, value);
+    }
+
+    public static string LastUpdated
+    {
+        get => Preferences.Get(LastUpdatedKey, DateTime.Now.ToString("MMM 12, yyyy"));
+        set => Preferences.Set(LastUpdatedKey, value);
     }
 
     // Helper methods

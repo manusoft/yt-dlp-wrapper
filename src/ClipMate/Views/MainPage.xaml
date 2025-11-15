@@ -612,7 +612,7 @@
             <!-- Download Que -->
             <Border Grid.Row="2" Margin="12,0,12,10" Stroke="LightGray" StrokeThickness="0.1" >
                 <Grid RowDefinitions="*,Auto">
-                    <Grid Grid.Row="1" ColumnDefinitions="*,*" VerticalOptions="Center" Padding="12,0,12,5" >
+                    <Grid Grid.Row="1" ColumnDefinitions="*,*,*" VerticalOptions="Center" Padding="12,0,12,5" >
                         <HorizontalStackLayout Grid.Column="0" Spacing="4" ToolTipProperties.Text="Connectivity status" >
                             <BoxView 
                                 WidthRequest="8" 
@@ -627,7 +627,8 @@
                                 TextColor="{Binding ConnectionStatus, Converter={StaticResource ConnectionStateToColorConverter}}" />
                         </HorizontalStackLayout>
 
-                        <Label Grid.Column="1" Text="Manuhub" TextColor="Gray" FontSize="10" HorizontalOptions="End"/>
+                        <Label Grid.Column="1" Text="{Binding UpdateStatus, Mode=OneWay}" TextColor="Gray" FontSize="10" HorizontalOptions="Center"/>
+                        <Label Grid.Column="2" Text="Manuhub" TextColor="Teal" FontSize="10" HorizontalOptions="End"/>
                     </Grid>
                     <CollectionView 
                         x:Name="ListView"  

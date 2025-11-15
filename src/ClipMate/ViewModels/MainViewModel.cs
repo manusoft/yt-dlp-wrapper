@@ -1,14 +1,12 @@
 ﻿using ClipMate.Helpers;
 using ClipMate.Models;
 using ClipMate.Services;
-using CommunityToolkit.Maui.Alerts;
-using CommunityToolkit.Maui.Core;
 using CommunityToolkit.Maui.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using YtdlpDotNet;
 
 namespace ClipMate.ViewModels;
@@ -50,6 +48,9 @@ public partial class MainViewModel : BaseViewModel
     [NotifyPropertyChangedFor(nameof(IsNotDefaultFilter))]
     private string _currentFilter = "all";
 
+    [ObservableProperty]
+    private string _updateStatus = string.Empty;
+
     public bool IsNotDefaultFilter => !string.IsNullOrWhiteSpace(CurrentFilter) && CurrentFilter.ToLowerInvariant() != "all";
     public string EmptyViewText => IsNotDefaultFilter ? $"No {CurrentFilter.ToLowerInvariant()} downloads" : "Your download queue is empty";
 
@@ -69,7 +70,46 @@ public partial class MainViewModel : BaseViewModel
         InitializeAsync();
     }
 
-    private async void InitializeAsync() => await LoadDownloadListAsync();
+    private async void InitializeAsync()
+    {
+        await LoadDownloadListAsync();
+        await UpdateYtdlpVersionAsync();
+    }
+
+    private async Task UpdateYtdlpVersionAsync()
+    {
+        if (DateTime.TryParse(AppSettings.LastUpdateCheck, out var lastCheck))
+        {
+            UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
+
+            // Check if 3 days passed
+            if (DateTime.UtcNow - lastCheck >= TimeSpan.FromDays(3))
+            {
+                await ShowToastAsync("Checking for yt-dlp updates...");
+                var result = await _ytdlpService.GetUpdateAsync();
+
+                // Save new check time
+                AppSettings.LastUpdated = result.Contains("updated", StringComparison.InvariantCultureIgnoreCase) ?
+                    DateTime.UtcNow.ToString("MMM yy, yyyy") : AppSettings.LastUpdated;
+                AppSettings.LastUpdateCheck = DateTime.UtcNow.ToString("O");
+                UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
+            }
+        }
+        else
+        {
+            // First time: treat as "never checked"
+            await ShowToastAsync("Checking for yt-dlp updates...");
+            var result = await _ytdlpService.GetUpdateAsync();
+
+            // Save new check time
+            AppSettings.LastUpdated = result.Contains("updated", StringComparison.InvariantCultureIgnoreCase) ?
+                    DateTime.UtcNow.ToString("MMM yy, yyyy") : AppSettings.LastUpdated;
+            AppSettings.LastUpdateCheck = DateTime.UtcNow.ToString("O");
+            UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
+
+            await ShowToastAsync(result);
+        }
+    }
 
     private void OnConnectivityChanged(ConnectionState state) => ConnectionStatus = state;
 
@@ -90,6 +130,9 @@ public partial class MainViewModel : BaseViewModel
             await ShowToastAsync("Please enter a valid video URL.");
             return;
         }
+
+        if (IsAnalizing)
+            return;
 
         try
         {
@@ -135,14 +178,14 @@ public partial class MainViewModel : BaseViewModel
                     Title = Url,
                     Formats = formatsOnly.Select(f => new Format
                     {
-                        FormatId = f.ID,
-                        Ext = f.Extension ?? "n/a",
-                        Resolution = f.Resolution ?? "n/a",
+                        FormatId = f.ID, 
+                        Ext = f.Extension ?? "none",
+                        Resolution = f.Resolution ?? "none",
                         Filesize = ParseFileSize(f.FileSize),
                         Fps = ParseFps(f.FPS),
                         AudioChannels = ParseInt(f.Channels),
-                        Vcodec = f.VCodec ?? "n/a",
-                        Acodec = f.ACodec ?? "n/a",
+                        Vcodec = f.VCodec ?? "none",
+                        Acodec = f.ACodec ?? "none",                       
                     }).ToList()
                 };
             }
@@ -152,42 +195,44 @@ public partial class MainViewModel : BaseViewModel
             ThumbnailUrl = metadata.Thumbnail ?? "videoimage.png";
 
             var fileSize = metadata.RequestedFormats?.Sum(x => x.Filesize) ?? 0;
-            var fileSizeFormatted = fileSize > 0 ? $"{fileSize / (1024 * 1024):F2} Mb" : "N/A";
+            var fileSizeFormatted = fileSize > 0 ? $"{fileSize / (1024 * 1024):F2} Mb" : "none";
             var fps = metadata.RequestedFormats?.FirstOrDefault()?.Fps ?? 0;
-            var formattedFps = fps > 0 ? $"{fps} fps" : "N/A";
-
-
+            var formattedFps = fps > 0 ? $"{fps} fps" : "none";
+            var autoRes = metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Resolution;
+            
             var autoFormat = new MediaFormat
             {
                 Id = "b",
                 Extension = "mp4",
-                Resolution = $"Auto {metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Resolution}" ?? "Auto",
+                Resolution = autoRes != null ? $"Auto {autoRes}" : "Auto",
                 FileSize = fileSizeFormatted,
                 Fps = formattedFps,
-                Channels = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.AudioChannels?.ToString() ?? "N/A",
-                VCodec = metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Vcodec ?? "N/A",
-                ACodec = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.Acodec ?? "N/A",
-                MoreInfo = "N/A",
+                Channels = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.AudioChannels?.ToString() ?? "none",
+                VCodec = metadata.RequestedFormats?.FirstOrDefault(x => !x.IsAudio)?.Vcodec ?? "none",
+                ACodec = metadata.RequestedFormats?.FirstOrDefault(x => x.IsAudio)?.Acodec ?? "none ",
+                MoreInfo = "none",
+                IsAudio = true,
             };
 
             Formats.Add(autoFormat);
 
             foreach (var f in metadata.Formats ?? Enumerable.Empty<Format>())
             {
-                fileSizeFormatted = f.Filesize.HasValue ? $"{f.Filesize.Value / (1024 * 1024):F2} Mb" : "N/A";
-                formattedFps = f.Fps > 0 ? $"{f.Fps} fps" : "N/A";
+                fileSizeFormatted = f.Filesize.HasValue ? $"{f.Filesize.Value / (1024 * 1024):F2} Mb" : "none";
+                formattedFps = f.Fps > 0 ? $"{f.Fps} fps" : "none";
 
                 var mediaFormat = new MediaFormat
                 {
-                    Id = f.FormatId ?? "N/A",
-                    Extension = f.Ext ?? "N/A",
-                    Resolution = f.Resolution ?? "N/A",
+                    Id = f.FormatId ?? "none",
+                    Extension = f.Ext ?? "none",
+                    Resolution = f.Resolution ?? "none",
                     FileSize = fileSizeFormatted,
                     Fps = formattedFps,
-                    Channels = f.AudioChannels?.ToString() ?? "N/A",
-                    VCodec = f.Vcodec ?? "N/A",
-                    ACodec = f.Acodec ?? "N/A",
-                    MoreInfo = "N/A",
+                    Channels = f.AudioChannels?.ToString() ?? "none",
+                    VCodec = f.Vcodec ?? "none",
+                    ACodec = f.Acodec ?? "none",
+                    MoreInfo = "none",
+                    IsAudio = f.IsAudio
                 };
 
                 Formats.Add(mediaFormat);
@@ -254,7 +299,7 @@ public partial class MainViewModel : BaseViewModel
 
         // Check for duplicate URL (case-insensitive)
         bool alreadyExists = Jobs.Any(j =>
-            string.Equals(j.Url, Url, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(ExtractYoutubeId(j.Url), ExtractYoutubeId(Url), StringComparison.OrdinalIgnoreCase) &&
             string.Equals(j.FormatId, SelectedFormat?.Id, StringComparison.OrdinalIgnoreCase));
 
         if (alreadyExists)
@@ -579,4 +624,11 @@ public partial class MainViewModel : BaseViewModel
         if (int.TryParse(value, out var result)) return result;
         return null;
     }
+
+    private static string ExtractYoutubeId(string url)
+    {
+        var match = Regex.Match(url, @"v=([^&]+)");
+        return match.Success ? match.Groups[1].Value : url;
+    }
+
 }

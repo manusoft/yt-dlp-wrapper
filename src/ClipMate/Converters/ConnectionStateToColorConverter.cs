@@ -12,7 +12,7 @@ public class ConnectionStateToColorConverter : IValueConverter
 
         return state switch
         {
-            ConnectionState.Available => Colors.LimeGreen,            
+            ConnectionState.Available => Colors.Green,            
             ConnectionState.Limited => Colors.Orange,
             ConnectionState.Lost => Colors.Red,
             _ => Colors.Transparent
