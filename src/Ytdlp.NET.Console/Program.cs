@@ -17,7 +17,7 @@ ytdlp.OnProgressDownload += (sender, e) => Console.WriteLine($"Download Progress
 ytdlp.OnCompleteDownload += (sender, message) => Console.WriteLine($"Download Complete: {message}");
 ytdlp.OnErrorMessage += (sender, message) => Console.WriteLine($"Error Message: {message}");
 
-var videoUrl = "https://www.youtube.com/watch?v=jlaau62cLKI";
+var videoUrl = "https://www.youtube.com/watch?v=JOIqPThxFb8";
 
 // Example 1: Download a video with specific options
 //Console.WriteLine("=== Example 1: Downloading a video ===");
@@ -103,6 +103,6 @@ public class ConsoleLogger : ILogger
 {
     public void Log(LogType type, string message)
     {
-        //Console.WriteLine($"[{type}] {message}");
+        Console.WriteLine($"[{type}] {message}");
     }
 }

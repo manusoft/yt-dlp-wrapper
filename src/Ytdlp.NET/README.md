@@ -4,6 +4,23 @@
 
 **Ytdlp.NET** is a fluent, strongly-typed .NET wrapper around the powerful [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) command-line tool. It provides an intuitive and customizable interface to download videos, extract audio, retrieve metadata, and process media from YouTube and hundreds of other supported platforms.
 
+## Importanant Note
+
+### External JS Scripts Setup Guide
+ - To download from YouTube, yt-dlp needs to solve JavaScript challenges presented by YouTube using an external JavaScript runtime.
+ - Supports downloading EJS script dependencies from npm (--remote-components ejs:npm)
+
+To use this:
+
+```csharp
+ await ytdlp
+    .SetOutputFolder("c:\video")
+    .SetFormat("b")
+    .AddCustomCommand("--restrict-filenames")
+    .AddCustomCommand("--remote-components ejs:npm")
+    .ExecuteAsync(YoutubeUrl, cancellationToken);
+```
+
 ## 🚀 Features
 
 - **Fluent API**: Easily construct `yt-dlp` commands with chainable methods.
@@ -14,7 +31,7 @@
 - **Validated Options**: Rejects invalid yt-dlp commands with a built-in option whitelist.
 - **Cross-Platform**: Works on Windows, macOS, and Linux (where `yt-dlp` is supported).
 - **Output Templates**: Customize naming patterns with standard `yt-dlp` placeholders.
-
+- **Update**: Implements update method to update latest yt-dlp version. 
 ---
 
 ## 📦 Prerequisites

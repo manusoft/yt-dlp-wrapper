@@ -75,7 +75,13 @@ public sealed class Ytdlp
         // Others (use with caution depending on context)
         "--config-location", "--write-video", "--write-audio", "--no-post-overwrites",
         "--break-on-existing", "--break-per-input", "--windows-filenames", "--restrict-filenames",
-        "--ffmpeg-location"
+        "--ffmpeg-location", 
+
+        // JS Runtime Support
+        "--js-runtimes", 
+
+        // EJS script dependencies
+        "--remote-components"
     };
 
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
@@ -100,6 +106,12 @@ public sealed class Ytdlp
     public Ytdlp Version()
     {
         _commandBuilder.Append("--version ");
+        return this;
+    }
+
+    public Ytdlp Update()
+    {
+        _commandBuilder.Append("--update ");
         return this;
     }
 
@@ -417,6 +429,58 @@ public sealed class Ytdlp
             return string.Empty;
         }
     }
+
+    public async Task<string> UpdateAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var process = CreateProcess("-U");
+
+            process.Start();
+
+            // Read output and error concurrently
+            var readOutputTask = process.StandardOutput.ReadToEndAsync();
+            var readErrorTask = process.StandardError.ReadToEndAsync();
+
+            using (cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch { }
+            }))
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
+
+            var output = await readOutputTask;
+            var error = await readErrorTask;
+
+            // Log both
+            if (!string.IsNullOrWhiteSpace(output))
+                _logger.Log(LogType.Info, output.Trim());
+            if (!string.IsNullOrWhiteSpace(error))
+                _logger.Log(LogType.Error, error.Trim());
+
+            // Analyze output for professional messages
+            if (output.Contains("Updated", StringComparison.OrdinalIgnoreCase))
+                return "yt-dlp was successfully updated to the latest version.";
+
+            if (output.Contains("up to date", StringComparison.OrdinalIgnoreCase))
+                return "yt-dlp is already up to date.";
+
+            return "yt-dlp update check completed (no changes detected).";
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Error updating yt-dlp: {ex.Message}");
+            return $"yt-dlp update failed: {ex.Message}";
+        }
+    }
+
+
 
     public async Task<Metadata?> GetVideoMetadataJsonAsync(string url, CancellationToken cancellationToken = default)
     {

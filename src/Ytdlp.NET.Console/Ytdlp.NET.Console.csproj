@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ytdlp-executable" Version="2025.7.21" />
+    <PackageReference Include="ytdlp-executable" Version="2025.11.12" />
   </ItemGroup>
 
   <ItemGroup>
