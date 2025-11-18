@@ -6,7 +6,7 @@ public static class AppSettings
     const string OutputTemplateKey = "OutputTemplate";
     const string MetadataTimeoutKey = "MetadataTimeout"; // in seconds
     const string LastUpdateCheckKey = "LastUpdateCheck";
-    const string LastUpdatedKey = "LastUpdatedKey";
+    const string LastUpdatedKey = "LastUpdated";
 
     private const int DefaultMetadataTimeout = 15;
     private const int MinMetadataTimeout = 5;
@@ -39,13 +39,13 @@ public static class AppSettings
 
     public static string LastUpdateCheck
     {
-        get => Preferences.Get(LastUpdateCheckKey, DateTime.Now.ToString("O"));
+        get => Preferences.Get(LastUpdateCheckKey, string.Empty); // empty means "never checked"
         set => Preferences.Set(LastUpdateCheckKey, value);
     }
 
     public static string LastUpdated
     {
-        get => Preferences.Get(LastUpdatedKey, DateTime.Now.ToString("MMM 12, yyyy"));
+        get => Preferences.Get(LastUpdatedKey, "Never");
         set => Preferences.Set(LastUpdatedKey, value);
     }
 

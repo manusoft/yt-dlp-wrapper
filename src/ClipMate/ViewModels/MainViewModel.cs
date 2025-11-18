@@ -78,38 +78,40 @@ public partial class MainViewModel : BaseViewModel
 
     private async Task UpdateYtdlpVersionAsync()
     {
-        if (DateTime.TryParse(AppSettings.LastUpdateCheck, out var lastCheck))
-        {
-            UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
+        // Parse last check time safely
+        bool hasLastCheck = DateTime.TryParse(AppSettings.LastUpdateCheck, out var lastCheck);
 
-            // Check if 3 days passed
-            if (DateTime.UtcNow - lastCheck >= TimeSpan.FromDays(3))
-            {
-                await ShowToastAsync("Checking for yt-dlp updates...");
-                var result = await _ytdlpService.GetUpdateAsync();
+        // Show last updated info immediately
+        UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
 
-                // Save new check time
-                AppSettings.LastUpdated = result.Contains("updated", StringComparison.InvariantCultureIgnoreCase) ?
-                    DateTime.UtcNow.ToString("MMM yy, yyyy") : AppSettings.LastUpdated;
-                AppSettings.LastUpdateCheck = DateTime.UtcNow.ToString("O");
-                UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
-            }
-        }
-        else
-        {
-            // First time: treat as "never checked"
-            await ShowToastAsync("Checking for yt-dlp updates...");
-            var result = await _ytdlpService.GetUpdateAsync();
+        bool needsCheck = !hasLastCheck ||     // First time running
+                          (DateTime.UtcNow - lastCheck >= TimeSpan.FromDays(3));  // 3 days passed
 
-            // Save new check time
-            AppSettings.LastUpdated = result.Contains("updated", StringComparison.InvariantCultureIgnoreCase) ?
-                    DateTime.UtcNow.ToString("MMM yy, yyyy") : AppSettings.LastUpdated;
-            AppSettings.LastUpdateCheck = DateTime.UtcNow.ToString("O");
-            UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
+        if (!needsCheck)
+            return;
 
-            await ShowToastAsync(result);
-        }
+        await CheckForYtdlpUpdateAsync();
     }
+
+
+    public async Task CheckForYtdlpUpdateAsync()
+    {
+        await ShowToastAsync("Checking for yt-dlp updates...");
+
+        var result = await _ytdlpService.GetUpdateAsync();
+
+        bool updated = result.Contains("updated", StringComparison.InvariantCultureIgnoreCase);
+
+        if (updated)
+            AppSettings.LastUpdated = DateTime.UtcNow.ToString("MMM dd, yyyy");
+
+        AppSettings.LastUpdateCheck = DateTime.UtcNow.ToString("O");
+
+        UpdateStatus = $"Last updated: {AppSettings.LastUpdated}";
+
+        await ShowToastAsync(result);
+    }
+
 
     private void OnConnectivityChanged(ConnectionState state) => ConnectionStatus = state;
 
@@ -117,6 +119,12 @@ public partial class MainViewModel : BaseViewModel
     {
         _connectivityCheck?.Dispose();
         Jobs.Dispose();
+    }
+
+    [RelayCommand]
+    private async Task ManualCheckUpdateAsync()
+    {
+        await CheckForYtdlpUpdateAsync();
     }
 
     // Relay commands for UI actions
@@ -258,7 +266,7 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void CancelAnalyze()
+    private async Task CancelAnalyzeAsync()
     {
         try
         {
@@ -275,7 +283,7 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void CloseAnalyzeView()
+    private async Task CloseAnalyzeViewAsync()
     {
         try
         {
@@ -378,7 +386,7 @@ public partial class MainViewModel : BaseViewModel
             _jsonService.Save(Jobs);
 
             if (string.IsNullOrWhiteSpace(job.ErrorMessage))
-                await ShowToastAsync($"Download finished successfully for: {job.Url}");
+                await ShowToastAsync($"Download finished successfully for: {job.Title}");
             else
                 await ShowToastAsync(job.ErrorMessage);
         }
@@ -410,7 +418,7 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void CancelDownload(DownloadJob job)
+    private async Task CancelDownloadAsync(DownloadJob job)
     {
         try
         {
@@ -438,12 +446,8 @@ public partial class MainViewModel : BaseViewModel
     {
         try
         {
-            //var confirm = await App.Current.MainPage.DisplayAlert("Confirm Delete", $"Are you sure you want to delete the job for {job.Url}?", "Delete", "Cancel");
-            //if (confirm)
-            //{
             Jobs.Remove(job);
             _jsonService.Save(Jobs);
-            //}
         }
         catch (Exception ex)
         {
@@ -452,7 +456,7 @@ public partial class MainViewModel : BaseViewModel
     }
 
     [RelayCommand]
-    private void OpenFolder(DownloadJob? job)
+    private async Task OpenFolderAsync(DownloadJob? job)
     {
         if (job == null) return;
 
@@ -561,9 +565,6 @@ public partial class MainViewModel : BaseViewModel
             job.IsDownloading = false;
             job.ErrorMessage = string.Empty;
             job.Progress = 0;
-            //job.Eta = string.IsNullOrWhiteSpace(job.Eta) ? "N/A" : job.Eta;
-            //job.Speed = string.IsNullOrWhiteSpace(job.Speed) ? "N/A" : job.Speed;
-
             Jobs.Add(job);
         }
 
