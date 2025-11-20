@@ -1,4 +1,5 @@
 ﻿using ClipMate.Models;
+using System.Diagnostics;
 using YtdlpDotNet;
 
 namespace ClipMate.Services;
@@ -69,6 +70,8 @@ public class YtdlpService(AppLogger logger)
     {
         var ytdlp = new Ytdlp(_ytdlpPath, _logger);
 
+        bool IsDownloading = false;
+
         void HandleOutput(object? s, string msg)
         {
             if (cancellationToken.IsCancellationRequested) return;
@@ -78,6 +81,8 @@ public class YtdlpService(AppLogger logger)
 
         void HandleProgress(object? s, DownloadProgressEventArgs e)
         {
+            IsDownloading = true;
+
             if (cancellationToken.IsCancellationRequested) return;
 
             MainThread.BeginInvokeOnMainThread(() =>
@@ -85,6 +90,7 @@ public class YtdlpService(AppLogger logger)
                 if (e.Message.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
                     job.Status = DownloadStatus.Completed;
+                    job.Progress = 0;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
                     job.FileSize = e.Size;
@@ -96,6 +102,8 @@ public class YtdlpService(AppLogger logger)
                 job.Progress = e.Percent / 100.0;
                 job.Eta = e.ETA;
                 job.Speed = e.Speed;
+
+                IsDownloading = true;
                 job.Status = DownloadStatus.Downloading;
                 job.IsDownloading = true;
                 job.IsCompleted = false;
@@ -112,6 +120,7 @@ public class YtdlpService(AppLogger logger)
             {
                 if (msg.Contains("has already been downloaded", StringComparison.InvariantCultureIgnoreCase))
                 {
+                    IsDownloading = false;
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
@@ -127,7 +136,7 @@ public class YtdlpService(AppLogger logger)
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
-                    job.Progress = 100;
+                    job.Progress = 0;
                     job.ErrorMessage = string.Empty;
                 }
 
@@ -137,7 +146,7 @@ public class YtdlpService(AppLogger logger)
                     job.Status = DownloadStatus.Completed;
                     job.IsDownloading = false;
                     job.IsCompleted = true;
-                    job.Progress = 100;
+                    job.Progress = 0;
                     job.ErrorMessage = string.Empty;
                 }
 
@@ -146,6 +155,8 @@ public class YtdlpService(AppLogger logger)
 
         void HandleComplete(object? s, string msg)
         {
+            IsDownloading = false;
+
             if (cancellationToken.IsCancellationRequested) return;
 
             MainThread.BeginInvokeOnMainThread(() =>
@@ -153,33 +164,12 @@ public class YtdlpService(AppLogger logger)
                 job.Status = DownloadStatus.Completed;
                 job.IsDownloading = false;
                 job.IsCompleted = true;
-                job.Progress = 100;
+                job.Progress = 0;
                 job.ErrorMessage = string.Empty;
             });
         }
 
-        // Working method ignore all WARNINGS
-        //async void HandleError(object? s, string msg)
-        //{
-        //    if (cancellationToken.IsCancellationRequested)
-        //        return;
-
-        //    await MainThread.InvokeOnMainThreadAsync(() =>
-        //    {
-        //        // Skip all WARNING-prefixed messages
-        //        if (msg.StartsWith("WARNING:", StringComparison.OrdinalIgnoreCase))
-        //            return Task.CompletedTask;
-
-        //        // Real errors
-        //        job.ErrorMessage = msg;
-        //        job.IsDownloading = false;
-        //        job.Status = DownloadStatus.Failed;
-
-        //        return Task.CompletedTask;
-        //    });
-        //}
-
-        // Ignor selected WARNINGS
+        // Ignore selected WARNINGS
         async void HandleError(object? s, string msg)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -189,7 +179,7 @@ public class YtdlpService(AppLogger logger)
             {
                 "No supported JavaScript runtime",
                 "web_safari client https formats have been skipped",
-                "SABR streaming"
+                "SABR streaming",
             };
 
             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -197,6 +187,15 @@ public class YtdlpService(AppLogger logger)
                 if (msg.StartsWith("WARNING:", StringComparison.OrdinalIgnoreCase) &&
                     ignoredWarnings.Any(w => msg.Contains(w, StringComparison.OrdinalIgnoreCase)))
                 {
+                    if (IsDownloading)
+                    {
+                        job.Status = DownloadStatus.Completed;
+                        job.IsDownloading = false;
+                        job.IsCompleted = true;
+                        job.Progress = 0;
+                        job.ErrorMessage = string.Empty;
+                    }
+
                     // Ignore only these known warnings
                     return Task.CompletedTask;
                 }
@@ -209,8 +208,6 @@ public class YtdlpService(AppLogger logger)
                 return Task.CompletedTask;
             });
         }
-
-
 
         // Subscribe handlers
         ytdlp.OnOutputMessage += HandleOutput;
@@ -235,6 +232,7 @@ public class YtdlpService(AppLogger logger)
                 .SetOutputFolder(job.OutputPath)
                 .SetFormat(format) // job.FormatId ?? "b"
                 .AddCustomCommand("--restrict-filenames")
+                .AddCustomCommand("--js-runtimes deno") // this line not fix the js error, can remove this line.
                 .AddCustomCommand("--remote-components ejs:npm")
                 .SetOutputTemplate(AppSettings.OutputTemplate)
                 .ExecuteAsync(job.Url, cancellationToken);
@@ -249,7 +247,7 @@ public class YtdlpService(AppLogger logger)
         catch (YtdlpException ex)
         {
             var userMessage = GetFriendlyErrorMessage(ex.Message);
-                
+
             _logger.Log(LogType.Error, ex.Message);
             if (ex.Message.Contains("warning", StringComparison.InvariantCultureIgnoreCase))
             {

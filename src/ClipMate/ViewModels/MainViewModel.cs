@@ -96,7 +96,7 @@ public partial class MainViewModel : BaseViewModel
 
     public async Task CheckForYtdlpUpdateAsync()
     {
-        await ShowToastAsync("Checking for yt-dlp updates...");
+        await ShowToastAsync("Checking for latest updates...");
 
         var result = await _ytdlpService.GetUpdateAsync();
 

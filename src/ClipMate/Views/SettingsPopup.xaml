@@ -50,17 +50,22 @@
                             <VisualStateGroupList>
                                 <VisualStateGroup x:Name="CommonStates">
 
-                                    <VisualState x:Name="Normal" />
+                                    <VisualState Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="#60A5FA" />
+                                            <Setter Property="TextColor" Value="WhiteSmoke" />
+                                        </VisualState.Setters>
+                                    </VisualState>
 
                                     <VisualState x:Name="PointerOver">
                                         <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#334d89ff" />
+                                            <Setter Property="BackgroundColor" Value="#3B82F6" />
                                         </VisualState.Setters>
                                     </VisualState>
 
                                     <VisualState x:Name="Pressed">
                                         <VisualState.Setters>
-                                            <Setter Property="BackgroundColor" Value="#37474F" />
+                                            <Setter Property="BackgroundColor" Value="#2563EB" />
                                             <Setter Property="Opacity" Value="0.85" />
                                         </VisualState.Setters>
                                     </VisualState>
@@ -142,19 +147,19 @@
                             <VisualStateGroup Name="CommonStates">
                                 <VisualState Name="Normal">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="Transparent" />
+                                        <Setter Property="BackgroundColor" Value="#FBBF24" />
                                         <Setter Property="TextColor" Value="WhiteSmoke" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState Name="PointerOver">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#333" />
+                                        <Setter Property="BackgroundColor" Value="#F59E0B" />
                                         <Setter Property="TextColor" Value="White" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState Name="Pressed">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#555" />
+                                        <Setter Property="BackgroundColor" Value="#D97706" />
                                         <Setter Property="TextColor" Value="LightGray" />
                                     </VisualState.Setters>
                                 </VisualState>
@@ -182,18 +187,20 @@
                             <VisualStateGroup Name="CommonStates">
                                 <VisualState Name="Normal">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#2196F3" />
-                                        <Setter Property="TextColor" Value="White" />
+                                        <Setter Property="BackgroundColor" Value="#14B8A6" />
+                                        <Setter Property="TextColor" Value="WhiteSmoke" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState Name="PointerOver">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#1976D2" />
+                                        <Setter Property="BackgroundColor" Value="#0D9488" />
+                                        <Setter Property="TextColor" Value="White" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState Name="Pressed">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#0D47A1" />
+                                        <Setter Property="BackgroundColor" Value="#0F766E" />
+                                        <Setter Property="TextColor" Value="LightGray" />
                                     </VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
@@ -220,18 +227,20 @@
                             <VisualStateGroup Name="CommonStates">
                                 <VisualState Name="Normal">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#F44336" />
-                                        <Setter Property="TextColor" Value="White" />
+                                        <Setter Property="BackgroundColor" Value="#6B7280" />
+                                        <Setter Property="TextColor" Value="WhiteSmoke" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState Name="PointerOver">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#D32F2F" />
+                                        <Setter Property="BackgroundColor" Value="#4B5563" />
+                                        <Setter Property="TextColor" Value="White" />
                                     </VisualState.Setters>
                                 </VisualState>
                                 <VisualState Name="Pressed">
                                     <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#B71C1C" />
+                                        <Setter Property="BackgroundColor" Value="#374151" />
+                                        <Setter Property="TextColor" Value="LightGray" />
                                     </VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>

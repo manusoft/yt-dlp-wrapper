@@ -193,6 +193,51 @@
                         Padding="-10"
                         Opacity="0.8">
                         <ImageButton 
+                            Source="update.png"
+                            BackgroundColor="Transparent"  
+                            Aspect="AspectFit"
+                            CornerRadius="50"
+                            HeightRequest="20"
+                            WidthRequest="20"
+                            ToolTipProperties.Text="Update"
+                            Command="{Binding ManualCheckUpdateCommand}"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center" >
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup x:Name="CommonStates">
+
+                                        <VisualState x:Name="Normal"/>
+
+                                        <VisualState Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#334d89ff" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="#37474F" />
+                                                <Setter Property="Opacity" Value="0.85" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+                        </ImageButton>
+                    </Border>
+                    
+                    <!-- Setting -->
+                    <Border                    
+                        Stroke="LightGrey"
+                        StrokeThickness="0.1"
+                        StrokeShape="RoundRectangle 50"
+                        HeightRequest="30"             
+                        WidthRequest="30"
+                        Padding="-10"
+                        Opacity="0.8">
+                        <ImageButton 
                             Source="gear.png"
                             BackgroundColor="Transparent"  
                             Aspect="AspectFit"
@@ -985,7 +1030,7 @@
 
                                                                 <VisualState x:Name="PointerOver">
                                                                     <VisualState.Setters>
-                                                                        <Setter Property="BackgroundColor" Value="#6B3F00" />
+                                                                        <Setter Property="BackgroundColor" Value="#FBBF24" />
                                                                         <Setter Property="Opacity" Value="1.0" />
                                                                     </VisualState.Setters>
                                                                 </VisualState>
@@ -1018,7 +1063,7 @@
                                                 IsVisible="{Binding IsNotDownloading}">
                                                 <ImageButton 
                                                     Source="trash.png"
-                                                    BackgroundColor="#C62828"
+                                                    BackgroundColor="#4B2E00"
                                                     HeightRequest="20"
                                                     WidthRequest="20"
                                                     Margin="-10"
