@@ -43,8 +43,6 @@
             toolStripLabelETA = new ToolStripStatusLabel();
             buttonBrowseFolder = new Button();
             folderBrowserDialog1 = new FolderBrowserDialog();
-            radioAuto = new RadioButton();
-            radioCustom = new RadioButton();
             checkAutoClose = new CheckBox();
             statusStrip1.SuspendLayout();
             SuspendLayout();
@@ -76,9 +74,9 @@
             comboQuality.DropDownStyle = ComboBoxStyle.DropDownList;
             comboQuality.Font = new Font("Segoe UI", 12F);
             comboQuality.FormattingEnabled = true;
-            comboQuality.Location = new Point(157, 81);
+            comboQuality.Location = new Point(12, 81);
             comboQuality.Name = "comboQuality";
-            comboQuality.Size = new Size(256, 29);
+            comboQuality.Size = new Size(401, 29);
             comboQuality.TabIndex = 3;
             // 
             // textDetail
@@ -160,30 +158,6 @@
             buttonBrowseFolder.UseVisualStyleBackColor = true;
             buttonBrowseFolder.Click += buttonBrowseFolder_Click;
             // 
-            // radioAuto
-            // 
-            radioAuto.AutoSize = true;
-            radioAuto.Checked = true;
-            radioAuto.Location = new Point(13, 85);
-            radioAuto.Name = "radioAuto";
-            radioAuto.Size = new Size(57, 23);
-            radioAuto.TabIndex = 9;
-            radioAuto.TabStop = true;
-            radioAuto.Text = "Auto";
-            radioAuto.UseVisualStyleBackColor = true;
-            radioAuto.CheckedChanged += radioAuto_CheckedChanged;
-            // 
-            // radioCustom
-            // 
-            radioCustom.AutoSize = true;
-            radioCustom.Location = new Point(76, 85);
-            radioCustom.Name = "radioCustom";
-            radioCustom.Size = new Size(75, 23);
-            radioCustom.TabIndex = 10;
-            radioCustom.Text = "Custom";
-            radioCustom.UseVisualStyleBackColor = true;
-            radioCustom.CheckedChanged += radioCustom_CheckedChanged;
-            // 
             // checkAutoClose
             // 
             checkAutoClose.AutoSize = true;
@@ -201,8 +175,6 @@
             BackColor = SystemColors.Window;
             ClientSize = new Size(684, 461);
             Controls.Add(checkAutoClose);
-            Controls.Add(radioCustom);
-            Controls.Add(radioAuto);
             Controls.Add(buttonBrowseFolder);
             Controls.Add(statusStrip1);
             Controls.Add(progressDownload);
@@ -240,8 +212,6 @@
         private ToolStripStatusLabel toolStripLabelSize;
         private Button buttonBrowseFolder;
         private FolderBrowserDialog folderBrowserDialog1;
-        private RadioButton radioAuto;
-        private RadioButton radioCustom;
         private CheckBox checkAutoClose;
     }
 }

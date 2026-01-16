@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -33,7 +33,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft-Windows10-APICodePack-ShellExtensions" Version="1.1.8" />
-    <PackageReference Include="ytdlp-executable" Version="2025.6.30" />
+    <PackageReference Include="ytdlp-executable" Version="2025.12.8" />
   </ItemGroup>
 
   <ItemGroup>

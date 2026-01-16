@@ -8,8 +8,9 @@ namespace VideoDownloader;
 public partial class frmMain : Form
 {
     private const string YTDLP_PATH = @".\Tools\yt-dlp.exe";
-    private const string DEFAULT_YTDLP_VERSION = "2025.06.30";
+    private const string DEFAULT_YTDLP_VERSION = "2025.12.08";
     private const string BEST_FORMAT = "bestvideo+bestaudio";
+    private const string DefaultOutputTemplate = "%(upload_date>%Y-%m-%d)s - %(title).90s [%(resolution)s - %(format_id)s].%(ext)s";
     private readonly string _downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
     private readonly Ytdlp _ytdlp;
     private readonly ILogger _logger = new ConsoleLogger();
@@ -79,7 +80,7 @@ public partial class frmMain : Form
         };
         _ytdlp.OnProgressDownload += HandleProgressDownload;
         _ytdlp.OnCompleteDownload += HandleCompleteDownload;
-        _ytdlp.OnPostProcessingComplete += (s, e) => 
+        _ytdlp.OnPostProcessingComplete += (s, e) =>
         {
             _logger.Log(LogType.Info, $"Subscribed OnPostProcessingComplete event triggered: {e}");
             HandlePostProcessingComplete(s, e);
@@ -134,7 +135,7 @@ public partial class frmMain : Form
                 UpdateStatus("Download completed.");
                 EnableControls();
             }
-                
+
         }
         catch (Exception ex)
         {
@@ -255,7 +256,6 @@ public partial class frmMain : Form
         {
             if (string.IsNullOrEmpty(textUrl.Text) || !textUrl.Text.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
-                radioAuto.Checked = true;
                 comboQuality.Enabled = false;
                 buttonDownload.Enabled = false;
                 UpdateStatus("Idle");
@@ -303,6 +303,7 @@ public partial class frmMain : Form
                 var format = e.ListItem as VideoFormat;
                 e.Value = $"{format?.Resolution} ({format?.Extension}, {format?.FileSize ?? "Unknown"})";
             };
+            comboQuality.Enabled = true;
             buttonDownload.Enabled = true;
         });
     }
@@ -318,18 +319,23 @@ public partial class frmMain : Form
             AppendTextDetail($"Downloading video from: {url}");
             UpdateProgressBar(0);
 
-            if (radioAuto.Checked)
+
+            if (quality != null)
             {
+                var isAudio = quality.Channels is null ? false : true;
+
+                // If audio, just use formatId or "b" for best
+                // If video, merge with best audio
+                string format = isAudio
+                    ? (quality.ID ?? "b")
+                    : (quality.ID != null ? $"{quality.ID}+bestaudio" : "best");
+
                 await _ytdlp
-                    .SetFormat(BEST_FORMAT)
-                    .SetOutputFolder(textOutput.Text.Trim())
-                    .ExecuteAsync(url);
-            }
-            else if (quality != null)
-            {
-                await _ytdlp
-                    .SetFormat(quality.ID)
-                    .SetOutputFolder(textOutput.Text.Trim())
+                    .SetFormat(format)
+                    .AddCustomCommand("--restrict-filenames")
+                    .AddCustomCommand("--js-runtimes deno") // this line not fix the js error, can remove this line.
+                    .AddCustomCommand("--remote-components ejs:npm")
+                    .SetOutputTemplate(DefaultOutputTemplate)
                     .ExecuteAsync(url);
             }
             else
@@ -354,8 +360,6 @@ public partial class frmMain : Form
     {
         InvokeIfRequired(this, () =>
         {
-            radioAuto.Enabled = false;
-            radioCustom.Enabled = false;
             buttonBrowseFolder.Enabled = false;
             comboQuality.Enabled = false;
             buttonDownload.Enabled = false;
@@ -368,10 +372,7 @@ public partial class frmMain : Form
     {
         InvokeIfRequired(this, () =>
         {
-            radioAuto.Enabled = true;
-            radioCustom.Enabled = true;
             buttonBrowseFolder.Enabled = true;
-            comboQuality.Enabled = radioCustom.Checked;
             textOutput.Enabled = true;
             textUrl.Enabled = true;
             buttonDownload.Enabled = !_hasError;
@@ -415,32 +416,6 @@ public partial class frmMain : Form
         {
             _logger.Log(LogType.Error, $"Folder selection error: {ex.Message}");
             ShowError($"Failed to select folder: {ex.Message}");
-        }
-    }
-
-    private void radioAuto_CheckedChanged(object sender, EventArgs e)
-    {
-        try
-        {
-            comboQuality.Enabled = !radioAuto.Checked;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Radio auto changed error: {ex.Message}");
-            AppendTextDetail($"Error: {ex.Message}");
-        }
-    }
-
-    private void radioCustom_CheckedChanged(object sender, EventArgs e)
-    {
-        try
-        {
-            comboQuality.Enabled = radioCustom.Checked;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Radio custom changed error: {ex.Message}");
-            AppendTextDetail($"Error: {ex.Message}");
         }
     }
 
