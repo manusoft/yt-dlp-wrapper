@@ -380,3 +380,8 @@ FodyWeavers.xsd
 /src/ClipMate/Dependencies/ffplay.exe
 /src/ClipMate/Dependencies/ffprobe.exe
 /src/ClipMate/Dependencies/ffmpeg.exe
+/src/VideoDownloader/yt-dlp.exe
+/src/VideoDownloader/FFmpeg/ffmpeg.exe
+/src/VideoDownloader/FFmpeg/ffprobe.exe
+/src/VideoDownloader/Tools/ffmpeg.exe
+/src/VideoDownloader/Tools/ffprobe.exe

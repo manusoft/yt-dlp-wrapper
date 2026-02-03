@@ -29,59 +29,107 @@ public sealed class Ytdlp
     public event Action<object, string>? OnPostProcessingComplete;
 
     // Valid yt-dlp options for validation
-    private static readonly HashSet<string> ValidOptions = new HashSet<string>
+    private static readonly HashSet<string> ValidOptions = new HashSet<string>(StringComparer.Ordinal)
     {
-        // General Download
-        "--format", "--output", "-o", "--no-overwrites", "--continue", "--no-continue",
-        "--ignore-errors", "--no-part", "--no-mtime", "--write-description", "--write-info-json",
-        "--write-annotations", "--write-thumbnail", "--write-all-thumbnails", "--write-sub",
-        "--write-auto-sub", "--sub-format", "--sub-langs", "--skip-download", "--no-playlist",
-        "--yes-playlist", "--playlist-items", "--playlist-start", "--playlist-end", "--match-title",
-        "--reject-title", "--no-check-certificate", "--user-agent", "--referer", "--cookies",
-        "--add-header", "--limit-rate", "--retries", "--fragment-retries", "--timeout",
-        "--source-address", "--force-ipv4", "--force-ipv6",
+        // ───────── Core ─────────
+        "--help","--version","--update","--update-to","--no-update",
+        "--config-location","--ignore-config",
 
-        // Authentication
-        "--username", "--password", "--twofactor", "--netrc", "--netrc-location", "--video-password",
+        // ───────── Output / Files ─────────
+        "--output","-o","--paths","--output-na-placeholder",
+        "--restrict-filenames","--windows-filenames",
+        "--trim-filenames","--no-overwrites","--force-overwrites",
+        "--continue","--no-continue","--part","--no-part",
+        "--mtime","--no-mtime",
 
-        // Proxy / Network
-        "--proxy", "--geo-bypass", "--geo-bypass-country", "--geo-bypass-ip-block", "--no-geo-bypass",
+        // ───────── Format selection ─────────
+        "--format","-f","--format-sort","-S",
+        "--format-sort-force","--S-force",
+        "--format-sort-reset","--no-format-sort-force",
+        "--merge-output-format",
+        "--prefer-free-formats","--no-prefer-free-formats",
+        "--check-formats","--check-all-formats","--no-check-formats",
+        "--list-formats","-F",
+        "--video-multistreams","--no-video-multistreams",
+        "--audio-multistreams","--no-audio-multistreams",
 
-        // Download Archive
-        "--download-archive", "--max-downloads", "--min-filesize", "--max-filesize", "--date",
-        "--datebefore", "--dateafter", "--match-filter",
+        // ───────── Playlist ─────────
+        "--playlist-items","--playlist-start","--playlist-end",
+        "--playlist-random","--no-playlist","--yes-playlist",
+        "--flat-playlist","--no-flat-playlist","--concat-playlist",
 
-        // Post-processing
-        "--extract-audio", "--audio-format", "--audio-quality", "--recode-video",
-        "--postprocessor-args", "--embed-subs", "--embed-thumbnail", "--embed-metadata",
-        "--embed-chapters", "--embed-info-json", "--convert-subs", "--merge-output-format",
+        // ───────── Network / Geo ─────────
+        "--proxy","--source-address","--force-ipv4","--force-ipv6",
+        "--geo-bypass","--no-geo-bypass",
+        "--geo-bypass-country","--geo-bypass-ip-block",
+        "--timeout","--socket-timeout",
+        "--retries","--fragment-retries",
+        "--retry-sleep","--file-access-retries",
+        "--http-chunk-size","--limit-rate","--throttled-rate",
 
-        // Subtitle & Thumbnail
-        "--write-sub", "--write-auto-sub", "--sub-lang", "--sub-format", "--write-thumbnail",
-        "--write-all-thumbnails", "--convert-subs", "--embed-subs", "--embed-thumbnail",
+        // ───────── Auth / Cookies ─────────
+        "--username","--password","--twofactor",
+        "--video-password","--netrc","--netrc-location",
+        "--cookies","--cookies-from-browser",
+        "--add-header","--user-agent","--referer",
+        "--age-limit",
 
-        // Simulation / Debug
-        "--simulate", "--skip-download", "--print", "--quiet", "--no-warnings", "--verbose",
-        "--dump-json", "--force-write-archive", "--no-progress", "--newline", "--write-log",
+        // ───────── Filters ─────────
+        "--match-title","--reject-title","--match-filter",
+        "--min-filesize","--max-filesize",
+        "--date","--datebefore","--dateafter",
+        "--download-archive","--force-write-archive",
+        "--break-on-existing","--break-per-input",
+        "--max-downloads",
 
-        // Advanced
-        "--download-sections", "--concat-playlist", "--replace-in-metadata", "--call-home",
-        "--write-pages", "--sleep-interval", "--max-sleep-interval", "--min-sleep-interval",
-        "--sleep-subtitles", "--write-link", "--live-from-start", "--no-live-from-start",
-        "--no-ads", "--force-keyframes-at-cuts", "--remux-video", "--no-color",
-        "--paths", "--output-na-placeholder", "--playlist-random", "--sponsorblock-mark",
-        "--sponsorblock-remove", "--sponsorblock-chapter-title",
+        // ───────── Subtitles / Thumbnails ─────────
+        "--write-sub","--write-auto-sub",
+        "--sub-lang","--sub-langs","--sub-format",
+        "--convert-subs","--embed-subs",
+        "--write-thumbnail","--write-all-thumbnails",
+        "--embed-thumbnail",
 
-        // Others (use with caution depending on context)
-        "--config-location", "--write-video", "--write-audio", "--no-post-overwrites",
-        "--break-on-existing", "--break-per-input", "--windows-filenames", "--restrict-filenames",
-        "--ffmpeg-location", 
+        // ───────── Metadata ─────────
+        "--write-description","--write-info-json",
+        "--write-annotations","--write-chapters",
+        "--embed-metadata","--embed-info-json",
+        "--embed-chapters","--replace-in-metadata",
 
-        // JS Runtime Support
-        "--js-runtimes", 
+        // ───────── Post-processing ─────────
+        "--extract-audio","-x",
+        "--audio-format","--audio-quality",
+        "--recode-video","--remux-video",
+        "--postprocessor-args","--ffmpeg-location",
+        "--force-keyframes-at-cuts",
 
-        // EJS script dependencies
-        "--remote-components"
+        // ───────── Live / Streaming ─────────
+        "--live-from-start","--no-live-from-start",
+        "--wait-for-video","--wait-for-video-to-end",
+        "--hls-use-mpegts","--no-hls-use-mpegts",
+        "--downloader","--downloader-args",
+
+        // ───────── SponsorBlock ─────────
+        "--sponsorblock-mark","--sponsorblock-remove",
+        "--sponsorblock-chapter-title","--sponsorblock-api",
+
+        // ───────── JS / Extractor ─────────
+        "--js-runtimes","--remote-components",
+        "--extractor-args","--force-generic-extractor",
+
+        // ───────── Debug / Simulation ─────────
+        "--simulate","--skip-download",
+        "--dump-json","-j",
+        "--dump-single-json","-J",
+        "--print","--print-to-file",
+        "--quiet","--no-warnings","--verbose",
+        "--newline","--progress","--no-progress",
+        "--console-title","--write-log",
+
+         // ───────── Misc ─────────
+        "--call-home","--write-pages","--write-link",
+        "--sleep-interval","--min-sleep-interval",
+        "--max-sleep-interval","--sleep-subtitles",
+        "--no-color",
     };
 
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
@@ -339,9 +387,27 @@ public sealed class Ytdlp
         return this;
     }
 
-    public Ytdlp SetOutputFolder([Required] string folderPath)
+    public Ytdlp SetOutputFolder([Required] string outputFolderPath)
     {
-        _outputFolder = folderPath;
+        if (string.IsNullOrWhiteSpace(outputFolderPath))
+            throw new ArgumentException("Output folder path cannot be empty.", nameof(outputFolderPath));
+        _outputFolder = outputFolderPath;
+        return this;
+    }
+
+    public Ytdlp SetTempFolder([Required] string tempFolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(tempFolderPath))
+            throw new ArgumentException("Temporary folder path cannot be empty.", nameof(tempFolderPath));
+        _commandBuilder.Append($"--paths temp:{SanitizeInput(tempFolderPath)} ");
+        return this;
+    }
+
+    public Ytdlp SetHomeFolder([Required] string homeFolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(homeFolderPath))
+            throw new ArgumentException("Home folder path cannot be empty.", nameof(homeFolderPath));
+        _commandBuilder.Append($"--paths home:{SanitizeInput(homeFolderPath)} ");
         return this;
     }
 
@@ -362,16 +428,25 @@ public sealed class Ytdlp
         if (string.IsNullOrWhiteSpace(customCommand))
             throw new ArgumentException("Custom command cannot be empty.", nameof(customCommand));
 
-        var commandParts = customCommand.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (commandParts.Length == 0 || !ValidOptions.Contains(SanitizeInput(commandParts[0])))
+        var parts = customCommand
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(SanitizeInput)
+            .ToArray();
+
+        // Validate only option tokens (flags)
+        foreach (var part in parts)
         {
-            var errorMessage = $"Invalid option: {customCommand}";
-            OnError?.Invoke(errorMessage);
-            _logger.Log(LogType.Error, errorMessage);
-            return this;
+            if (part.StartsWith("-", StringComparison.Ordinal) && !IsAllowedOption(part))
+            {
+                var errorMessage = $"Invalid yt-dlp option: {part}";
+                OnError?.Invoke(errorMessage);
+                _logger.Log(LogType.Error, errorMessage);
+                return this;
+            }
         }
 
-        _commandBuilder.Append($"{SanitizeInput(customCommand)} ");
+        _commandBuilder.Append(' ').Append(string.Join(' ', parts));
+
         return this;
     }
 
@@ -380,6 +455,14 @@ public sealed class Ytdlp
         if (timeout.TotalSeconds <= 0)
             throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
         _commandBuilder.Append($"--timeout {timeout.TotalSeconds} ");
+        return this;
+    }
+
+    public Ytdlp SetFFMpegLocation([Required] string ffmpegFolder)
+    {
+        if (string.IsNullOrWhiteSpace(ffmpegFolder))
+            throw new ArgumentException("FFmpeg path cannot be empty.", nameof(ffmpegFolder));
+        _commandBuilder.Append($"--ffmpeg-location {SanitizeInput(ffmpegFolder)} ");
         return this;
     }
     #endregion
@@ -479,8 +562,6 @@ public sealed class Ytdlp
             return $"yt-dlp update failed: {ex.Message}";
         }
     }
-
-
 
     public async Task<Metadata?> GetVideoMetadataJsonAsync(string url, CancellationToken cancellationToken = default)
     {
@@ -1025,5 +1106,26 @@ public sealed class Ytdlp
         // Escape quotes and other potentially dangerous characters
         return input.Replace("\"", "\\\"").Replace("`", "\\`");
     }
+
+    private static bool IsAllowedOption(string arg)
+    {
+        if (string.IsNullOrWhiteSpace(arg))
+            return false;
+
+        // Known safe options
+        if (ValidOptions.Contains(arg))
+            return true;
+
+        // Forward-compatible: allow unknown yt-dlp flags
+        if (arg.StartsWith("--", StringComparison.Ordinal))
+            return true;
+
+        // Short flags (-f, -S, -x)
+        if (arg.StartsWith("-", StringComparison.Ordinal))
+            return true;
+
+        return false;
+    }
+
     #endregion
 }

@@ -12,28 +12,30 @@
     <ApplicationIcon>iconvideo (Custom).ico</ApplicationIcon>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="ffmpeg.exe" />
-    <None Remove="ffplay.exe" />
-    <None Remove="ffprobe.exe" />
-  </ItemGroup>
+	<!-- Copy to output during normal build -->
+	<Target Name="CopyFfmpegToolsToYtdlpOutputTools" AfterTargets="Build">
+		<ItemGroup>
+			<FfmpegTools Include="FFmpeg\ffmpeg.exe;FFmpeg\ffprobe.exe;" />
+		</ItemGroup>
 
-  <ItemGroup>
-    <Content Include="ffmpeg.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="ffplay.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="ffprobe.exe">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="iconvideo (Custom).ico" />
-  </ItemGroup>
+		<Copy SourceFiles="@(FfmpegTools)" DestinationFolder="$(OutDir)Tools" SkipUnchangedFiles="true" />
+	</Target>
+
+	<!-- Make sure files are included in AppX packaging -->
+	<ItemGroup>
+		<Content Include="Tools\ffmpeg.exe">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>Tools\ffmpeg.exe</TargetPath>
+		</Content>
+		<Content Include="Tools\ffprobe.exe">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<TargetPath>Tools\ffprobe.exe</TargetPath>
+		</Content>
+	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft-Windows10-APICodePack-ShellExtensions" Version="1.1.8" />
-    <PackageReference Include="ytdlp-executable" Version="2025.12.8" />
+    <PackageReference Include="ytdlp-executable" Version="2026.1.31" />
   </ItemGroup>
 
   <ItemGroup>

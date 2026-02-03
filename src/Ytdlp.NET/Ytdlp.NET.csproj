@@ -17,7 +17,7 @@
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 	<PackageIcon>icon.png</PackageIcon>
 	<Icon>icon.png</Icon>
-	<Version>1.4.0</Version>
+	<Version>1.5.0</Version>
 	<IsPackable>true</IsPackable>
 	<LangVersion>latest</LangVersion>
 	<AotAssemblies>true</AotAssemblies>

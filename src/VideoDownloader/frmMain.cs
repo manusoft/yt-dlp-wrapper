@@ -1,6 +1,6 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
+using System.Diagnostics;
 using System.Reflection;
-using System.Threading.Tasks;
 using YtdlpDotNet;
 
 namespace VideoDownloader;
@@ -8,7 +8,8 @@ namespace VideoDownloader;
 public partial class frmMain : Form
 {
     private const string YTDLP_PATH = @".\Tools\yt-dlp.exe";
-    private const string DEFAULT_YTDLP_VERSION = "2025.12.08";
+    private const string DEFAULT_YTDLP_VERSION = "2025.01.31";
+    private const string FFMPEG_PATH = @".\Tools\ffmpeg.exe";
     private const string BEST_FORMAT = "bestvideo+bestaudio";
     private const string DefaultOutputTemplate = "%(upload_date>%Y-%m-%d)s - %(title).90s [%(resolution)s - %(format_id)s].%(ext)s";
     private readonly string _downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
@@ -330,11 +331,14 @@ public partial class frmMain : Form
                     ? (quality.ID ?? "b")
                     : (quality.ID != null ? $"{quality.ID}+bestaudio" : "best");
 
+                Debug.WriteLine(FFMPEG_PATH);
+
                 await _ytdlp
                     .SetFormat(format)
-                    .AddCustomCommand("--restrict-filenames")
-                    .AddCustomCommand("--js-runtimes deno") // this line not fix the js error, can remove this line.
-                    .AddCustomCommand("--remote-components ejs:npm")
+                    .SetOutputFolder(textOutput.Text)
+                    .SetFFMpegLocation(FFMPEG_PATH)
+                    .AddCustomCommand("--windows-filenames")
+                    //.AddCustomCommand("--remote-components ejs:npm")
                     .SetOutputTemplate(DefaultOutputTemplate)
                     .ExecuteAsync(url);
             }
