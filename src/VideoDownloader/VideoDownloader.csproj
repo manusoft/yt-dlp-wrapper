@@ -12,29 +12,20 @@
     <ApplicationIcon>iconvideo (Custom).ico</ApplicationIcon>
   </PropertyGroup>
 
-	<!-- Copy to output during normal build -->
-	<Target Name="CopyFfmpegToolsToYtdlpOutputTools" AfterTargets="Build">
-		<ItemGroup>
-			<FfmpegTools Include="FFmpeg\ffmpeg.exe;FFmpeg\ffprobe.exe;" />
-		</ItemGroup>
-
-		<Copy SourceFiles="@(FfmpegTools)" DestinationFolder="$(OutDir)Tools" SkipUnchangedFiles="true" />
-	</Target>
-
-	<!-- Make sure files are included in AppX packaging -->
-	<ItemGroup>
-		<Content Include="Tools\ffmpeg.exe">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<TargetPath>Tools\ffmpeg.exe</TargetPath>
-		</Content>
-		<Content Include="Tools\ffprobe.exe">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<TargetPath>Tools\ffprobe.exe</TargetPath>
-		</Content>
-	</ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft-Windows10-APICodePack-ShellExtensions" Version="1.1.8" />
+    <PackageReference Include="Ytdlp.Deno.Runtime" Version="2.6.9">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Ytdlp.FFmpeg.Build" Version="6.2.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Ytdlp.FFprobe.Build" Version="6.2.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Ytdlp.Stable.Build" Version="6.2.4" />
   </ItemGroup>
 
