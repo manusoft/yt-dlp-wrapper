@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
 	<PackageId>Ytdlp.NET</PackageId>
 	<AssemblyName>Ytdlp.NET</AssemblyName>
-	<RootNamespace>Ytdlp.NET</RootNamespace>
+	<RootNamespace>YtdlpNET</RootNamespace>
 	<Version>2.0.0</Version>
 	<Authors>ManuHub Manojbabu</Authors>
 	<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>

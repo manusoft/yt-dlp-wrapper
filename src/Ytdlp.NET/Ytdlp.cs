@@ -1,11 +1,12 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace Ytdlp.NET;
+namespace YtdlpNET;
 
 public sealed class Ytdlp
 {
@@ -57,6 +58,7 @@ public sealed class Ytdlp
         "--playlist-items","--playlist-start","--playlist-end",
         "--playlist-random","--no-playlist","--yes-playlist",
         "--flat-playlist","--no-flat-playlist","--concat-playlist",
+        "--playlist-reverse",
 
         // ───────── Network / Geo ─────────
         "--proxy","--source-address","--force-ipv4","--force-ipv6",
@@ -129,7 +131,7 @@ public sealed class Ytdlp
         "--call-home","--write-pages","--write-link",
         "--sleep-interval","--min-sleep-interval",
         "--max-sleep-interval","--sleep-subtitles",
-        "--no-color",
+        "--no-color", "--abort-on-error",
     };
 
     public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
@@ -610,7 +612,7 @@ public sealed class Ytdlp
 
         try
         {
-            var process = CreateProcess($"--dump-json {SanitizeInput(url)}");
+            var process = CreateProcess($"--dump-single-json --skip-download --no-playlist --no-warnings --quiet {SanitizeInput(url)}");
 
             process.Start();
 
@@ -660,6 +662,95 @@ public sealed class Ytdlp
         }
     }
 
+    public async Task<SimpleMetadata?> GetSimpleMetadataAsync(string url, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        try
+        {
+            var arguments =
+                $"--skip-download --no-playlist --quiet " +
+                $"--print \"%(id)s|||%(title)s|||%(duration)s|||%(thumbnail)s|||%(view_count)s|||%(filesize,filesize_approx)s|||%(description)s\" " +
+                $"{SanitizeInput(url)}";
+
+            var process = CreateProcess(arguments);
+
+            process.Start();
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+
+            using (cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch { }
+            }))
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
+
+            var output = await outputTask;
+
+            if (string.IsNullOrWhiteSpace(output))
+                return null;
+
+            var parts = output
+                .Trim()
+                .Split("|||", StringSplitOptions.None);
+
+            var metadata = new SimpleMetadata
+            {
+                Id = parts.ElementAtOrDefault(0),
+                Title = parts.ElementAtOrDefault(1),
+                Duration = ParseDouble(parts.ElementAtOrDefault(2)),
+                Thumbnail = parts.ElementAtOrDefault(3),
+                ViewCount = ParseLong(parts.ElementAtOrDefault(4)),
+                FileSize = ParseLong(parts.ElementAtOrDefault(5)),
+                Description = parts.ElementAtOrDefault(6)
+            };
+
+            return metadata;
+        }
+        catch (Exception ex)
+        {
+            throw new YtdlpException($"Failed to fetch simple metadata: {ex.Message}", ex);
+        }
+    }
+
+    private static double? ParseDouble(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value == "NA")
+            return null;
+
+        if (double.TryParse(value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var result))
+            return result;
+
+        return null;
+    }
+
+    private static long? ParseLong(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value == "NA")
+            return null;
+
+        if (long.TryParse(value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var result))
+            return result;
+
+        return null;
+    }
+
+
+
     public async Task<List<Format>> GetAvailableFormatsAsync(string videoUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
@@ -708,33 +799,128 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken ct = default)
+    /// <summary>
+    /// Gets detailed format information using --dump-single-json for richer metadata (height/width separate, exact bitrates, filesize, etc.).
+    /// Falls back to text-based -F parsing if JSON fails or returns no formats.
+    /// </summary>
+    /// <param name="url">The video/URL to query</param>
+    /// <param name="cancellationToken">Cancellation support</param>
+    /// <returns>List of enriched Format objects, sorted roughly by quality (as returned by yt-dlp)</returns>
+    /// <exception cref="YtdlpException">On execution or parsing failure (unless fallback succeeds)</exception>
+    public async Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken cancellationToken = default)
     {
-        // Try -F first (fast), fallback to --dump-single-json if parsing fails / want richer data
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
         try
         {
-            var textFormats = await GetAvailableFormatsAsync(url, ct);
-            if (textFormats.Count > 0) return textFormats.Select(f => new Format
+            // Execute yt-dlp --dump-single-json
+            var arguments = $"--dump-single-json {SanitizeInput(url)}";
+            var process = CreateProcess(arguments);
+
+            process.Start();
+
+            var readOutputTask = process.StandardOutput.ReadToEndAsync();
+
+            using (cancellationToken.Register(() =>
             {
-                // map your current VideoFormat properties to new Format class
-                Id = f.Id,
-                Extension = f.Extension,
-                Resolution = f.Resolution,
-                // ... copy others
-            }).ToList();
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch { }
+            }))
+            {
+                await process.WaitForExitAsync(cancellationToken);
+            }
+
+            var jsonOutput = await readOutputTask;
+
+            if (string.IsNullOrWhiteSpace(jsonOutput))
+            {
+                _logger.Log(LogType.Warning, "Empty JSON output from --dump-single-json");
+                throw new YtdlpException("No data returned from format query.");
+            }
+
+            // JSON options
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
+
+            // Deserialize
+            var videoInfo = JsonSerializer.Deserialize<SingleVideoJson>(jsonOutput, jsonOptions);
+
+            if (videoInfo?.Formats == null || !videoInfo.Formats.Any())
+            {
+                _logger.Log(LogType.Warning, "No formats array in JSON or empty → falling back to -F");
+                return await GetAvailableFormatsAsync(url, cancellationToken);
+            }
+
+            // Map in one clean pass — no modification during enumeration
+            var detailedFormats = new List<Format>(videoInfo.Formats.Count);
+
+            foreach (var f in videoInfo.Formats)
+            {
+                if (string.IsNullOrEmpty(f.FormatId))
+                    continue;
+
+                var fmt = new Format
+                {
+                    Id = f.FormatId!,
+                    Extension = f.Ext ?? string.Empty,
+                    Height = f.Height,
+                    Width = f.Width,
+                    // Build resolution fallback
+                    Resolution = !string.IsNullOrEmpty(f.Resolution)
+                                            ? f.Resolution
+                                            : (f.Height.HasValue ? $"{f.Height}p" : "audio only"),
+                    Fps = f.Fps,
+                    Channels = f.AudioChannels?.ToString(),
+                    AudioSampleRate = f.Asr,
+                    TotalBitrate = f.Tbr?.ToString(CultureInfo.InvariantCulture),
+                    VideoBitrate = f.Vbr?.ToString(CultureInfo.InvariantCulture),
+                    AudioBitrate = f.Abr?.ToString(CultureInfo.InvariantCulture),
+                    VideoCodec = f.Vcodec == "none" ? null : f.Vcodec,
+                    AudioCodec = f.Acodec == "none" ? null : f.Acodec,
+                    Protocol = f.Protocol,
+                    Language = f.Language,
+                    FileSizeApprox = f.FilesizeApprox?.ToString("N0") ?? f.Filesize?.ToString("N0"),
+                    ApproxFileSizeBytes = f.FilesizeApprox ?? f.Filesize,
+                    Note = f.FormatNote,
+                    MoreInfo = f.FormatNote,
+                };
+
+                detailedFormats.Add(fmt);
+            }
+
+            if (detailedFormats.Count > 0)
+            {
+                _logger.Log(LogType.Info, $"Successfully parsed {detailedFormats.Count} detailed formats from JSON");
+                return detailedFormats;
+            }
+
+            _logger.Log(LogType.Warning, "JSON parsed but no valid formats after filtering → fallback");
         }
-        catch { /* fallback */ }
-
-        var json = await GetVideoMetadataJsonAsync(url, ct);
-        if (json?.Formats == null) return new List<Format>();
-
-        return json.Formats.Select(f => new Format
+        catch (JsonException jex)
         {
-            Id = f.FormatId,
-            Extension = f.Ext,
-            Resolution = f.Resolution ?? (f.Height.HasValue ? $"{f.Height}p" : "audio only"),
-            // map more fields: Vcodec, Acodec, Fps = f.Fps, ApproxFileSize = f.FilesizeApprox, etc.
-        }).ToList();
+            _logger.Log(LogType.Warning, $"JSON deserialization failed: {jex.Message} → falling back");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Format fetch cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Unexpected error in GetFormatsDetailedAsync: {ex.Message} → fallback");
+        }
+
+        // Ultimate fallback
+        return await GetAvailableFormatsAsync(url, cancellationToken);
     }
 
     public async Task ExecuteAsync(string url, CancellationToken cancellationToken = default, string? outputTemplate = null)
@@ -849,90 +1035,82 @@ public sealed class Ytdlp
     #region Private Helpers
     private async Task RunYtdlpAsync(string arguments, CancellationToken cancellationToken = default)
     {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = _ytDlpPath,
-            Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = new Process { StartInfo = startInfo };
+        using var process = CreateProcess(arguments);
 
         try
         {
             if (!process.Start())
                 throw new YtdlpException("Failed to start yt-dlp process.");
 
-            // Register cancellation
-            using var registration = cancellationToken.Register(() =>
+            // Improved cancellation: Try to close streams first, then kill
+            using var ctsRegistration = cancellationToken.Register(() =>
             {
                 try
                 {
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
-                        _logger.Log(LogType.Warning, "yt-dlp process killed due to cancellation.");
+                        _logger.Log(LogType.Info, "yt-dlp process killed due to cancellation");
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    _logger.Log(LogType.Error, $"Error killing process: {ex.Message}");
+                    // silent - already dead or disposed
                 }
             });
 
-            // Read output and errors concurrently
+            // Read output and error concurrently
             var outputTask = Task.Run(async () =>
             {
-                using var reader = process.StandardOutput;
-                string? output;
-                while ((output = await reader.ReadLineAsync()) != null)
+                string? line;
+                while ((line = await process.StandardOutput.ReadLineAsync()) != null)
                 {
-                    cancellationToken.ThrowIfCancellationRequested(); // <- required
-                    _progressParser.ParseProgress(output);
-                    OnProgress?.Invoke(this, output);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _progressParser.ParseProgress(line);
+                    OnProgress?.Invoke(this, line);
                 }
             }, cancellationToken);
 
             var errorTask = Task.Run(async () =>
             {
-                using var errorReader = process.StandardError;
-                string? errorOutput;
-                while ((errorOutput = await errorReader.ReadLineAsync()) != null)
+                string? line;
+                while ((line = await process.StandardError.ReadLineAsync()) != null)
                 {
-                    cancellationToken.ThrowIfCancellationRequested(); // <- required
-                    OnErrorMessage?.Invoke(this, errorOutput);
-                    OnError?.Invoke(this, errorOutput);
-                    _logger.Log(LogType.Error, errorOutput);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    OnErrorMessage?.Invoke(this, line);
+                    OnError?.Invoke(this, line);
+                    _logger.Log(LogType.Error, line);
                 }
             }, cancellationToken);
 
             await Task.WhenAll(outputTask, errorTask);
+
+            // Wait for exit (may throw OperationCanceledException)
             await process.WaitForExitAsync(cancellationToken);
 
-            if (process.ExitCode != 0)
+            // Only throw on real failure (not cancellation)
+            if (process.ExitCode != 0 && !cancellationToken.IsCancellationRequested)
             {
-                var error = await process.StandardError.ReadToEndAsync();
-                throw new YtdlpException($"yt-dlp command failed with exit code {process.ExitCode}: {error}");
+                throw new YtdlpException($"yt-dlp exited with code {process.ExitCode}");
             }
 
-            var success = process.ExitCode == 0;
-            var message = success ? "Process completed successfully." : $"Process failed with exit code {process.ExitCode}.";
-            OnCommandCompleted?.Invoke(success, new CommandCompletedEventArgs(success, message));
-            _logger.Log(success ? LogType.Info : LogType.Error, message);
+            // Success or intentional cancel
+            var success = !cancellationToken.IsCancellationRequested;
+            var message = success ? "Completed successfully" : "Cancelled by user";
+            OnCommandCompleted?.Invoke(this, new CommandCompletedEventArgs(success, message));
         }
         catch (OperationCanceledException)
         {
-            throw; // Let your caller handle this
+            // Normal cancel path — no need to log again
+            OnCommandCompleted?.Invoke(this, new CommandCompletedEventArgs(false, "Cancelled by user"));
+            throw; // let caller handle if needed
         }
         catch (Exception ex)
         {
-            var errorMessage = $"Error executing yt-dlp: {ex.Message}";
-            OnError?.Invoke(this, errorMessage);
-            _logger.Log(LogType.Error, errorMessage);
-            throw new YtdlpException(errorMessage, ex);
+            var msg = $"Error executing yt-dlp: {ex.Message}";
+            OnError?.Invoke(this, msg);
+            _logger.Log(LogType.Error, msg);
+            throw new YtdlpException(msg, ex);
         }
     }
 
@@ -956,198 +1134,26 @@ public sealed class Ytdlp
     private List<Format> ParseFormats(string result)
     {
         var formats = new List<Format>();
-        if (string.IsNullOrWhiteSpace(result))
-        {
-            _logger.Log(LogType.Warning, "Empty or null yt-dlp output");
-            return formats;
-        }
+        if (string.IsNullOrWhiteSpace(result)) return formats;
 
-        var lines = result.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        bool isFormatSection = false;
+        var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        bool inFormatSection = false;
 
         foreach (var line in lines)
         {
-            _logger.Log(LogType.Debug, $"Parsing line: {line}");
-
-            // Detect format section start
-            if (line.Contains("[info] Available formats"))
-            {
-                isFormatSection = true;
-                continue;
-            }
-
-            // Skip header or separator lines
-            if (!isFormatSection || line.Contains("RESOLUTION") || line.StartsWith("---"))
-            {
-                continue;
-            }
-
-            // Skip empty or invalid lines (basic check for format line structure)
-            if (!Regex.IsMatch(line, @"^[^\s]+\s+[^\s]+"))
-            {
-                _logger.Log(LogType.Debug, $"Stopping format parsing at non-format line: {line}");
-                break;
-            }
-
-            // Split line by whitespace, preserving structure
-            var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 2)
-            {
-                _logger.Log(LogType.Warning, $"Skipping line (too few parts): {line}");
-                continue;
-            }
-
-            var format = new Format();
-            int index = 0;
+            if (line.Contains("[info] Available formats")) { inFormatSection = true; continue; }
+            if (!inFormatSection || line.Contains("RESOLUTION") || line.StartsWith("---")) continue;
+            if (string.IsNullOrWhiteSpace(line) || !Regex.IsMatch(line, @"^\S+\s+\S+")) break;
 
             try
             {
-                // Parse ID
-                format.Id = parts[index++];
-
-                // Check for duplicate ID
-                if (formats.Any(f => f.Id == format.Id))
-                {
-                    _logger.Log(LogType.Warning, $"Skipping duplicate format ID: {format.Id}");
-                    continue;
-                }
-
-                // Parse Extension
-                format.Extension = parts[index++];
-
-                // Parse Resolution (may include "audio only")
-                if (index < parts.Length && parts[index] == "audio" && index + 1 < parts.Length && parts[index + 1] == "only")
-                {
-                    format.Resolution = "audio only";
-                    index += 2;
-                }
-                else if (index < parts.Length)
-                {
-                    format.Resolution = parts[index++];
-                }
-                else
-                {
-                    _logger.Log(LogType.Warning, $"Skipping line (missing resolution): {line}");
-                    continue;
-                }
-
-                // Parse FPS (empty for audio-only formats)
-                if (format.Resolution != "audio only" && index < parts.Length && Regex.IsMatch(parts[index], @"^\d+$"))
-                {
-                    format.Fps = parts[index++];
-                }
-
-                // Parse Channels (marked by '|' or number)
-                if (index < parts.Length && (Regex.IsMatch(parts[index], @"^\d+\|$") || Regex.IsMatch(parts[index], @"^\d+$")))
-                {
-                    format.Channels = parts[index].TrimEnd('|');
-                    index++;
-                }
-
-                // Skip first '|' if present
-                if (index < parts.Length && parts[index] == "|")
-                {
-                    index++;
-                }
-
-                // Parse FileSize
-                if (index < parts.Length && (Regex.IsMatch(parts[index], @"^~?\d+\.\d+MiB$") || parts[index] == ""))
-                {
-                    format.FileSize = parts[index] == "" ? null : parts[index];
-                    index++;
-                }
-
-                // Parse TBR
-                if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
-                {
-                    format.TBR = parts[index];
-                    index++;
-                }
-
-                // Parse Protocol
-                if (index < parts.Length && (parts[index] == "https" || parts[index] == "m3u8" || parts[index] == "mhtml"))
-                {
-                    format.Protocol = parts[index];
-                    index++;
-                }
-
-                // Skip second '|' if present
-                if (index < parts.Length && parts[index] == "|")
-                {
-                    index++;
-                }
-
-                // Parse VCodec
-                if (index < parts.Length)
-                {
-                    if (parts[index] == "audio" && index + 1 < parts.Length && parts[index + 1] == "only")
-                    {
-                        format.VCodec = "audio only";
-                        index += 2;
-                    }
-                    else if (parts[index] == "images")
-                    {
-                        format.VCodec = "images";
-                        index++;
-                    }
-                    else if (Regex.IsMatch(parts[index], @"^[a-zA-Z0-9\.]+$"))
-                    {
-                        format.VCodec = parts[index];
-                        index++;
-                    }
-                }
-
-                // Parse VBR
-                if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
-                {
-                    format.VBR = parts[index];
-                    index++;
-                }
-
-                // Parse ACodec
-                if (index < parts.Length && (Regex.IsMatch(parts[index], @"^[a-zA-Z0-9\.]+$") || parts[index] == "unknown"))
-                {
-                    format.ACodec = parts[index];
-                    index++;
-                }
-
-                // Parse ABR
-                if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
-                {
-                    format.ABR = parts[index];
-                    index++;
-                }
-
-                // Parse ASR
-                if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
-                {
-                    format.ASR = parts[index];
-                    index++;
-                }
-
-                // Parse MoreInfo (remaining parts)
-                if (index < parts.Length)
-                {
-                    format.MoreInfo = string.Join(" ", parts.Skip(index)).Trim();
-                    // Clean up MoreInfo to remove redundant parts
-                    if (format.MoreInfo.StartsWith("|"))
-                    {
-                        format.MoreInfo = format.MoreInfo.Substring(1).Trim();
-                    }
-                    // For storyboards, ensure MoreInfo is 'storyboard' and ACodec is null
-                    if (format.VCodec == "images" && format.MoreInfo != "storyboard")
-                    {
-                        format.ACodec = null;
-                        format.MoreInfo = "storyboard";
-                    }
-                }
-
-                formats.Add(format);
+                var format = Format.FromParsedLine(line);
+                if (!string.IsNullOrEmpty(format.Id) && !formats.Exists(f => f.Id == format.Id))
+                    formats.Add(format);
             }
             catch (Exception ex)
             {
-                _logger.Log(LogType.Warning, $"Failed to parse line '{line}': {ex.Message}");
-                continue;
+                _logger.Log(LogType.Warning, $"Failed parsing format line: {line} → {ex.Message}");
             }
         }
 

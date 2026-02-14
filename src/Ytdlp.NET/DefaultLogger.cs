@@ -1,4 +1,4 @@
-﻿namespace Ytdlp.NET;
+﻿namespace YtdlpNET;
 
 internal sealed class DefaultLogger : ILogger
 {
