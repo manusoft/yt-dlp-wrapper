@@ -1,7 +1,7 @@
 using Microsoft.WindowsAPICodePack.Taskbar;
 using System.Diagnostics;
 using System.Reflection;
-using YtdlpDotNet;
+using YtdlpNET;
 
 namespace VideoDownloader;
 
@@ -68,7 +68,7 @@ public partial class frmMain : Form
     private bool _isMerging;
     private void SubscribeToYtdlpEvents()
     {
-        _ytdlp.OnError += error => _logger.Log(LogType.Error, $"Error: {error}");
+        _ytdlp.OnError += (sender, error) => _logger.Log(LogType.Error, $"Error: {error}");
         _ytdlp.OnOutputMessage += (s, e) => AppendTextDetail(e);
         _ytdlp.OnProgressMessage += (s, e) =>
         {
@@ -87,10 +87,10 @@ public partial class frmMain : Form
             HandlePostProcessingComplete(s, e);
         }; // Handle merging completion
         _ytdlp.OnErrorMessage += HandleErrorMessage;
-        _ytdlp.OnCommandCompleted += (success, message) =>
+        _ytdlp.OnCommandCompleted += (sender, args) =>
         {
-            _logger.Log(success ? LogType.Info : LogType.Error, message);
-            if (success && !_hasError && checkAutoClose.Checked && !_isMerging)
+            _logger.Log(args.Success ? LogType.Info : LogType.Error, args.Message);
+            if (args.Success && !_hasError && checkAutoClose.Checked && !_isMerging)
             {
                 _logger.Log(LogType.Info, "Auto-closing after command completion (no merging).");
                 Application.DoEvents();
@@ -123,6 +123,7 @@ public partial class frmMain : Form
         {
             _logger.Log(LogType.Info, $"HandleCompleteDownload called: {e}, _isMerging={_isMerging}");
             AppendTextDetail(e);
+
             // Only auto-close if no merging is expected
             if (!_hasError && checkAutoClose.Checked && !_isMerging)
             {
@@ -154,6 +155,7 @@ public partial class frmMain : Form
             UpdateStatus("Download and merging completed.");
             _isMerging = false; // Reset after merging
             Application.DoEvents();
+
             if (!_hasError && checkAutoClose.Checked)
             {
                 _logger.Log(LogType.Info, "Calling Application.Exit() for auto-close.");
@@ -235,19 +237,19 @@ public partial class frmMain : Form
             return;
         }
 
-        await DownloadVideoAsync(textUrl.Text, comboQuality.SelectedItem as VideoFormat);
+        await DownloadVideoAsync(textUrl.Text, comboQuality.SelectedItem as Format);
     }
 
-    private async Task<List<VideoFormat>> GetVideoFormatsAsync(string url)
+    private async Task<List<Format>> GetVideoFormatsAsync(string url)
     {
         try
         {
-            return await _ytdlp.GetAvailableFormatsAsync(url) ?? new List<VideoFormat>();
+            return await _ytdlp.GetFormatsDetailedAsync(url) ?? new List<Format>();
         }
         catch (Exception ex)
         {
             _logger.Log(LogType.Error, $"Failed to get video formats: {ex.Message}");
-            return new List<VideoFormat>();
+            return new List<Format>();
         }
     }
 
@@ -288,28 +290,30 @@ public partial class frmMain : Form
         });
     }
 
-    private void UpdateQualityCombo(List<VideoFormat> formats)
+    private void UpdateQualityCombo(List<Format> formats)
     {
         InvokeIfRequired(comboQuality, () =>
         {
-            comboQuality.DataSource = formats.Any() ? formats : new List<VideoFormat>
+            comboQuality.DataSource = formats.Any() ? formats.Where(x => !x.IsStoryboard).ToList() : new List<Format>
                 {
-                    new VideoFormat { ID = "best", Resolution = "Best" },
-                    new VideoFormat { ID = "worst", Resolution = "Worst" }
+                    new Format { Id = "best", Resolution = "Best" },
+                    new Format { Id = "worst", Resolution = "Worst" }
                 };
-            comboQuality.ValueMember = "ID";
+            comboQuality.ValueMember = "Id";
             comboQuality.DisplayMember = null;
             comboQuality.Format += (s, e) =>
             {
-                var format = e.ListItem as VideoFormat;
-                e.Value = $"{format?.Resolution} ({format?.Extension}, {format?.FileSize ?? "Unknown"})";
+                var format = e.ListItem as Format;
+                e.Value = format.IsVideo
+                    ? $"{format?.Height}p • {format?.Extension}"
+                    : $"({format?.Extension} • {format?.FileSizeApprox ?? "Unknown"})";
             };
             comboQuality.Enabled = true;
             buttonDownload.Enabled = true;
         });
     }
 
-    private async Task DownloadVideoAsync(string url, VideoFormat? quality)
+    private async Task DownloadVideoAsync(string url, Format? quality)
     {
         try
         {
@@ -328,8 +332,8 @@ public partial class frmMain : Form
                 // If audio, just use formatId or "b" for best
                 // If video, merge with best audio
                 string format = isAudio
-                    ? (quality.ID ?? "b")
-                    : (quality.ID != null ? $"{quality.ID}+bestaudio" : "best");
+                    ? (quality.Id ?? "b")
+                    : (quality.Id != null ? $"{quality.Id}+bestaudio" : "best");
 
                 Debug.WriteLine(FFMPEG_PATH);
 

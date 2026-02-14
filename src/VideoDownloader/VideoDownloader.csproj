@@ -35,7 +35,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft-Windows10-APICodePack-ShellExtensions" Version="1.1.8" />
-    <PackageReference Include="ytdlp-executable" Version="2026.1.31" />
+    <PackageReference Include="Ytdlp.Stable.Build" Version="6.2.4" />
   </ItemGroup>
 
   <ItemGroup>

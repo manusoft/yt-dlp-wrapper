@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.2.11408.102 d18.0
+VisualStudioVersion = 18.2.11408.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YtDlpWrapper", "src\YtDlpWrapper\YtDlpWrapper.csproj", "{97F0262B-8CE0-4BD9-A137-C586E2B0FC7B}"
 EndProject
@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDownloader", "src\Vide
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET", "src\Ytdlp.NET\Ytdlp.NET.csproj", "{2671D067-5408-4CAD-9CEE-6AC95722367C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ytdlp.NET.Console", "src\Ytdlp.NET.Console\Ytdlp.NET.Console.csproj", "{562C13F3-0C03-4E53-901E-F352A3404C16}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YtdlpNET.Console", "src\Ytdlp.NET.Console\YtdlpNET.Console.csproj", "{562C13F3-0C03-4E53-901E-F352A3404C16}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Archived", "Archived", "{83E393FE-5BD2-48EE-A50F-A2B0F23F9F98}"
 EndProject
