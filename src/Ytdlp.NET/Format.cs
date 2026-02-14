@@ -1,11 +1,11 @@
-﻿namespace YtdlpDotNet;
+﻿namespace Ytdlp.NET;
 
-public sealed class VideoFormat
+public sealed class Format
 {
-    public string ID { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;
     public string Extension { get; set; } = string.Empty;
     public string Resolution { get; set; } = string.Empty;
-    public string? FPS { get; set; }
+    public string? Fps { get; set; }
     public string? Channels { get; set; }
     public string? FileSize { get; set; }
     public string? TBR { get; set; } // Total Bitrate
@@ -17,7 +17,7 @@ public sealed class VideoFormat
     public string? ASR { get; set; } // Audio Sample Rate
     public string? MoreInfo { get; set; }
 
-    public IEnumerable<VideoFormat> FilterFormats(IEnumerable<VideoFormat> formats, string type)
+    public IEnumerable<Format> FilterFormats(IEnumerable<Format> formats, string type)
     {
         return formats.Where(f => type == "audio" ? f.Resolution == "audio only" :
                                  type == "video" ? f.Resolution != "audio only" && f.Extension != "mhtml" :

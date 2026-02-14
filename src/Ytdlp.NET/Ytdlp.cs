@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace YtdlpDotNet;
+namespace Ytdlp.NET;
 
 public sealed class Ytdlp
 {
@@ -18,15 +18,15 @@ public sealed class Ytdlp
     private string? _outputTemplate;
 
     // Events for progress and status updates
-    public event Action<string>? OnProgress;
-    public event Action<string>? OnError;
-    public event Action<bool, string>? OnCommandCompleted;
+    public event EventHandler<string>? OnProgress;
+    public event EventHandler<string>? OnError;
+    public event EventHandler<CommandCompletedEventArgs>? OnCommandCompleted;
     public event EventHandler<string>? OnOutputMessage;
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
     public event EventHandler<string>? OnCompleteDownload;
     public event EventHandler<string>? OnProgressMessage;
     public event EventHandler<string>? OnErrorMessage;
-    public event Action<object, string>? OnPostProcessingComplete;
+    public event EventHandler<string>? OnPostProcessingComplete;
 
     // Valid yt-dlp options for validation
     private static readonly HashSet<string> ValidOptions = new HashSet<string>(StringComparer.Ordinal)
@@ -151,6 +151,46 @@ public sealed class Ytdlp
     }
 
     #region Command Building Methods
+    public Ytdlp WithConcurrentFragments(int count)
+    {
+        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
+        _commandBuilder.Append($"--concurrent-fragments {count} ");
+        return this;
+    }
+
+    public Ytdlp RemoveSponsorBlock(params string[] categories)
+    {
+        // categories: sponsor, intro, outro, selfpromo, preview, filler, interaction, music_offtopic, poi_highlight, all
+        var cats = categories.Length == 0 ? "all" : string.Join(",", categories);
+        _commandBuilder.Append($"--sponsorblock-remove {SanitizeInput(cats)} ");
+        return this;
+    }
+
+    public Ytdlp EmbedSubtitles(string languages = "all", string? convertTo = null)
+    {
+        _commandBuilder.Append($"--write-subs --sub-langs {SanitizeInput(languages)} ");
+        if (!string.IsNullOrEmpty(convertTo))
+            _commandBuilder.Append($"--convert-subs {SanitizeInput(convertTo)} ");
+        if (convertTo?.Equals("embed", StringComparison.OrdinalIgnoreCase) == true)
+            _commandBuilder.Append("--embed-subs ");
+        return this;
+    }
+
+    public Ytdlp CookiesFromBrowser(string browser, string? profile = null)
+    {
+        var arg = profile != null ? $"{browser}:{profile}" : browser;
+        _commandBuilder.Append($"--cookies-from-browser {SanitizeInput(arg)} ");
+        return this;
+    }
+
+    public Ytdlp GeoBypassCountry(string countryCode)
+    {
+        if (countryCode.Length != 2)
+            throw new ArgumentException("Country code must be 2 letters.", nameof(countryCode));
+        _commandBuilder.Append($"--geo-bypass-country {SanitizeInput(countryCode.ToUpperInvariant())} ");
+        return this;
+    }
+
     public Ytdlp Version()
     {
         _commandBuilder.Append("--version ");
@@ -439,7 +479,7 @@ public sealed class Ytdlp
             if (part.StartsWith("-", StringComparison.Ordinal) && !IsAllowedOption(part))
             {
                 var errorMessage = $"Invalid yt-dlp option: {part}";
-                OnError?.Invoke(errorMessage);
+                OnError?.Invoke(this, errorMessage);
                 _logger.Log(LogType.Error, errorMessage);
                 return this;
             }
@@ -620,7 +660,7 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task<List<VideoFormat>> GetAvailableFormatsAsync(string videoUrl, CancellationToken cancellationToken = default)
+    public async Task<List<Format>> GetAvailableFormatsAsync(string videoUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(videoUrl))
             throw new ArgumentException("Video URL cannot be empty.", nameof(videoUrl));
@@ -666,6 +706,35 @@ public sealed class Ytdlp
             _logger.Log(LogType.Error, errorMessage);
             throw new YtdlpException(errorMessage, ex);
         }
+    }
+
+    public async Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken ct = default)
+    {
+        // Try -F first (fast), fallback to --dump-single-json if parsing fails / want richer data
+        try
+        {
+            var textFormats = await GetAvailableFormatsAsync(url, ct);
+            if (textFormats.Count > 0) return textFormats.Select(f => new Format
+            {
+                // map your current VideoFormat properties to new Format class
+                Id = f.Id,
+                Extension = f.Extension,
+                Resolution = f.Resolution,
+                // ... copy others
+            }).ToList();
+        }
+        catch { /* fallback */ }
+
+        var json = await GetVideoMetadataJsonAsync(url, ct);
+        if (json?.Formats == null) return new List<Format>();
+
+        return json.Formats.Select(f => new Format
+        {
+            Id = f.FormatId,
+            Extension = f.Ext,
+            Resolution = f.Resolution ?? (f.Height.HasValue ? $"{f.Height}p" : "audio only"),
+            // map more fields: Vcodec, Acodec, Fps = f.Fps, ApproxFileSize = f.FilesizeApprox, etc.
+        }).ToList();
     }
 
     public async Task ExecuteAsync(string url, CancellationToken cancellationToken = default, string? outputTemplate = null)
@@ -823,7 +892,7 @@ public sealed class Ytdlp
                 {
                     cancellationToken.ThrowIfCancellationRequested(); // <- required
                     _progressParser.ParseProgress(output);
-                    OnProgress?.Invoke(output);
+                    OnProgress?.Invoke(this, output);
                 }
             }, cancellationToken);
 
@@ -835,7 +904,7 @@ public sealed class Ytdlp
                 {
                     cancellationToken.ThrowIfCancellationRequested(); // <- required
                     OnErrorMessage?.Invoke(this, errorOutput);
-                    OnError?.Invoke(errorOutput);
+                    OnError?.Invoke(this, errorOutput);
                     _logger.Log(LogType.Error, errorOutput);
                 }
             }, cancellationToken);
@@ -851,7 +920,7 @@ public sealed class Ytdlp
 
             var success = process.ExitCode == 0;
             var message = success ? "Process completed successfully." : $"Process failed with exit code {process.ExitCode}.";
-            OnCommandCompleted?.Invoke(success, message);
+            OnCommandCompleted?.Invoke(success, new CommandCompletedEventArgs(success, message));
             _logger.Log(success ? LogType.Info : LogType.Error, message);
         }
         catch (OperationCanceledException)
@@ -861,7 +930,7 @@ public sealed class Ytdlp
         catch (Exception ex)
         {
             var errorMessage = $"Error executing yt-dlp: {ex.Message}";
-            OnError?.Invoke(errorMessage);
+            OnError?.Invoke(this, errorMessage);
             _logger.Log(LogType.Error, errorMessage);
             throw new YtdlpException(errorMessage, ex);
         }
@@ -884,9 +953,9 @@ public sealed class Ytdlp
         };
     }
 
-    private List<VideoFormat> ParseFormats(string result)
+    private List<Format> ParseFormats(string result)
     {
-        var formats = new List<VideoFormat>();
+        var formats = new List<Format>();
         if (string.IsNullOrWhiteSpace(result))
         {
             _logger.Log(LogType.Warning, "Empty or null yt-dlp output");
@@ -928,18 +997,18 @@ public sealed class Ytdlp
                 continue;
             }
 
-            var format = new VideoFormat();
+            var format = new Format();
             int index = 0;
 
             try
             {
                 // Parse ID
-                format.ID = parts[index++];
+                format.Id = parts[index++];
 
                 // Check for duplicate ID
-                if (formats.Any(f => f.ID == format.ID))
+                if (formats.Any(f => f.Id == format.Id))
                 {
-                    _logger.Log(LogType.Warning, $"Skipping duplicate format ID: {format.ID}");
+                    _logger.Log(LogType.Warning, $"Skipping duplicate format ID: {format.Id}");
                     continue;
                 }
 
@@ -965,7 +1034,7 @@ public sealed class Ytdlp
                 // Parse FPS (empty for audio-only formats)
                 if (format.Resolution != "audio only" && index < parts.Length && Regex.IsMatch(parts[index], @"^\d+$"))
                 {
-                    format.FPS = parts[index++];
+                    format.Fps = parts[index++];
                 }
 
                 // Parse Channels (marked by '|' or number)

@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace YtdlpDotNet;
+namespace Ytdlp.NET;
 
 public sealed class ProgressParser
 {

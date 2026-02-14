@@ -4,20 +4,26 @@
 	<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	<RootNamespace>YtdlpDotNet</RootNamespace>
-	<AssemblyName>Ytdlp.NET</AssemblyName>
 	<PackageId>Ytdlp.NET</PackageId>
-	<PackageDescription>A .NET wrapper for yt-dlp, providing a fluent interface for downloading videos, audio, subtitles, and thumbnails with progress tracking and event-based feedback.</PackageDescription>
-	<Copyright>Copyright © 2025 ManuHub</Copyright>
-	<Authors>Manojbabu</Authors>
-	<PackageTags>yt-dlp youtube downloader video audio subtitles thumbnails fluent-api progress-tracking csharp dotnet</PackageTags>
-	<PackageProjectUrl>https://github.com/yt-dlp/yt-dlp</PackageProjectUrl>
-	<RepositoryUrl>https://github.com/manusoft/yt-dlp-wrapper</RepositoryUrl>
+	<AssemblyName>Ytdlp.NET</AssemblyName>
+	<RootNamespace>Ytdlp.NET</RootNamespace>
+	<Version>2.0.0</Version>
+	<Authors>ManuHub Manojbabu</Authors>
+	<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
+	<Copyright>Copyright © 2025 ManuHub</Copyright>	
+	<PackageTags>yt-dlp youtube downloader video audio subtitles thumbnails fluent-api progress-tracking csharp dotnet sponsorblock concurrent</PackageTags>
+	<PackageProjectUrl>https://github.com/manusoft/yt-dlp-wrapper</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/yt-dlp/yt-dlp</RepositoryUrl>
+	<RepositoryType>git</RepositoryType>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 	<PackageIcon>icon.png</PackageIcon>
-	<Icon>icon.png</Icon>
-	<Version>1.5.0</Version>
+	<Icon>icon.png</Icon>	
+	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	<VersionPrefix>2.0.0</VersionPrefix>
+	<VersionSuffix></VersionSuffix>
+	<PackageReleaseNotes>Upgraded to v2.0 with advanced features (SponsorBlock, concurrent fragments, cancellation) and fixes (event standardization, enhanced format model).</PackageReleaseNotes>
+	<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 	<IsPackable>true</IsPackable>
 	<LangVersion>latest</LangVersion>
 	<AotAssemblies>true</AotAssemblies>

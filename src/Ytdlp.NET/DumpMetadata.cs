@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace YtdlpDotNet;
+namespace Ytdlp.NET;
 
 public class Metadata
 {
@@ -17,13 +17,13 @@ public class Metadata
     public string Thumbnail { get; set; } = default!;
 
     [JsonPropertyName("formats")]
-    public List<Format>? Formats { get; set; }
+    public List<FormatMetadata>? Formats { get; set; }
 
     [JsonPropertyName("requested_formats")]
-    public List<Format>? RequestedFormats { get; set; }
+    public List<FormatMetadata>? RequestedFormats { get; set; }
 }
 
-public class Format
+public class FormatMetadata
 {
     [JsonPropertyName("format_id")]
     public string FormatId { get; set; } = default!;
@@ -83,13 +83,13 @@ public class Format
     public string FormatString { get; set; } = default!;
 
     [JsonPropertyName("fragments")]
-    public List<Fragment>? Fragments { get; set; }
+    public List<FragmentMetadata>? Fragments { get; set; }
 
     public bool IsAudio => Acodec != "none";
     public bool HasFragments => Fragments != null && Fragments.Count > 0;
 }
 
-public class Fragment
+public class FragmentMetadata
 {
     [JsonPropertyName("url")]
     public string Url { get; set; } = default!;

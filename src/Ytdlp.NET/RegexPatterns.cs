@@ -1,4 +1,4 @@
-﻿namespace YtdlpDotNet;
+﻿namespace Ytdlp.NET;
 
 internal static class RegexPatterns
 {

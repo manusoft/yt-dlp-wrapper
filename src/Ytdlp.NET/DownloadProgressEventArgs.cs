@@ -1,4 +1,4 @@
-﻿namespace YtdlpDotNet;
+﻿namespace Ytdlp.NET;
 
 public class DownloadProgressEventArgs : EventArgs
 {
