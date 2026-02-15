@@ -34,19 +34,93 @@ To use this:
 - **Update**: Implements update method to update latest yt-dlp version. 
 ---
 
+## New in v2.0
+
+- Rich JSON metadata parsing via `GetVideoMetadataJsonAsync`
+- Detailed format selection with `GetFormatsDetailedAsync`
+- Convenience methods for best format auto-selection
+- Improved cancellation handling
+- Better progress parsing and event system
+
+### Fetching Video Metadata
+
+```csharp
+var ytdlp = new Ytdlp();
+
+string url = "https://www.youtube.com/watch?v=Xt50Sodg7sA";
+
+var metadata = await ytdlp.GetVideoMetadataJsonAsync(url);
+
+if (metadata != null)
+{
+    Console.WriteLine($"Title: {metadata.Title}");
+    Console.WriteLine($"Duration: {metadata.Duration} seconds");
+    Console.WriteLine($"Views: {metadata.ViewCount:N0}");
+    Console.WriteLine($"Thumbnail: {metadata.Thumbnail}");
+}
+```
+
+### Auto-Selecting Best Formats
+```csharp
+// Get best audio-only format ID
+string bestAudio = await ytdlp.GetBestAudioFormatIdAsync(url);
+// → e.g. "251" (highest bitrate opus/webm)
+
+// Get best video ≤ 720p
+string bestVideo = await ytdlp.GetBestVideoFormatIdAsync(url, maxHeight: 720);
+// → e.g. "136" (720p mp4/avc1)
+
+// Download best combination
+await ytdlp
+    .SetFormat($"{bestVideo}+{bestAudio}/best")
+    .SetOutputFolder("./downloads")
+    .ExecuteAsync(url);
+```
+
+### Full Metadata + Format Selection Example
+```
+var metadata = await ytdlp.GetVideoMetadataJsonAsync(url);
+
+var best1080p = metadata.Formats?
+    .Where(f => f.Height == 1080 && f.Vcodec != "none")
+    .OrderByDescending(f => f.Fps ?? 0)
+    .FirstOrDefault();
+
+if (best1080p != null)
+{
+    Console.WriteLine($"Best 1080p format: {best1080p.FormatId} – {best1080p.Resolution} @ {best1080p.Fps} fps");
+}
+```
+
 ## 📦 Prerequisites
 
-- **.NET**: Requires .NET 8.0 or later.
-- **yt-dlp**: The `yt-dlp` command-line tool must be installed and accessible in your system’s PATH or specified explicitly.
-  - Install `yt-dlp` via pip:
-    ```bash
-    pip install -U yt-dlp
-    ```
-  - Verify installation:
-    ```bash
-    yt-dlp --version
-    ```
-- **FFmpeg** (optional): Required for certain operations like merging formats or extracting audio. Install via your package manager or download from [FFmpeg.org](https://ffmpeg.org/).
+**Ytdlp.NET** is a lightweight wrapper around yt-dlp — it does **not** include yt-dlp, FFmpeg, FFprobe or Deno itself.  
+You have two main ways to set up the required dependencies:
+
+- **.NET**: .NET 8.0 or higher
+- **yt-dlp**: 
+
+### Recommended: Use companion NuGet packages (easiest & portable)
+
+We provide official build packages that automatically download and manage the latest stable binaries:
+
+```xml
+<ItemGroup>
+  <!-- Core yt-dlp binary (recommended) -->
+  <PackageReference Include="Ytdlp.Stable.Build" Version="*" />
+
+  <!-- FFmpeg + FFprobe for merging, audio extraction, thumbnails, etc. (strongly recommended) -->
+  <PackageReference Include="Ytdlp.FFmpeg.Build" Version="*" />
+  <PackageReference Include="Ytdlp.FFprobe.Build" Version="*" />
+
+  <!-- Deno runtime — only needed if you use advanced JavaScript extractor features -->
+  <!-- <PackageReference Include="Ytdlp.Deno.Runtime" Version="*" /> -->
+</ItemGroup>
+```
+
+```csharp
+var ytdlp = new Ytdlp(ytDlpPath: @"\Tools\yt-dlp.exe");
+```
 
 ## ✨ Basic Usage
 
