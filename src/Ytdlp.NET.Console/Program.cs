@@ -1,26 +1,46 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using YtdlpNET;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 internal class Program
 {
     private static async Task Main(string[] args)
     {
+        // Must be the FIRST line — before any Console.WriteLine
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
+
+        // Optional: also set codepage explicitly (helps in cmd.exe)
+        //if (OperatingSystem.IsWindows())
+        //{
+        //    Console.Write("\x1b[?25h"); // show cursor (optional)
+        //                                // Force cmd.exe / PowerShell to UTF-8 mode
+        //    System.Diagnostics.Process.Start(new ProcessStartInfo
+        //    {
+        //        FileName = "chcp",
+        //        Arguments = "65001",
+        //        UseShellExecute = false,
+        //        CreateNoWindow = true
+        //    })?.WaitForExit();
+        //}
+
         Console.Clear();
         Console.WriteLine("yt-dlp .NET Wrapper v2.0 Demo Console App");
         Console.WriteLine("----------------------------------------");
 
         // Initialize the wrapper (assuming yt-dlp is in PATH or specify path)
-        var ytdlp = new Ytdlp(ytDlpPath: $"tools\\yt-dlp.exe", logger: new ConsoleLogger());
-        ytdlp.SetFFMpegLocation($"tools");
+        var ytdlp = new Ytdlp(ytdlpPath: $"tools\\yt-dlp.exe", logger: new ConsoleLogger());
+        ytdlp.SetFFmpegLocation($"tools");
 
         // Run all demos/tests sequentially
         // await TestGetVersionAsync(ytdlp);
         //await TestGetFormatsAsync(ytdlp);
         //await TestGetFormatsDetailedAsync(ytdlp);
-        await TestGetMetadataAsync(ytdlp);
-        // await TestGetSimpleMetadataAsync(ytdlp);
-        await TestDownloadVideoAsync(ytdlp);
-        await TestDownloadAudioAsync(ytdlp);
+        //await TestGetMetadataAsync(ytdlp);
+        await TestGetSimpleMetadataAsync(ytdlp);
+        //await TestDownloadVideoAsync(ytdlp);
+        //await TestDownloadAudioAsync(ytdlp);
         // await TestBatchDownloadAsync(ytdlp);
         // await TestSponsorBlockAsync(ytdlp);
         // await TestConcurrentFragmentsAsync(ytdlp);
@@ -151,26 +171,30 @@ internal class Program
         var stopwatch = Stopwatch.StartNew();
         Console.WriteLine("\nTest 5: Fetching simple metedata...");
 
-        var url = "https://www.youtube.com/watch?v=_2_NfDfaj8Y";
-        var metadata = await ytdlp.GetSimpleMetadataAsync(url);
+        var url = "https://www.youtube.com/watch?v=1K7OkfKAx24";
+
+        var fields = new[] { "id", "thumbnail" };
+        var data = await ytdlp.GetSimpleMetadataAsync(url, fields);
 
         stopwatch.Stop(); // stop timer
         Console.WriteLine($"Simple metedata took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
 
-        if (metadata == null)
+        if (data != null)
         {
-            Console.WriteLine("No metadata returned.");
-            return;
+            Console.WriteLine($"Id: {data["id"]}");
+            Console.WriteLine($"Thumbnail: {data["thumbnail"]}");
         }
 
+
+
         // Basic info
-        Console.WriteLine($"ID          : {metadata.Id}");
-        Console.WriteLine($"Title       : {metadata.Title}");
-        Console.WriteLine($"Duration    : {metadata.Duration}");
-        Console.WriteLine($"Thumbnail   : {metadata.Thumbnail}");
-        Console.WriteLine($"View Count  : {metadata.ViewCount}");
-        Console.WriteLine($"FileSize    : {metadata.FileSize.ToString() ?? "NA"}");
-        Console.WriteLine($"Description : {(metadata.Description?.Length > 120 ? metadata.Description.Substring(0, 120) + "..." : metadata.Description)}");
+        //Console.WriteLine($"ID          : {metadata.Id}");
+        //Console.WriteLine($"Title       : {metadata.Title}");
+        //Console.WriteLine($"Duration    : {metadata.Duration}");
+        //Console.WriteLine($"Thumbnail   : {metadata.Thumbnail}");
+        //Console.WriteLine($"View Count  : {metadata.ViewCount}");
+        //Console.WriteLine($"FileSize    : {metadata.FileSize.ToString() ?? "NA"}");
+        //Console.WriteLine($"Description : {(metadata.Description?.Length > 120 ? metadata.Description.Substring(0, 120) + "..." : metadata.Description)}");
     }
 
     // Test 6: Download a video with progress events

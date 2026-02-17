@@ -1015,56 +1015,207 @@ public sealed class Ytdlp
         return ParseFormats(output);
     }
 
-    public async Task<SimpleMetadata?> GetSimpleMetadataAsync(string url, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Quickly fetches a lightweight set of metadata using --print (very fast, single call).
+    /// Uses a custom separator to avoid parsing issues with Unicode/special characters.
+    /// </summary>
+    /// <param name="url">Video or playlist URL</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>SimpleMetadata object or null if parsing failed or no data</returns>
+    public async Task<SimpleMetadata?> GetSimpleMetadataAsync(string url, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
 
-        var arguments =
-            $"--skip-download --no-playlist --quiet " +
-            $"--print \"%(id)s|||%(title)s|||%(duration)s|||%(thumbnail)s|||%(view_count)s|||%(filesize,filesize_approx)s|||%(description)s\" " +
-            $"{SanitizeInput(url)}";
-
-        var process = CreateProcess(arguments);
-
-        process.Start();
-
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-
-        using (cancellationToken.Register(() =>
+        try
         {
-            try
+            // Use a rare separator that is unlikely to appear in title/description
+            const string separator = "|||YTDLP.NET|||";
+
+            var fields = new[]
             {
-                if (!process.HasExited)
-                    process.Kill(true);
+                "%(id)s",
+                "%(title)s",
+                "%(duration)s",
+                "%(thumbnail)s",
+                "%(view_count)s",
+                "%(filesize,filesize_approx)s",
+                "%(description).500s"  // limit to first 500 chars to avoid huge output
+            };
+
+            var printArg = $"--print \"{string.Join(separator, fields)}\"";
+
+            var arguments = $"{printArg} --skip-download --no-playlist --quiet {SanitizeInput(url)}";
+
+            var process = CreateProcess(arguments);
+            process.Start();
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+
+            using (ct.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch { }
+            }))
+            {
+                await process.WaitForExitAsync(ct);
             }
-            catch { }
-        }))
+
+            var output = await outputTask;
+
+            if (string.IsNullOrWhiteSpace(output))
+                return null;
+
+            var parts = output.Trim().Split(separator);
+
+            if (parts.Length < 6) // at least id, title, duration, thumbnail, views, size
+                return null;
+
+            return new SimpleMetadata
+            {
+                Id = parts[0].Trim(),
+                Title = parts[1].Trim(),
+                Duration = double.TryParse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var dur) ? dur : null,
+                Thumbnail = parts[3].Trim(),
+                ViewCount = long.TryParse(parts[4], NumberStyles.Any, CultureInfo.InvariantCulture, out var views) ? views : null,
+                FileSize = long.TryParse(parts[5], NumberStyles.Any, CultureInfo.InvariantCulture, out var size) ? size : null,
+                Description = parts.Length > 6 ? parts[6].Trim() : null
+            };
+        }
+        catch (OperationCanceledException)
         {
-            await process.WaitForExitAsync(cancellationToken);
+            _logger.Log(LogType.Warning, "Simple metadata fetch cancelled.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Failed to fetch simple metadata: {ex.Message}");
+            return null;
         }
 
-        var output = await outputTask;
+        //var arguments =
+        //    $"--skip-download --no-playlist --quiet " +
+        //    $"--print \"%(id)s|||%(title)s|||%(duration)s|||%(thumbnail)s|||%(view_count)s|||%(filesize,filesize_approx)s|||%(description)s\" " +
+        //    $"{SanitizeInput(url)}";
 
-        if (string.IsNullOrWhiteSpace(output))
-            return null;
+        //var process = CreateProcess(arguments);
 
-        var parts = output
-            .Trim()
-            .Split("|||", StringSplitOptions.None);
+        //process.Start();
 
-        var metadata = new SimpleMetadata
+        //var outputTask = process.StandardOutput.ReadToEndAsync();
+
+        //using (ct.Register(() =>
+        //{
+        //    try
+        //    {
+        //        if (!process.HasExited)
+        //            process.Kill(true);
+        //    }
+        //    catch { }
+        //}))
+        //{
+        //    await process.WaitForExitAsync(ct);
+        //}
+
+        //var output = await outputTask;
+
+        //if (string.IsNullOrWhiteSpace(output))
+        //    return null;
+
+        //var parts = output
+        //    .Trim()
+        //    .Split("|||", StringSplitOptions.None);
+
+        //var metadata = new SimpleMetadata
+        //{
+        //    Id = parts.ElementAtOrDefault(0),
+        //    Title = parts.ElementAtOrDefault(1),
+        //    Duration = ParseDouble(parts.ElementAtOrDefault(2)),
+        //    Thumbnail = parts.ElementAtOrDefault(3),
+        //    ViewCount = ParseLong(parts.ElementAtOrDefault(4)),
+        //    FileSize = ParseLong(parts.ElementAtOrDefault(5)),
+        //    Description = parts.ElementAtOrDefault(6)
+        //};
+
+        //return metadata;
+    }
+
+    /// <summary>
+    /// Fetches lightweight metadata using --print with user-specified fields.
+    /// Returns a dictionary of requested fields (key = field name, value = string value).
+    /// Supports Unicode titles/descriptions correctly.
+    /// </summary>
+    /// <param name="url">Video URL</param>
+    /// <param name="fields">List of fields to fetch (e.g. "id", "title", "duration", "thumbnail", "view_count", "filesize", "description")</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Dictionary of field → value, or null if nothing could be fetched</returns>
+    public async Task<Dictionary<string, string>?> GetSimpleMetadataAsync(string url, IEnumerable<string> fields, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        if (fields == null || !fields.Any())
+            throw new ArgumentException("At least one field must be requested.", nameof(fields));
+
+        try
         {
-            Id = parts.ElementAtOrDefault(0),
-            Title = parts.ElementAtOrDefault(1),
-            Duration = ParseDouble(parts.ElementAtOrDefault(2)),
-            Thumbnail = parts.ElementAtOrDefault(3),
-            ViewCount = ParseLong(parts.ElementAtOrDefault(4)),
-            FileSize = ParseLong(parts.ElementAtOrDefault(5)),
-            Description = parts.ElementAtOrDefault(6)
-        };
+            const string separator = "|||YTDLP.NET|||";
 
-        return metadata;
+            // Build print format: %(id)s|||YTDLP.NET|||%(title)s|||YTDLP.NET|||...
+            var printParts = fields.Select(f => $"%({f})s");
+            var printFormat = string.Join(separator, printParts);
+
+            var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {SanitizeInput(url)}";
+
+            var process = CreateProcess(arguments);
+            process.Start();
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+
+            using (ct.Register(() =>
+            {
+                try { if (!process.HasExited) process.Kill(true); }
+                catch { }
+            }))
+            {
+                await process.WaitForExitAsync(ct);
+            }
+
+            var rawOutput = await outputTask;
+            if (string.IsNullOrWhiteSpace(rawOutput))
+                return null;
+
+            var parts = rawOutput.Trim().Split(separator);
+
+            // Should have exactly as many parts as requested fields
+            if (parts.Length != fields.Count())
+                return null;
+
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            int index = 0;
+            foreach (var field in fields)
+            {
+                var value = parts[index++].Trim();
+                result[field] = value;
+            }
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Simple metadata fetch cancelled.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Simple metadata failed: {ex.Message}");
+            return null;
+        }
     }
 
     public async Task<string> GetBestAudioFormatIdAsync(string url, CancellationToken ct = default)
@@ -1284,19 +1435,25 @@ public sealed class Ytdlp
 
     private Process CreateProcess(string arguments)
     {
-        return new Process
+        var psi = new ProcessStartInfo
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = _ytDlpPath,
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            },
-            EnableRaisingEvents = true
+            FileName = _ytDlpPath,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
+
+        // === Critical fix: force Python/yt-dlp to UTF-8 ===
+        psi.Environment["PYTHONIOENCODING"] = "utf-8";
+        psi.Environment["PYTHONUTF8"] = "1";
+        psi.Environment["LC_ALL"] = "en_US.UTF-8";  // helps on some systems
+        psi.Environment["LANG"] = "en_US.UTF-8";
+
+        return new Process { StartInfo = psi, EnableRaisingEvents = true };
     }
 
     private static string ValidatePath(string path)

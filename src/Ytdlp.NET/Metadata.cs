@@ -282,13 +282,3 @@ public class FragmentMetadata
 }
 
 
-public class SimpleMetadata
-{
-    public string? Id { get; set; }
-    public string? Title { get; set; }    
-    public double? Duration { get; set; }
-    public string? Thumbnail { get; set; }
-    public long? ViewCount { get; set; }
-    public long? FileSize { get; set; }
-    public string? Description { get; set; }
-}

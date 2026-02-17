@@ -7,12 +7,12 @@
 	<PackageId>Ytdlp.NET</PackageId>
 	<AssemblyName>Ytdlp.NET</AssemblyName>
 	<RootNamespace>YtdlpNET</RootNamespace>
-	<Version>2.0.0-preview1</Version>
+	<Version>2.0.0-preview2</Version>
 	<AssemblyVersion>2.0.0.0</AssemblyVersion>
 	<FileVersion>2.0.0.0</FileVersion>
 	<Authors>ManuHub Manojbabu</Authors>
 	<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
-	<Copyright>Copyright © 2025 ManuHub</Copyright>	
+	<Copyright>© 2026-2026 ManuHub. Allrights researved</Copyright>	
 	<PackageTags>yt-dlp youtube downloader video audio subtitles thumbnails fluent-api progress-tracking csharp dotnet sponsorblock concurrent</PackageTags>
 	<PackageProjectUrl>https://github.com/manusoft/yt-dlp-wrapper</PackageProjectUrl>
 	<RepositoryUrl>https://github.com/yt-dlp/yt-dlp</RepositoryUrl>
