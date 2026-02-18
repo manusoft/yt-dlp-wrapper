@@ -1,7 +1,8 @@
-﻿namespace YtdlpDotNet;
+﻿namespace YtdlpNET;
 
 internal static class RegexPatterns
 {
+    // ───────────── Core / Existing Patterns (unchanged) ─────────────
     public const string ExtractingUrl = @"\[(?<source>[^\]]+)\]\s*Extracting URL:\s*(?<url>https?://\S+)";
     public const string DownloadingWebpage = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*Downloading\s*(?<type>pc|mweb|ios|web)?\s*webpage";
     public const string DownloadingJson = @"\[(?<source>[^\]]+)\]\s+(?<id>[^\s:]+):\s*Downloading\s*(?<type>ios|mweb|tv|android)?\s*player API JSON";
@@ -25,4 +26,32 @@ internal static class RegexPatterns
     public const string ExtractingMetadata = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*Extracting metadata";
     public const string SpecificError = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*ERROR:\s*(?<error>.+)";
     public const string DownloadingSubtitles = @"\[info\]\s*Downloading subtitles:\s*(?<language>[^\s]+)";
+
+    // ───────────── New / Enhanced Patterns for v2.0 ─────────────
+
+    // More reliable merger success detection (variation of "successfully merged")
+    public const string MergerSuccess = @"(?:has been successfully merged|merged formats successfully)";
+
+    // Post-processing generic step (helps count steps reliably)
+    public const string PostProcessGeneric = @"\[(?<processor>PostProcess|ffmpeg|Merger|ConvertSubs|SponsorBlock)\]\s*(?<action>.+)";
+
+    // SponsorBlock lines (very common now)
+    public const string SponsorBlockAction = @"\[sponsorblock\]\s*(?<action>.+?)(?::\s*(?<details>.+))?$";
+
+    // Concurrent fragments / DASH/HLS speed-up
+    public const string ConcurrentFragmentRange = @"\[download\]\s*Got server-side ranges for fragment\s*(?<frag>\d+)";
+    public const string ConcurrentFragmentDownloaded = @"\[download\]\s*Downloaded fragment\s*(?<frag>\d+)\s*(?:of\s*(?<total>\d+))?";
+
+    // Subtitle conversion (when using --convert-subs)
+    public const string ConvertSubs = @"\[ConvertSubs\]\s*Converting subtitle\s*(?<file>.+?)\s*to\s*(?<format>.+?)(?:\s|$)";
+
+    // FFmpeg post-processing actions (remux, recode, etc.)
+    public const string FFmpegAction = @"\[ffmpeg\]\s*(?<action>.+)";
+
+    // Basic playlist item progress (when downloading playlists)
+    public const string PlaylistItem = @"\[download\]\s*Downloading playlist:\s*(?<playlist>.+?)\s*;\s*Downloading\s*(?<item>\d+)\s*of\s*(?<total>\d+)";
+
+    // Warning / debug lines (useful for better unknown classification)
+    public const string WarningLine = @"\[warning\]\s*(?<message>.+)";
+    public const string DebugLine = @"\[debug\]\s*(?<message>.+)";
 }

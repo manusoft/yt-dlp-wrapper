@@ -1,12 +1,11 @@
-![Static Badge](https://img.shields.io/badge/ytdlp_executable-red) ![NuGet Version](https://img.shields.io/nuget/v/YTDLP-Executable)  ![NuGet Downloads](https://img.shields.io/nuget/dt/YTDLP-Executable)
-
 ![Static Badge](https://img.shields.io/badge/ytdlp.NET-red) ![NuGet Version](https://img.shields.io/nuget/v/ytdlp.net)  ![NuGet Downloads](https://img.shields.io/nuget/dt/ytdlp.net)
 
 # Ytdlp.NET
 ![icon](https://github.com/user-attachments/assets/2147c398-4e0f-43e2-99cb-32b34be7dc2f)
 
 ### ClipMate - MAUI.NET App - [Download](https://apps.microsoft.com/detail/9NTP1DH4CQ4X?hl=en&gl=IN&ocid=pdpshare)
-<img width="986" height="693" alt="5" src="https://github.com/user-attachments/assets/4bdf89e0-c94b-4163-8b9d-8a051bab0cd8" />
+<img width="986" height="693" alt="image" src="https://github.com/user-attachments/assets/39e09415-fa0c-4991-976f-8966e9c50c5b" />
+
 
 
 ### Video Downloader - .NET App
@@ -27,257 +26,331 @@ A .NET wrapper for the `yt-dlp` command-line tool, providing a fluent interface 
 - **Customizable**: Support for custom `yt-dlp` options and advanced configurations.
 - **Cross-Platform**: Compatible with Windows, macOS, and Linux (requires `yt-dlp` installed).
 
-### Prerequisites
+# Ytdlp.NET API Documentation
 
-- **.NET**: Requires .NET 8.0 or later.
-- **yt-dlp**: The `yt-dlp` command-line tool must be installed and accessible in your system’s PATH or specified explicitly.
-  - Install `yt-dlp` via pip:
-    ```bash
-    pip install -U yt-dlp
-    ```
-  - Verify installation:
-    ```bash
-    yt-dlp --version
-    ```
-- **FFmpeg** (optional): Required for certain operations like merging formats or extracting audio. Install via your package manager or download from [FFmpeg.org](https://ffmpeg.org/).
+**Namespace**: `YtdlpNET`  
+**Main Class**: `Ytdlp` (fluent wrapper around yt-dlp)
 
-## Usage
+The `Ytdlp` class provides a fluent, chainable API to build yt-dlp commands, fetch metadata, list formats, and execute downloads with rich event support and progress tracking.
 
-### Basic Example: Download a Single Video
-
-Download a video with the best quality to a specified folder:
+## Constructor
 
 ```csharp
-using System;
-using System.Threading.Tasks;
-using YtdlpDotNet;
-
-class Program
-{
-    static async Task Main()
-    {
-        var ytdlp = new Ytdlp("yt-dlp", new ConsoleLogger());
-
-        // Subscribe to progress events
-        ytdlp.OnProgressMessage += (sender, message) => Console.WriteLine($"Progress: {message}");
-        ytdlp.OnCompleteDownload += (sender, message) => Console.WriteLine($"Complete: {message}");
-        ytdlp.OnErrorMessage += (sender, message) => Console.WriteLine($"Error: {message}");
-
-        try
-        {
-            await ytdlp
-                .SetFormat("b") // Best quality
-                .SetOutputFolder("./downloads")
-                .DownloadThumbnails() // Include thumbnails
-                .ExecuteAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
-        }
-        catch (YtdlpException ex)
-        {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-    }
-
-    private class ConsoleLogger : ILogger
-    {
-        public void Log(LogType type, string message)
-        {
-            Console.WriteLine($"[{type}] {message}");
-        }
-    }
-}
+public Ytdlp(string ytDlpPath = "yt-dlp", ILogger? logger = null)
 ```
 
-### Example: Batch Download Multiple Videos
+- **ytDlpPath**: Path to yt-dlp executable (default: searches PATH for "yt-dlp").
+- **logger**: Optional logger (falls back to `DefaultLogger`).
 
-Download multiple videos in a batch:
+**Throws**: `YtdlpException` if executable is not found.
+
+## Events
+
+All events are invoked on the UI/main thread if possible (when used in UI apps).
+
+| Event                        | Type                                  | Description |
+|------------------------------|---------------------------------------|-------------|
+| `OnProgress`                 | `EventHandler<string>`                | General progress line from stdout |
+| `OnError`                    | `EventHandler<string>`                | Error line from stderr |
+| `OnCommandCompleted`         | `EventHandler<CommandCompletedEventArgs>` | Process finished (success/failure/cancel) |
+| `OnOutputMessage`            | `EventHandler<string>`                | Every stdout line |
+| `OnProgressDownload`         | `EventHandler<DownloadProgressEventArgs>` | Parsed download progress (% / speed / ETA) |
+| `OnCompleteDownload`         | `EventHandler<string>`                | Single file download completed |
+| `OnProgressMessage`          | `EventHandler<string>`                | Info messages (merging, extracting, etc.) |
+| `OnErrorMessage`             | `EventHandler<string>`                | Error/info messages from parser |
+| `OnPostProcessingComplete`   | `EventHandler<string>`                | Post-processing (merge, convert) finished |
+
+## Core Methods
+
+### Output & Path Configuration
 
 ```csharp
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using YtdlpDotNet;
-
-class Program
-{
-    static async Task Main()
-    {
-        var ytdlp = new Ytdlp("yt-dlp", new ConsoleLogger());
-
-        // Subscribe to events
-        ytdlp.OnProgressMessage += (sender, message) => Console.WriteLine($"Progress: {message}");
-        ytdlp.OnCompleteDownload += (sender, message) => Console.WriteLine($"Complete: {message}");
-        ytdlp.OnErrorMessage += (sender, message) => Console.WriteLine($"Error: {message}");
-
-        var videoUrls = new List<string>
-        {
-            "https://www.youtube.com/watch?v=RGg-Qx1rL9U",
-            "https://www.youtube.com/watch?v=iBVxogg5QwE"
-        };
-
-        try
-        {
-            await ytdlp
-                .SetFormat("b")
-                .SetOutputFolder("./batch_downloads")
-                .ExecuteBatchAsync(videoUrls);
-        }
-        catch (YtdlpException ex)
-        {
-            Console.WriteLine($"Failed to batch download: {ex.Message}");
-        }
-    }
-
-    private class ConsoleLogger : ILogger
-    {
-        public void Log(LogType type, string message)
-        {
-            Console.WriteLine($"[{type}] {message}");
-        }
-    }
-}
+Ytdlp SetOutputFolder(string outputFolderPath)
+Ytdlp SetTempFolder(string tempFolderPath)
+Ytdlp SetHomeFolder(string homeFolderPath)
+Ytdlp SetOutputTemplate(string template)
+Ytdlp SetFFMpegLocation(string ffmpegFolder)
 ```
 
-### Example: Get Available Formats
-
-Retrieve available formats for a video:
+### Format Selection
 
 ```csharp
-using System;
-using System.Threading.Tasks;
-using YtdlpDotNet;
-
-class Program
-{
-    static async Task Main()
-    {
-        var ytdlp = new Ytdlp("yt-dlp", new ConsoleLogger());
-
-        try
-        {
-            var formats = await ytdlp.GetAvailableFormatsAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
-            foreach (var format in formats)
-            {
-                Console.WriteLine($"ID: {format.ID}, Extension: {format.Extension}, Resolution: {format.Resolution}, VCodec: {format.VCodec}");
-            }
-        }
-        catch (YtdlpException ex)
-        {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-    }
-
-    private class ConsoleLogger : ILogger
-    {
-        public void Log(LogType type, string message)
-        {
-            Console.WriteLine($"[{type}] {message}");
-        }
-    }
-}
+Ytdlp SetFormat(string format)
+Ytdlp ExtractAudio(string audioFormat)
+Ytdlp SetResolution(string resolution)
 ```
 
-### Example: Extract Audio with Metadata
-
-Extract audio in MP3 format and embed metadata:
+### Metadata & Format Fetching
 
 ```csharp
-using System;
-using System.Threading.Tasks;
-using YtdlpDotNet;
-
-class Program
-{
-    static async Task Main()
-    {
-        var ytdlp = new Ytdlp("yt-dlp", new ConsoleLogger());
-
-        try
-        {
-            await ytdlp
-                .ExtractAudio("mp3")
-                .EmbedMetadata()
-                .SetOutputFolder("./audio_downloads")
-                .ExecuteAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
-        }
-        catch (YtdlpException ex)
-        {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-    }
-
-    private class ConsoleLogger : ILogger
-    {
-        public void Log(LogType type, string message)
-        {
-            Console.WriteLine($"[{type}] {message}");
-        }
-    }
-}
+Task<string> GetVersionAsync(CancellationToken ct = default)
+Task<Metadata?> GetVideoMetadataJsonAsync(string url, CancellationToken ct = default)
+Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken ct = default)
+Task<string> GetBestAudioFormatIdAsync(string url, CancellationToken ct = default)
+Task<string> GetBestVideoFormatIdAsync(string url, int maxHeight = 1080, CancellationToken ct = default)
 ```
 
-## Configuration
-
-- **Custom yt-dlp Path**: Specify a custom path to the `yt-dlp` executable if it’s not in the system PATH:
-  ```csharp
-  var ytdlp = new Ytdlp("/path/to/yt-dlp");
-  ```
-
-- **Custom Logger**: Implement a custom `ILogger` for logging:
-  ```csharp
-  public class CustomLogger : ILogger
-  {
-      public void Log(LogType type, string message)
-      {
-          // Custom logging logic (e.g., write to file or logging framework)
-          Console.WriteLine($"[{type}] {message}");
-      }
-  }
-  var ytdlp = new Ytdlp("yt-dlp", new CustomLogger());
-  ```
-
-- **Event Subscriptions**: Subscribe to events for real-time feedback:
-  ```csharp
-  ytdlp.OnProgressDownload += (sender, args) => Console.WriteLine($"Progress: {args.Percent}% of {args.Size}");
-  ytdlp.OnError += (message) => Console.WriteLine($"Error: {message}");
-  ytdlp.OnCommandCompleted += (success, message) => Console.WriteLine($"Command: {message}");
-  ```
-
-## Supported yt-dlp Options
-
-`Ytdlp.NET` supports a wide range of `yt-dlp` options, including:
-- `--extract-audio`, `--audio-format`
-- `--format`, `--playlist-items`
-- `--write-subs`, `--write-thumbnail`
-- `--live-from-start`, `--download-sections`
-- `--user-agent`, `--cookies`, `--referer`
-- And more (see the `Ytdlp` class for full list).
-
-Use `AddCustomCommand` for unsupported options, ensuring they are valid `yt-dlp` commands.
-
-## Error Handling
-
-The library throws `YtdlpException` for errors during execution. Always wrap calls in a try-catch block:
+### Download Execution
 
 ```csharp
+string PreviewCommand()
+Task ExecuteAsync(string url, CancellationToken ct = default, string? outputTemplate = null)
+Task ExecuteBatchAsync(IEnumerable<string> urls, CancellationToken ct = default)
+Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default)
+```
+
+### Common Options (chainable)
+
+```csharp
+Ytdlp EmbedMetadata()
+Ytdlp EmbedThumbnail()
+Ytdlp DownloadThumbnails()
+Ytdlp DownloadSubtitles(string languages = "all")
+Ytdlp SetRetries(string retries)
+Ytdlp SetDownloadRate(string rate)
+Ytdlp UseProxy(string proxy)
+Ytdlp Simulate()
+Ytdlp SkipDownloaded()
+Ytdlp SetKeepTempFiles(bool keep)
+```
+
+### Advanced / Specialized Options
+
+```csharp
+Ytdlp WithConcurrentFragments(int count)
+Ytdlp RemoveSponsorBlock(params string[] categories)
+Ytdlp EmbedSubtitles(string languages = "all", string? convertTo = null)
+Ytdlp CookiesFromBrowser(string browser, string? profile = null)
+Ytdlp GeoBypassCountry(string countryCode)
+Ytdlp AddCustomCommand(string customCommand)
+Ytdlp SetUserAgent(string userAgent)
+Ytdlp SetReferer(string referer)
+Ytdlp UseCookies(string cookieFile)
+Ytdlp SetCustomHeader(string header, string value)
+Ytdlp SetAuthentication(string username, string password)
+Ytdlp DownloadLivestream(bool fromStart = true)
+Ytdlp DownloadSections(string timeRanges)
+Ytdlp DownloadLiveStreamRealTime()
+Ytdlp MergePlaylistIntoSingleVideo(string format)
+Ytdlp SelectPlaylistItems(string items)
+Ytdlp ConcatenateVideos()
+Ytdlp ReplaceMetadata(string field, string regex, string replacement)
+Ytdlp LogToFile(string logFile)
+Ytdlp DisableAds()
+Ytdlp SetTimeout(TimeSpan timeout)
+Ytdlp SetDownloadTimeout(string timeout)
+```
+
+### Utility / Info
+
+```csharp
+Ytdlp Version()
+Ytdlp Update()
+Ytdlp WriteMetadataToJson()
+Ytdlp ExtractMetadataOnly()
+```
+
+## Usage Examples
+
+### Basic download (720p video + best audio)
+
+```csharp
+var ytdlp = new Ytdlp();
+
+await ytdlp
+    .SetFormat("bestvideo[height<=720]+bestaudio/best")
+    .SetOutputFolder("./downloads")
+    .SetOutputTemplate("%(title)s [%(resolution)s].%(ext)s")
+    .EmbedMetadata()
+    .EmbedThumbnail()
+    .ExecuteAsync("https://www.youtube.com/watch?v=VIDEO_ID");
+```
+
+### Auto-select best formats
+
+```csharp
+var bestAudio = await ytdlp.GetBestAudioFormatIdAsync(url);
+var bestVideo = await ytdlp.GetBestVideoFormatIdAsync(url, maxHeight: 1080);
+
+await ytdlp
+    .SetFormat($"{bestVideo}+{bestAudio}/best")
+    .ExecuteAsync(url);
+```
+
+### Fetch metadata only
+
+```csharp
+var meta = await ytdlp.GetVideoMetadataJsonAsync(url);
+Console.WriteLine($"Title: {meta?.Title}");
+Console.WriteLine($"Duration: {meta?.Duration} s");
+Console.WriteLine($"Best thumbnail: {meta?.BestThumbnailUrl}");
+```
+
+### Monitor progress
+
+```csharp
+ytdlp.OnProgressDownload += (s, e) =>
+    Console.Write($"\r[{new string('=', (int)e.Percent / 3)}] {e.Percent:F1}%  {e.Speed}  ETA {e.ETA}");
+
+await ytdlp.ExecuteAsync(url);
+```
+
+### Download best 1080p video + best audio (auto-selected)
+
+```csharp
+var ytdlp = new Ytdlp();
+
+string url = "https://www.youtube.com/watch?v=Xt50Sodg7sA";
+
+// Auto-select best formats
+string bestVideo = await ytdlp.GetBestVideoFormatIdAsync(url, maxHeight: 1080);
+string bestAudio = await ytdlp.GetBestAudioFormatIdAsync(url);
+
+await ytdlp
+    .SetFormat($"{bestVideo}+{bestAudio}/best")
+    .SetOutputFolder("./downloads")
+    .SetOutputTemplate("%(title)s [%(resolution)s - %(id)s].%(ext)s")
+    .EmbedMetadata()
+    .EmbedThumbnail()
+    .ExecuteAsync(url);### 1. Download best 1080p video + best audio (auto-selected)
+
+```csharp
+var ytdlp = new Ytdlp();
+
+string url = "https://www.youtube.com/watch?v=Xt50Sodg7sA";
+
+// Auto-select best formats
+string bestVideo = await ytdlp.GetBestVideoFormatIdAsync(url, maxHeight: 1080);
+string bestAudio = await ytdlp.GetBestAudioFormatIdAsync(url);
+
+await ytdlp
+    .SetFormat($"{bestVideo}+{bestAudio}/best")
+    .SetOutputFolder("./downloads")
+    .SetOutputTemplate("%(title)s [%(resolution)s - %(id)s].%(ext)s")
+    .EmbedMetadata()
+    .EmbedThumbnail()
+    .ExecuteAsync(url);
+```
+
+### Monitor download progress with a simple console bar 
+```csharp
+ytdlp.OnProgressDownload += (sender, args) =>
+{
+    ConsoleProgress.Update(args.Percent, $"{args.Speed}  ETA {args.ETA}");
+};
+
+ytdlp.OnCompleteDownload += (sender, msg) => ConsoleProgress.Complete($"Finished: {msg}");
+
+await ytdlp
+    .SetFormat("best[height<=720]")
+    .ExecuteAsync(url);
+```
+
+### Fetch metadata and display video info
+
+```csharp
+var metadata = await ytdlp.GetVideoMetadataJsonAsync(url);
+
+if (metadata != null)
+{
+    Console.WriteLine($"Title:       {metadata.Title}");
+    Console.WriteLine($"Channel:     {metadata.Channel} ({metadata.ChannelFollowerCount:N0} followers)");
+    Console.WriteLine($"Duration:    {metadata.DurationTimeSpan?.ToString(@"mm\:ss") ?? "N/A"}");
+    Console.WriteLine($"Views:       {metadata.ViewCount:N0}");
+    Console.WriteLine($"Likes:       {metadata.LikeCount:N0}");
+    Console.WriteLine($"Best thumb:  {metadata.BestThumbnailUrl}");
+
+    // List categories and tags
+    if (metadata.Categories?.Any() == true)
+        Console.WriteLine($"Categories:  {string.Join(", ", metadata.Categories)}");
+
+    if (metadata.Tags?.Any() == true)
+        Console.WriteLine($"Tags:        {string.Join(", ", metadata.Tags.Take(10))}...");
+}
+```
+### Download only the best audio as MP3
+```csharp
+string bestAudioId = await ytdlp.GetBestAudioFormatIdAsync(url);
+
+await ytdlp
+    .SetFormat(bestAudioId)
+    .ExtractAudio("mp3")
+    .SetOutputFolder("./audio")
+    .SetOutputTemplate("%(title)s - %(uploader)s.%(ext)s")
+    .ExecuteAsync(url);
+```
+
+### Remove SponsorBlock segments (all categories)
+```csharp
+await ytdlp
+    .RemoveSponsorBlock("all")  // or specific: "sponsor", "intro", "outro", etc.
+    .SetFormat("best")
+    .SetOutputFolder("./sponsor-free")
+    .ExecuteAsync(url);
+```
+
+### Download with concurrent fragments (faster on good connections)
+```csharp
+await ytdlp
+    .WithConcurrentFragments(8)  // 8 parallel chunks
+    .SetFormat("best")
+    .ExecuteAsync(url);
+```
+### Batch download (concurrent, 4 at a time)
+```csharp
+var urls = new[]
+{
+    "https://www.youtube.com/watch?v=VIDEO1",
+    "https://www.youtube.com/watch?v=VIDEO2",
+    "https://www.youtube.com/watch?v=VIDEO3",
+    "https://www.youtube.com/watch?v=VIDEO4"
+};
+
+await ytdlp
+    .SetFormat("best[height<=480]")  // lower quality for faster batch
+    .SetOutputFolder("./batch")
+    .ExecuteBatchAsync(urls, maxConcurrency: 4);
+```
+
+### Cancel a long download after 15 seconds
+```csharp
+var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+
 try
 {
-    await ytdlp.ExecuteAsync("https://www.youtube.com/watch?v=invalid");
+    await ytdlp
+        .SetFormat("best")
+        .ExecuteAsync(url, cts.Token);
 }
-catch (YtdlpException ex)
+catch (OperationCanceledException)
 {
-    Console.WriteLine($"Error: {ex.Message}");
+    Console.WriteLine("Download cancelled as expected.");
 }
 ```
 
-## Notes
+### Simulate & preview command first
+```csharp
+ytdlp
+    .SetFormat("137+251")
+    .EmbedMetadata()
+    .SetOutputTemplate("%(title)s.%(ext)s");
 
-- **Thread Safety**: The `Ytdlp.NET` class is not thread-safe. Create a new instance for concurrent operations.
-- **Performance**: Batch downloads are executed sequentially. For parallel downloads, manage multiple `Ytdlp.NET` instances.
-- **Version Compatibility**: Tested with `yt-dlp` version 2025.06.30 and later. Run `GetVersionAsync` to verify:
-  ```csharp
-  string version = await ytdlp.GetVersionAsync();
-  Console.WriteLine($"yt-dlp version: {version}");
-  ```
+Console.WriteLine("Preview command:");
+Console.WriteLine(ytdlp.PreviewCommand());
+
+// → Outputs: --embed-metadata -f "137+251" -o "%(title)s.%(ext)s"
+```
+
+### Advanced: Use cookies from browser + proxy + custom header
+```csharp
+await ytdlp
+    .CookiesFromBrowser("chrome")
+    .UseProxy("http://proxy.example.com:8080")
+    .SetCustomHeader("Referer", "https://example.com")
+    .SetFormat("best")
+    .ExecuteAsync("https://private-video-url");
+```
+---
 
 ## Contributing
 

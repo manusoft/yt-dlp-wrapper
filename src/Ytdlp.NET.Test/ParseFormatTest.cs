@@ -32,9 +32,9 @@ public class ParseFormatTest
         Assert.Contains(formats, f => f.ID == "18" && f.Resolution == "640x360" && f.Channels == "2" && f.VCodec == "avc1.42001E" && f.ACodec == "mp4a.40.2");
     }
 
-    public List<VideoFormat> ParseFormats(string result)
+    public List<Format> ParseFormats(string result)
     {
-        var formats = new List<VideoFormat>();
+        var formats = new List<Format>();
         if (string.IsNullOrWhiteSpace(result))
         {
             return formats;
@@ -71,7 +71,7 @@ public class ParseFormatTest
                 continue;
             }
 
-            var format = new VideoFormat();
+            var format = new Format();
             int index = 0;
 
             try

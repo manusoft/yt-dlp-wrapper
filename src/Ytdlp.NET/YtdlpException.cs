@@ -1,4 +1,4 @@
-﻿namespace YtdlpDotNet;
+﻿namespace YtdlpNET;
 
 
 public sealed class YtdlpException : Exception

@@ -1,4 +1,4 @@
-﻿namespace YtdlpDotNet;
+﻿namespace YtdlpNET;
 
 
 public interface ILogger
