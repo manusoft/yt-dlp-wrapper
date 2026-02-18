@@ -9,9 +9,23 @@ using System.Text.RegularExpressions;
 namespace YtdlpNET;
 
 /// <summary>
-/// Fluent wrapper for yt-dlp, providing methods to build commands, fetch metadata, 
+/// Fluent wrapper for yt-dlp, providing methods to build commands, fetch metadata,
 /// and execute downloads with progress tracking and event support.
 /// </summary>
+/// <remarks>
+/// <strong>NOT THREAD-SAFE</strong> — do not share the same instance across threads or concurrent operations.
+/// For parallel/batch downloads, create a new <see cref="Ytdlp"/> instance for each task.
+///
+/// Example of safe concurrent usage:
+/// <code>
+/// var tasks = urls.Select(u => new Ytdlp().SetFormat("best").ExecuteAsync(u));
+/// await Task.WhenAll(tasks);
+/// </code>
+///
+/// <strong>Disposal</strong>: This class does not currently implement <see cref="IDisposable"/>.
+/// Resource cleanup (e.g. child processes) is handled internally. Proper disposal support
+/// and an immutable builder pattern are planned for a future version.
+/// </remarks>
 public sealed class Ytdlp
 {
     private readonly string _ytDlpPath;
@@ -21,7 +35,7 @@ public sealed class Ytdlp
 
     private string _format = "best";
     private string _outputFolder = ".";
-    private string? _outputTemplate;
+    private string _outputTemplate = "%(title)s.%(ext)s";
 
     // <summary>
     /// Fired for general progress messages from yt-dlp output.
@@ -270,7 +284,7 @@ public sealed class Ytdlp
     /// <param name="template">Template string (e.g. "%(title)s.%(ext)s").</param>
     /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
     /// <exception cref="ArgumentException">Thrown if template is empty.</exception>
-    public Ytdlp SetOutputTemplate(string template)
+    public Ytdlp SetOutputTemplate([Required] string template)
     {
         if (string.IsNullOrWhiteSpace(template))
             throw new ArgumentException("Output template cannot be empty.", nameof(template));
@@ -844,29 +858,68 @@ public sealed class Ytdlp
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
 
-        var process = CreateProcess($"--dump-single-json --skip-download --no-playlist --no-warnings --quiet {SanitizeInput(url)}");
-        process.Start();
-
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-
-        using (ct.Register(() =>
+        try
         {
-            try
+            var arguments =
+                $"--dump-single-json " +
+                $"--no-simulate " +
+                $"--skip-download " +
+                $"--no-playlist " +
+                $"--quiet " +
+                $"--no-warnings " +
+                $"{SanitizeInput(url)}";
+
+            var process = CreateProcess(arguments);
+            process.Start();
+
+            // Use StreamReader with large buffer + explicit UTF-8
+            string json;
+            using (var reader = new StreamReader(
+                process.StandardOutput.BaseStream,
+                Encoding.UTF8,
+                detectEncodingFromByteOrderMarks: false,
+                bufferSize: 8192,           // good default for JSON
+                leaveOpen: true))           // don't close underlying stream
             {
-                if (!process.HasExited)
-                    process.Kill(true);
+                json = await reader.ReadToEndAsync();
             }
-            catch { }
-        }))
-        {
-            await process.WaitForExitAsync(ct);
+
+            // Optional: drain stderr in background (prevents blocking if warnings are many)
+            _ = process.StandardError.ReadToEndAsync();
+
+            using (ct.Register(() =>
+            {
+                try { if (!process.HasExited) process.Kill(true); }
+                catch { }
+            }))
+            {
+                await process.WaitForExitAsync(ct);
+            }
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                _logger.Log(LogType.Warning, "Empty JSON output.");
+                return null;
+            }
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString
+            };
+
+            return JsonSerializer.Deserialize<Metadata>(json, options);
         }
-
-        var json = await outputTask;
-        if (string.IsNullOrWhiteSpace(json)) return null;
-
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        return JsonSerializer.Deserialize<Metadata>(json, options);
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Metadata fetch cancelled.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Metadata fetch failed: {ex.Message}");
+            return null;
+        }
     }
 
     public async Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken ct = default)
@@ -876,12 +929,33 @@ public sealed class Ytdlp
 
         try
         {
-            var arguments = $"--dump-single-json {SanitizeInput(url)}";
-            var process = CreateProcess(arguments);
+            var arguments =
+                $"--dump-single-json " +
+                $"--no-simulate " +
+                $"--skip-download " +
+                $"--no-playlist " +
+                $"--quiet " +
+                $"--no-warnings " +
+                $"{SanitizeInput(url)}";
 
+            var process = CreateProcess(arguments);
             process.Start();
 
-            var outputTask = process.StandardOutput.ReadToEndAsync();
+            //var outputTask = process.StandardOutput.ReadToEndAsync();
+            // Use StreamReader with large buffer + explicit UTF-8
+            string json;
+            using (var reader = new StreamReader(
+                process.StandardOutput.BaseStream,
+                Encoding.UTF8,
+                detectEncodingFromByteOrderMarks: false,
+                bufferSize: 8192,           // good default for JSON
+                leaveOpen: true))           // don't close underlying stream
+            {
+                json = await reader.ReadToEndAsync();
+            }
+
+            // Optional: drain stderr in background (prevents blocking if warnings are many)
+            _ = process.StandardError.ReadToEndAsync();
 
             using (ct.Register(() =>
             {
@@ -896,9 +970,9 @@ public sealed class Ytdlp
                 await process.WaitForExitAsync(ct);
             }
 
-            var jsonOutput = await outputTask;
+            //var jsonOutput = await outputTask;
 
-            if (string.IsNullOrWhiteSpace(jsonOutput))
+            if (string.IsNullOrWhiteSpace(json))
             {
                 _logger.Log(LogType.Warning, "Empty JSON output from --dump-single-json");
                 throw new YtdlpException("No data returned from format query.");
@@ -913,7 +987,7 @@ public sealed class Ytdlp
             };
 
             // Deserialize
-            var videoInfo = JsonSerializer.Deserialize<SingleVideoJson>(jsonOutput, jsonOptions);
+            var videoInfo = JsonSerializer.Deserialize<SingleVideoJson>(json, jsonOptions);
 
             if (videoInfo?.Formats == null || !videoInfo.Formats.Any())
             {
@@ -1097,51 +1171,6 @@ public sealed class Ytdlp
             return null;
         }
 
-        //var arguments =
-        //    $"--skip-download --no-playlist --quiet " +
-        //    $"--print \"%(id)s|||%(title)s|||%(duration)s|||%(thumbnail)s|||%(view_count)s|||%(filesize,filesize_approx)s|||%(description)s\" " +
-        //    $"{SanitizeInput(url)}";
-
-        //var process = CreateProcess(arguments);
-
-        //process.Start();
-
-        //var outputTask = process.StandardOutput.ReadToEndAsync();
-
-        //using (ct.Register(() =>
-        //{
-        //    try
-        //    {
-        //        if (!process.HasExited)
-        //            process.Kill(true);
-        //    }
-        //    catch { }
-        //}))
-        //{
-        //    await process.WaitForExitAsync(ct);
-        //}
-
-        //var output = await outputTask;
-
-        //if (string.IsNullOrWhiteSpace(output))
-        //    return null;
-
-        //var parts = output
-        //    .Trim()
-        //    .Split("|||", StringSplitOptions.None);
-
-        //var metadata = new SimpleMetadata
-        //{
-        //    Id = parts.ElementAtOrDefault(0),
-        //    Title = parts.ElementAtOrDefault(1),
-        //    Duration = ParseDouble(parts.ElementAtOrDefault(2)),
-        //    Thumbnail = parts.ElementAtOrDefault(3),
-        //    ViewCount = ParseLong(parts.ElementAtOrDefault(4)),
-        //    FileSize = ParseLong(parts.ElementAtOrDefault(5)),
-        //    Description = parts.ElementAtOrDefault(6)
-        //};
-
-        //return metadata;
     }
 
     /// <summary>
@@ -1246,6 +1275,9 @@ public sealed class Ytdlp
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
 
+        if (string.IsNullOrWhiteSpace(_format))
+            _format = "best";
+
         // Ensure output folder exists
         try
         {
@@ -1263,8 +1295,7 @@ public sealed class Ytdlp
         _logger.Log(LogType.Info, $"Starting download for URL: {url}");
 
         // Use provided template or default
-        string template = Path.Combine(_outputFolder, _outputTemplate?.Replace("\\", "/")!)
-            ?? Path.Combine(_outputFolder, "%(title)s.%(ext)s").Replace("\\", "/");
+        string template = Path.Combine(_outputFolder, _outputTemplate.Replace("\\", "/"));
 
         // Build command with format and output template
         string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" \"{SanitizeInput(url)}\"";
@@ -1447,10 +1478,10 @@ public sealed class Ytdlp
             StandardErrorEncoding = Encoding.UTF8,
         };
 
-        // === Critical fix: force Python/yt-dlp to UTF-8 ===
+        // Force Python/yt-dlp UTF-8
         psi.Environment["PYTHONIOENCODING"] = "utf-8";
         psi.Environment["PYTHONUTF8"] = "1";
-        psi.Environment["LC_ALL"] = "en_US.UTF-8";  // helps on some systems
+        psi.Environment["LC_ALL"] = "en_US.UTF-8";
         psi.Environment["LANG"] = "en_US.UTF-8";
 
         return new Process { StartInfo = psi, EnableRaisingEvents = true };

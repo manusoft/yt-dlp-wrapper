@@ -11,20 +11,6 @@ internal class Program
         Console.OutputEncoding = Encoding.UTF8;
         Console.InputEncoding = Encoding.UTF8;
 
-        // Optional: also set codepage explicitly (helps in cmd.exe)
-        //if (OperatingSystem.IsWindows())
-        //{
-        //    Console.Write("\x1b[?25h"); // show cursor (optional)
-        //                                // Force cmd.exe / PowerShell to UTF-8 mode
-        //    System.Diagnostics.Process.Start(new ProcessStartInfo
-        //    {
-        //        FileName = "chcp",
-        //        Arguments = "65001",
-        //        UseShellExecute = false,
-        //        CreateNoWindow = true
-        //    })?.WaitForExit();
-        //}
-
         Console.Clear();
         Console.WriteLine("yt-dlp .NET Wrapper v2.0 Demo Console App");
         Console.WriteLine("----------------------------------------");
@@ -34,17 +20,18 @@ internal class Program
         ytdlp.SetFFmpegLocation($"tools");
 
         // Run all demos/tests sequentially
-        // await TestGetVersionAsync(ytdlp);
-        //await TestGetFormatsAsync(ytdlp);
-        //await TestGetFormatsDetailedAsync(ytdlp);
-        //await TestGetMetadataAsync(ytdlp);
-        await TestGetSimpleMetadataAsync(ytdlp);
+        await TestGetVersionAsync(ytdlp);
+       // await TestGetFormatsAsync(ytdlp);
+        await TestGetFormatsDetailedAsync(ytdlp);
+        await TestGetMetadataAsync(ytdlp);
+        //await TestGetSimpleMetadataAsync(ytdlp);
         //await TestDownloadVideoAsync(ytdlp);
         //await TestDownloadAudioAsync(ytdlp);
         // await TestBatchDownloadAsync(ytdlp);
         // await TestSponsorBlockAsync(ytdlp);
         // await TestConcurrentFragmentsAsync(ytdlp);
         // await TestCancellationAsync(ytdlp);
+        //await TestGetTitleAsync(ytdlp);
 
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");
@@ -112,7 +99,7 @@ internal class Program
         var stopwatch = Stopwatch.StartNew();
 
         Console.WriteLine("\nTest 3: Fetching detailed formats...");
-        var url = "https://www.youtube.com/watch?v=Xt50Sodg7sA";
+        var url = "https://www.youtube.com/watch?v=cbGywxIH4mI";
         var formats = await ytdlp.GetFormatsDetailedAsync(url);
 
         stopwatch.Stop(); // stop timer
@@ -142,7 +129,7 @@ internal class Program
 
         Console.WriteLine("\nTest 4: Fetching detailed metedata...");
 
-        var url = "https://www.youtube.com/watch?v=Xt50Sodg7sA";
+        var url = "https://www.youtube.com/watch?v=cbGywxIH4mI";
         var metadata = await ytdlp.GetVideoMetadataJsonAsync(url);
 
         stopwatch.Stop(); // stop timer
@@ -302,8 +289,30 @@ internal class Program
         {
             Console.WriteLine("Download cancelled successfully.");
         }
-    }      
+    }
 
+    // Test 12: Get Title Test
+    private static async Task TestGetTitleAsync(Ytdlp ytdlp)
+    {
+        Console.WriteLine("\nTest 12: Get Title Test");
+        var url = "https://www.youtube.com/watch?v=cbGywxIH4mI";
+
+        try
+        {
+            var downloadTask = ytdlp
+                .AddCustomCommand("-e")
+                .AddCustomCommand("--no-simulate --no-warning")
+                .SetOutputTemplate("%(title)s.%(ext)s")
+                .SetOutputFolder("./downloads/cancel")
+                .ExecuteAsync(url);
+                   
+            await downloadTask;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
 
     // Helper to format seconds into mm:ss or hh:mm:ss
     private static void PrintFormats(string title, List<FormatMetadata>? formats)

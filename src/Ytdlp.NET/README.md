@@ -42,6 +42,34 @@ To use this:
 - Improved cancellation handling
 - Better progress parsing and event system
 
+### Thread Safety & Disposal
+
+- **Ytdlp is not thread-safe**  
+  Do **not** use the same instance from multiple threads or concurrent tasks.  
+  Always create a fresh instance per download operation when running in parallel.
+
+  **Safe example (concurrent batch)**:
+  ```csharp
+  var tasks = urls.Select(async url =>
+  {
+      var y = new Ytdlp(); // new instance per task
+      await y.SetFormat("best").ExecuteAsync(url);
+  });
+  await Task.WhenAll(tasks);
+  ```
+
+  **Unsafe (will cause race conditions)**:
+  ```csharp
+  var y = new Ytdlp(); // shared instance
+  var tasks = urls.Select(u => y.SetFormat("best").ExecuteAsync(u));
+  await Task.WhenAll(tasks);
+  ```
+
+- **Ytdlp is not thread-safe**  
+  In v2.0 the class does not implement IDisposable.
+  Internal resources (e.g. child processes) are cleaned up automatically when the instance is garbage-collected.
+  Proper Dispose support and an immutable builder pattern (for safe reuse) are planned for later.
+
 ### Fetching Video Metadata
 
 ```csharp
@@ -289,6 +317,12 @@ public class ConsoleLogger : ILogger
     }
 }
 ```
+
+### Future versions 
+- `IDisposable` with process cleanup
+- `YtdlpBuilder` for immutable instances
+- Persistent process pool for speed
+- IAsyncDisposable for async cleanup
 
 ## 🤝 Contributing
 
