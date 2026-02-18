@@ -359,7 +359,3 @@ Contributions are welcome! Please submit issues or pull requests to the [GitHub 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](https://github.com/manusoft/yt-dlp-wrapper/blob/master/LICENSE.txt) file for details.
-
-## License
-
-This library is licensed under the MIT License. See LICENSE for more information.
