@@ -1298,7 +1298,10 @@ public sealed class Ytdlp
         string template = Path.Combine(_outputFolder, _outputTemplate.Replace("\\", "/"));
 
         // Build command with format and output template
-        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" \"{SanitizeInput(url)}\"";
+        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" {SanitizeInput(url)}";
+
+        _logger.Log(LogType.Info, arguments);
+
         _commandBuilder.Clear(); // Clear after building arguments
 
         await RunYtdlpAsync(arguments, cancellationToken);
@@ -1473,7 +1476,7 @@ public sealed class Ytdlp
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true,
+            CreateNoWindow = true,            
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
@@ -1498,8 +1501,12 @@ public sealed class Ytdlp
     {
         if (string.IsNullOrEmpty(input))
             return input;
-        // Escape quotes and other potentially dangerous characters
-        return input.Replace("\"", "\\\"").Replace("`", "\\`");
+
+        // escape internal quotes
+        input = input.Replace("\"", "\\\"");
+
+        // wrap with quotes (CRITICAL for paths with spaces)
+        return $"\"{input}\"";
     }
 
     private static double? ParseDouble(string? value)

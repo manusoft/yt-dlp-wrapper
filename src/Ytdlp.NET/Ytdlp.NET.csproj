@@ -7,7 +7,7 @@
 	<PackageId>Ytdlp.NET</PackageId>
 	<AssemblyName>Ytdlp.NET</AssemblyName>
 	<RootNamespace>YtdlpNET</RootNamespace>
-	<Version>2.0.0</Version>
+	<Version>2.0.1</Version>
 	<AssemblyVersion>2.0.0.0</AssemblyVersion>
 	<FileVersion>2.0.0.0</FileVersion>
 	<Authors>ManuHub Manojbabu</Authors>
