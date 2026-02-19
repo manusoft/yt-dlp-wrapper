@@ -22,10 +22,10 @@ internal class Program
         // Run all demos/tests sequentially
         await TestGetVersionAsync(ytdlp);
        // await TestGetFormatsAsync(ytdlp);
-        await TestGetFormatsDetailedAsync(ytdlp);
-        await TestGetMetadataAsync(ytdlp);
+        //await TestGetFormatsDetailedAsync(ytdlp);
+        //await TestGetMetadataAsync(ytdlp);
         //await TestGetSimpleMetadataAsync(ytdlp);
-        //await TestDownloadVideoAsync(ytdlp);
+        await TestDownloadVideoAsync(ytdlp);
         //await TestDownloadAudioAsync(ytdlp);
         // await TestBatchDownloadAsync(ytdlp);
         // await TestSponsorBlockAsync(ytdlp);
@@ -188,7 +188,7 @@ internal class Program
     private static async Task TestDownloadVideoAsync(Ytdlp ytdlp)
     {
         Console.WriteLine("\nTest 6: Downloading a video...");
-        var url = "https://www.youtube.com/watch?v=Xt50Sodg7sA";
+        var url = "https://www.youtube.com/watch?v=OOdEdZ5lYQc";
 
         // Subscribe to events
         ytdlp.OnProgressDownload += (sender, args) =>
