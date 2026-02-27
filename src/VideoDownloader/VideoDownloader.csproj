@@ -9,7 +9,7 @@
     <ProductName>Video Downloader</ProductName>
     <Title>Video Downlaoder</Title>
 	<Version>2.0.0</Version>
-    <ApplicationIcon>iconvideo (Custom).ico</ApplicationIcon>
+    <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +18,7 @@
     <PackageReference Include="ManuHub.FFprobe" Version="6.2.25-preview.1" />
     <PackageReference Include="ManuHub.Ytdlp" Version="6.2.21-preview.3" />
     <PackageReference Include="Microsoft-Windows10-APICodePack-ShellExtensions" Version="1.1.8" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>

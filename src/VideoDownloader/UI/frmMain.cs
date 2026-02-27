@@ -1,272 +1,113 @@
-using Microsoft.WindowsAPICodePack.Taskbar;
-using System.Reflection;
 using VideoDownloader.Core;
+using VideoDownloader.Models;
 using VideoDownloader.UI;
-using YtdlpNET;
 
 namespace VideoDownloader;
 
 public partial class frmMain : Form
 {
-    private const string YTDLP_PATH = @".\Tools\yt-dlp.exe";
-    private const string FFMPEG_PATH = @".\Tools\ffmpeg.exe";
-
-    private const string DefaultOutputTemplate =
-        "%(upload_date>%Y-%m-%d)s - %(title).90s [%(resolution)s].%(ext)s";
-
-    private readonly string _downloadPath =
-        Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-
-    private readonly AppLogger _logger = new();
-
-    private YtdlpService _service = null!;
-    private readonly DownloadSession _session = new();
-
+    private readonly DownloadManager _manager = new();
+    private readonly Dictionary<Guid, ListViewItem> _rows = new();
 
     public frmMain()
     {
         InitializeComponent();
-        textOutput.Text = _downloadPath;
+
+        Text = "Video Downloader Ultimate";
+
+        CreateToolbar();
+
+        _manager.Updated += RefreshUI;
     }
 
-    private async void frmMain_Load(object sender, EventArgs e)
+    protected override void OnLoad(EventArgs e)
     {
-        _service = new YtdlpService(YTDLP_PATH, _logger);
-
-        _service.Progress += OnProgress;
-        _service.Log += AppendDetail;
-        _service.Error += OnError;
-        _service.Completed += OnCompleted;
-        _service.MergeCompleted += OnMergeCompleted;
-
-        var version = await _service.GetVersionAsync();
-        UpdateStatus($"Engine ready ({version})");
+        base.OnLoad(e);
+        DarkTheme.Apply(this);
     }
 
-    //---------------------------------------------
-    // Analyze
-    //---------------------------------------------
-
-    private async void btnAnalyze_Click(object sender, EventArgs e)
+    private void CreateToolbar()
     {
-        if (string.IsNullOrWhiteSpace(textUrl.Text))
+        var panel = new Panel
         {
-            ShowError("Enter URL");
-            return;
-        }
+            Dock = DockStyle.Top,
+            Height = 40
+        };
 
-        SetAnalyzeState(true);
-
-        var formats = await _service.GetFormatsAsync(textUrl.Text);
-        UpdateQuality(formats);
-
-        SetAnalyzeState(false);
-    }
-
-    private void SetAnalyzeState(bool state)
-    {
-        UIThread.Run(progressDownload, () =>
+        var txt = new TextBox
         {
-            progressDownload.Style = state
-                ? ProgressBarStyle.Marquee
-                : ProgressBarStyle.Blocks;
+            Name = "txtUrl",
+            Width = 500,
+            Left = 10,
+            Top = 8
+        };
 
-            TaskbarManager.Instance.SetProgressState(
-                state
-                    ? TaskbarProgressBarState.Indeterminate
-                    : TaskbarProgressBarState.NoProgress);
-        });
-    }
-
-    private void UpdateQuality(List<Format> formats)
-    {
-        UIThread.Run(comboQuality, () =>
+        var btn = new Button
         {
-            comboQuality.Format -= ComboQuality_Format;
-            comboQuality.Format += ComboQuality_Format;
+            Text = "Add",
+            Left = 520,
+            Width = 80,
+            Top = 6
+        };
 
-            comboQuality.DataSource = formats
-                .Where(f => !f.IsStoryboard)
-                .ToList();
+        btn.Click += (_, __) =>
+        {
+            AddDownload(txt.Text);
+            txt.Clear();
+        };
 
-            comboQuality.ValueMember = "Id";
-        });
+        panel.Controls.Add(txt);
+        panel.Controls.Add(btn);
+
+        Controls.Add(panel);
     }
 
-    private void ComboQuality_Format(object? sender, ListControlConvertEventArgs e)
+    private void AddDownload(string url)
     {
-        if (e.ListItem is not Format f)
+        if (string.IsNullOrWhiteSpace(url))
             return;
 
-        if (f.IsVideo)
-            e.Value = $"{f.Height}p • {f.Extension}";
-        else
-            e.Value = $"Audio • {f.Extension}";
-    }
-
-    //---------------------------------------------
-    // Download
-    //---------------------------------------------
-
-    private async void buttonDownload_Click(object sender, EventArgs e)
-    {
-        if (comboQuality.SelectedItem is not Format format)
+        var task = new DownloadTask
         {
-            ShowError("Select quality");
-            return;
-        }
+            Url = url,
+            OutputFolder = App.AppSettings.OutputFolder,
+            Title = url
+        };
 
-        string fmt = format.IsVideo
-            ? $"{format.Id}+bestaudio"
-            : format.Id;
+        // create a row in ListView
+        var row = new ListViewItem(""); // thumbnail placeholder
+        row.SubItems.Add(task.Title);
+        row.SubItems.Add(""); // progress column, owner-drawn
+        row.SubItems.Add(""); // speed
+        row.SubItems.Add(""); // ETA
+        row.SubItems.Add("Queued"); // state
 
-        DisableControls();
+        row.Tag = task;
+ 
+        _rows[task.Id] = row;
+        listViewDowloads.Items.Add(row);
 
-        await _service.DownloadAsync(
-            textUrl.Text,
-            fmt,
-            textOutput.Text,
-            FFMPEG_PATH,
-            DefaultOutputTemplate);
+        // enqueue download
+        _manager.Enqueue(task);
     }
 
-    //---------------------------------------------
-    // Events from service
-    //---------------------------------------------
-
-    private void OnProgress(DownloadProgressEventArgs e)
+    private void RefreshUI()
     {
-        if ((DateTime.Now - _session.LastProgressUpdate).TotalMilliseconds < 120)
-            return;
-
-        _session.LastProgressUpdate = DateTime.Now;
-
-        int p = (int)e.Percent;
-
-        UIThread.Run(progressDownload, () =>
+        UIThread.Run(listViewDowloads, () =>
         {
-            progressDownload.Value = p;
-            TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
-            TaskbarManager.Instance.SetProgressValue(p, 100);
-        });
-
-        UpdateStatus("Downloading", p, e.Size, e.Speed, e.ETA);
-    }
-
-    private void OnCompleted()
-    {
-        UpdateStatus("Download completed");
-        progressDownload.Value = 0;
-    }
-
-    private void OnMergeCompleted()
-    {
-        EnableControls();
-        UpdateStatus("Merging completed");
-
-        if (checkAutoClose.Checked && !_session.HasError)
-            Close();
-    }
-
-    private void OnError(string msg)
-    {
-        _session.HasError = true;
-        AppendDetail(msg);
-        EnableControls();
-        UpdateStatus("Error");
-    }
-
-    //---------------------------------------------
-    // UI helpers
-    //---------------------------------------------
-
-    private void AppendDetail(string text)
-    {
-        UIThread.Run(textDetail, () =>
-        {
-            textDetail.AppendText(text + Environment.NewLine);
-        });
-    }
-
-    private void UpdateStatus(
-        string status,
-        int progress = 0,
-        string size = "",
-        string speed = "",
-        string eta = "")
-    {
-        UIThread.Run(this, () =>
-        {
-            toolStripLabelStatus.Text = status;
-            toolStripLabelProgress.Text = progress == 0 ? "" : $"{progress}%";
-            toolStripLabelSize.Text = size;
-            toolStripLabelSpeed.Text = speed;
-            toolStripLabelETA.Text = eta;
-        });
-    }
-
-    private void DisableControls()
-    {
-        UIThread.Run(this, () =>
-        {
-            buttonDownload.Enabled = false;
-            comboQuality.Enabled = false;
-            textUrl.Enabled = false;
-            textOutput.Enabled = false;
-        });
-    }
-
-    private void EnableControls()
-    {
-        UIThread.Run(this, () =>
-        {
-            buttonDownload.Enabled = true;
-            comboQuality.Enabled = true;
-            textUrl.Enabled = true;
-            textOutput.Enabled = true;
-        });
-    }
-
-    private void ShowError(string message)
-    {
-        MessageBox.Show(message, "Error",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Error);
-    }
-         
-
-    private void buttonBrowseFolder_Click(object sender, EventArgs e)
-    {
-        try
-        {
-            using var folderBrowserDialog = new FolderBrowserDialog
+            foreach (ListViewItem item in listViewDowloads.Items)
             {
-                Description = "Select the folder to save the video",
-                ShowNewFolderButton = true
-            };
-            if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-            {
-                textOutput.Text = folderBrowserDialog.SelectedPath;
+                if (item.Tag is not DownloadTask task)
+                    continue;
+
+                item.SubItems[2].Text = task.Progress.ToString();
+                item.SubItems[3].Text = task.Speed;
+                item.SubItems[4].Text = task.ETA;
+                item.SubItems[5].Text = task.State.ToString();
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Folder selection error: {ex.Message}");
-            ShowError($"Failed to select folder: {ex.Message}");
-        }
-    }
 
-    public string[] GetVersion()
-    {
-        try
-        {
-            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
-            return version?.Split('.') ?? new[] { "1", "7", "0" };
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Failed to get application version: {ex.Message}");
-            return new[] { "1", "8", "0" };
-        }
+            // trigger owner-draw redraw
+            listViewDowloads.Refresh();
+        });
     }
 }
