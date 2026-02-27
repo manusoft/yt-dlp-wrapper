@@ -6,11 +6,16 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ProductName>Video Downloader</ProductName>
-    <Title>Video Downlaoder</Title>
-	<Version>2.0.0</Version>
-    <ApplicationIcon>iconvideo (Custom).ico</ApplicationIcon>
+    <ProductName>ClipMate Lite</ProductName>
+	<AssemblyName>ClipMateLite</AssemblyName>
+    <Title>ClipMate Lite</Title>
+	<Version>2.1.0</Version>
+    <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\icon.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ManuHub.Deno" Version="2.7.1-preview.1" />

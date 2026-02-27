@@ -235,7 +235,7 @@
             MaximizeBox = false;
             MinimumSize = new Size(700, 450);
             Name = "frmMain";
-            Text = "Video Downloader v0.0.0 - Manuhub ";
+            Text = "ClipMate Lite v2.0 - Manuhub ";
             Load += frmMain_Load;
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();

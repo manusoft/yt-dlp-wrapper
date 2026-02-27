@@ -60,14 +60,21 @@ public sealed class YtdlpService
         string ffmpeg,
         string outputTemplate)
     {
-        await _ytdlp
-            .SetFormat(format)
-            .SetOutputFolder(outputFolder)
-            .SetFFmpegLocation(ffmpeg)
-            .SetOutputTemplate(outputTemplate)
-            .AddCustomCommand("--newline")
-            .AddCustomCommand("--windows-filenames")
-            .AddCustomCommand("--no-playlist")
-            .ExecuteAsync(url);
+        try
+        {
+            await _ytdlp
+           .SetFormat(format)
+           .SetOutputFolder(outputFolder)
+           .SetFFmpegLocation(ffmpeg)
+           .SetOutputTemplate(outputTemplate)
+           .AddCustomCommand("--newline")
+           .AddCustomCommand("--windows-filenames")
+           .AddCustomCommand("--no-playlist")
+           .ExecuteAsync(url);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message);
+        }
     }
 }

@@ -1,4 +1,4 @@
-namespace VideoDownloader
+namespace VideoDownloader.App
 {
     internal static class Program
     {
