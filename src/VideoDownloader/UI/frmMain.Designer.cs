@@ -44,6 +44,10 @@
             buttonBrowseFolder = new Button();
             folderBrowserDialog1 = new FolderBrowserDialog();
             checkAutoClose = new CheckBox();
+            btnAnalize = new Button();
+            lblUrl = new Label();
+            lblOutput = new Label();
+            lblQuality = new Label();
             statusStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -51,20 +55,19 @@
             // 
             textUrl.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textUrl.Font = new Font("Segoe UI", 12F);
-            textUrl.Location = new Point(12, 12);
+            textUrl.Location = new Point(75, 12);
             textUrl.Name = "textUrl";
             textUrl.PlaceholderText = "Enter video URL here ...";
-            textUrl.Size = new Size(660, 29);
+            textUrl.Size = new Size(721, 29);
             textUrl.TabIndex = 1;
-            textUrl.TextChanged += textUrl_TextChanged;
             // 
             // textOutput
             // 
             textOutput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             textOutput.Font = new Font("Segoe UI", 12F);
-            textOutput.Location = new Point(12, 47);
+            textOutput.Location = new Point(75, 47);
             textOutput.Name = "textOutput";
-            textOutput.Size = new Size(618, 29);
+            textOutput.Size = new Size(721, 29);
             textOutput.TabIndex = 2;
             textOutput.Text = "C:\\downloads";
             // 
@@ -74,27 +77,27 @@
             comboQuality.DropDownStyle = ComboBoxStyle.DropDownList;
             comboQuality.Font = new Font("Segoe UI", 12F);
             comboQuality.FormattingEnabled = true;
-            comboQuality.Location = new Point(12, 81);
+            comboQuality.Location = new Point(75, 82);
             comboQuality.Name = "comboQuality";
-            comboQuality.Size = new Size(401, 29);
+            comboQuality.Size = new Size(256, 29);
             comboQuality.TabIndex = 3;
             // 
             // textDetail
             // 
             textDetail.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textDetail.BackColor = SystemColors.Window;
-            textDetail.Location = new Point(12, 138);
+            textDetail.Location = new Point(12, 148);
             textDetail.Multiline = true;
             textDetail.Name = "textDetail";
             textDetail.ReadOnly = true;
             textDetail.ScrollBars = ScrollBars.Vertical;
-            textDetail.Size = new Size(660, 292);
+            textDetail.Size = new Size(826, 386);
             textDetail.TabIndex = 4;
             // 
             // buttonDownload
             // 
             buttonDownload.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            buttonDownload.Location = new Point(571, 82);
+            buttonDownload.Location = new Point(737, 82);
             buttonDownload.Name = "buttonDownload";
             buttonDownload.Size = new Size(101, 29);
             buttonDownload.TabIndex = 5;
@@ -107,23 +110,23 @@
             progressDownload.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             progressDownload.Location = new Point(12, 117);
             progressDownload.Name = "progressDownload";
-            progressDownload.Size = new Size(660, 15);
+            progressDownload.Size = new Size(826, 19);
             progressDownload.TabIndex = 6;
             // 
             // statusStrip1
             // 
             statusStrip1.Font = new Font("Segoe UI", 9.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
             statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripLabelStatus, toolStripLabelProgress, toolStripLabelSize, toolStripLabelSpeed, toolStripLabelETA });
-            statusStrip1.Location = new Point(0, 439);
+            statusStrip1.Location = new Point(0, 543);
             statusStrip1.Name = "statusStrip1";
-            statusStrip1.Size = new Size(684, 22);
+            statusStrip1.Size = new Size(850, 22);
             statusStrip1.TabIndex = 7;
             statusStrip1.Text = "statusStrip1";
             // 
             // toolStripLabelStatus
             // 
             toolStripLabelStatus.Name = "toolStripLabelStatus";
-            toolStripLabelStatus.Size = new Size(669, 17);
+            toolStripLabelStatus.Size = new Size(835, 17);
             toolStripLabelStatus.Spring = true;
             toolStripLabelStatus.TextAlign = ContentAlignment.MiddleLeft;
             // 
@@ -150,30 +153,73 @@
             // buttonBrowseFolder
             // 
             buttonBrowseFolder.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            buttonBrowseFolder.Location = new Point(636, 47);
+            buttonBrowseFolder.Image = Properties.Resources.folder_24;
+            buttonBrowseFolder.Location = new Point(802, 47);
             buttonBrowseFolder.Name = "buttonBrowseFolder";
             buttonBrowseFolder.Size = new Size(36, 29);
             buttonBrowseFolder.TabIndex = 8;
-            buttonBrowseFolder.Text = "...";
             buttonBrowseFolder.UseVisualStyleBackColor = true;
             buttonBrowseFolder.Click += buttonBrowseFolder_Click;
             // 
             // checkAutoClose
             // 
             checkAutoClose.AutoSize = true;
-            checkAutoClose.Location = new Point(419, 85);
+            checkAutoClose.Location = new Point(585, 85);
             checkAutoClose.Name = "checkAutoClose";
             checkAutoClose.Size = new Size(146, 23);
             checkAutoClose.TabIndex = 11;
             checkAutoClose.Text = "Close automatically";
             checkAutoClose.UseVisualStyleBackColor = true;
             // 
+            // btnAnalize
+            // 
+            btnAnalize.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            btnAnalize.Image = Properties.Resources.search_24;
+            btnAnalize.Location = new Point(802, 12);
+            btnAnalize.Name = "btnAnalize";
+            btnAnalize.Size = new Size(36, 29);
+            btnAnalize.TabIndex = 12;
+            btnAnalize.UseVisualStyleBackColor = true;
+            btnAnalize.Click += btnAnalyze_Click;
+            // 
+            // lblUrl
+            // 
+            lblUrl.AutoSize = true;
+            lblUrl.Location = new Point(12, 18);
+            lblUrl.Name = "lblUrl";
+            lblUrl.Size = new Size(37, 19);
+            lblUrl.TabIndex = 13;
+            lblUrl.Text = "URL:";
+            // 
+            // lblOutput
+            // 
+            lblOutput.AutoSize = true;
+            lblOutput.Location = new Point(12, 53);
+            lblOutput.Name = "lblOutput";
+            lblOutput.Size = new Size(57, 19);
+            lblOutput.TabIndex = 14;
+            lblOutput.Text = "Output:";
+            // 
+            // lblQuality
+            // 
+            lblQuality.AutoSize = true;
+            lblQuality.Font = new Font("Segoe UI", 10F);
+            lblQuality.Location = new Point(12, 88);
+            lblQuality.Name = "lblQuality";
+            lblQuality.Size = new Size(56, 19);
+            lblQuality.TabIndex = 15;
+            lblQuality.Text = "Quality:";
+            // 
             // frmMain
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.Window;
-            ClientSize = new Size(684, 461);
+            ClientSize = new Size(850, 565);
+            Controls.Add(lblQuality);
+            Controls.Add(lblOutput);
+            Controls.Add(lblUrl);
+            Controls.Add(btnAnalize);
             Controls.Add(checkAutoClose);
             Controls.Add(buttonBrowseFolder);
             Controls.Add(statusStrip1);
@@ -213,5 +259,9 @@
         private Button buttonBrowseFolder;
         private FolderBrowserDialog folderBrowserDialog1;
         private CheckBox checkAutoClose;
+        private Button btnAnalize;
+        private Label lblUrl;
+        private Label lblOutput;
+        private Label lblQuality;
     }
 }
