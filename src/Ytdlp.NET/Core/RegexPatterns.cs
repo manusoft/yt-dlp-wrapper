@@ -32,4 +32,8 @@ public static class RegexPatterns
     public static string FFmpegAction = @"\[ffmpeg\] (?<action>.*)";
     public static string PostProcessGeneric = @"\[postprocess\] (?<action>.*)";
     public static string PlaylistItem = @"\[download\] Downloading playlist item (?<item>\d+)/(?<total>\d+): (?<playlist>.*)";
+    public static string ConcurrentFragmentDownloaded = @"\[download\]\s*Downloaded fragment\s*(?<frag>\d+)\s*(?:of\s*(?<total>\d+))?";
+
+    public static string WarningLine = @"\[warning\]\s*(?<message>.+)";
+    public static string DebugLine = @"\[debug\]\s*(?<message>.+)";
 }

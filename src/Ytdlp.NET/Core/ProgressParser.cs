@@ -74,6 +74,7 @@ public sealed class ProgressParser
         }
         HandleUnknownOutput(output);
     }
+
     public void Reset()
     {
         _isDownloadCompleted = false;
@@ -82,35 +83,42 @@ public sealed class ProgressParser
         _deleteCount = 0;
         _logger.Log(LogType.Info, "Progress parser state reset.");
     }
+
     // ───────────── Event Handlers (existing + improved) ─────────────
     #region Event Handlers
     private void HandleExtractingUrl(Match match) => LogAndNotify(LogType.Info, $"Extracting URL: {match.Groups["url"].Value}");
+
     private void HandleDownloadingWebpage(Match match)
     {
         var id = match.Groups["id"].Value;
         var type = match.Groups["type"].Value;
         LogAndNotify(LogType.Info, $"Downloading {type} webpage for {id}");
     }
+
     private void HandleDownloadingJson(Match match)
     {
         string id = match.Groups["id"].Value;
         string type = match.Groups["type"].Value;
         LogAndNotify(LogType.Info, $"Downloading {type} player API JSON for video ID: {id}");
     }
+
     private void HandleDownloadingTvClientConfig(Match match)
     {
         string id = match.Groups["id"].Value;
         LogAndNotify(LogType.Info, $"Downloading tv client config for video ID: {id}");
     }
+
     private void HandleDownloadingM3u8(Match match)
     {
         string id = match.Groups["id"].Value;
         LogAndNotify(LogType.Info, $"Downloading m3u8 information for video ID: {id}");
     }
+
     private void HandleDownloadingManifest(Match match)
     {
         LogAndNotify(LogType.Info, "Downloading manifest");
     }
+
     private void HandleTotalFragments(Match match)
     {
         string fragments = match.Groups["fragments"].Value;
@@ -121,28 +129,33 @@ public sealed class ProgressParser
         string format = match.Groups["format"].Value;
         LogAndNotify(LogType.Info, $"Testing format {format}");
     }
+
     private void HandleDownloadingFormat(Match match)
     {
         string format = match.Groups["format"].Value;
         string id = match.Groups["id"].Value;
         LogAndNotify(LogType.Info, $"Downloading format {format} for video ID: {id}");
     }
+
     private void HandleDownloadingThumbnail(Match match)
     {
         string number = match.Groups["number"].Value;
         LogAndNotify(LogType.Info, $"Downloading video thumbnail {number}");
     }
+
     private void HandleWritingThumbnail(Match match)
     {
         string number = match.Groups["number"].Value;
         string path = match.Groups["path"].Value;
         LogAndNotify(LogType.Info, $"Writing video thumbnail {number} to: {path}");
     }
+
     private void HandleDownloadDestination(Match match)
     {
         string path = match.Groups["path"].Value;
         LogAndNotify(LogType.Info, $"Download destination: {path}");
     }
+
     private void HandleResumeDownload(Match match)
     {
         string bytePosition = match.Groups["byte"].Value;
@@ -150,6 +163,7 @@ public sealed class ProgressParser
         LogAndNotify(LogType.Info, message);
         OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs { Message = message });
     }
+
     private void HandleDownloadProgress(Match match)
     {
         // Existing logic unchanged
@@ -169,6 +183,7 @@ public sealed class ProgressParser
         LogAndNotify(LogType.Info, args.Message);
         OnProgressDownload?.Invoke(this, args);
     }
+
     private void HandleDownloadProgressWithFrag(Match match)
     {
         // Existing + prevent premature complete if fragments remain
@@ -196,6 +211,7 @@ public sealed class ProgressParser
         LogAndNotify(LogType.Info, args.Message);
         OnProgressDownload?.Invoke(this, args);
     }
+
     private void HandleDownloadProgressComplete(Match match)
     {
         if (_isDownloadCompleted) return;
@@ -203,6 +219,7 @@ public sealed class ProgressParser
         var message = $"Download finished: {match.Groups["percent"].Value} of {match.Groups["size"].Value}";
         LogAndNotifyComplete(message);
     }
+
     private void HandleDownloadAlreadyCompleted(Match match)
     {
         string path = match.Groups["path"].Value;
@@ -210,10 +227,12 @@ public sealed class ProgressParser
         LogAndNotify(LogType.Info, message);
         OnProgressDownload?.Invoke(this, new DownloadProgressEventArgs { Message = message });
     }
+
     private void HandleUnknownError(Match match)
     {
         LogAndNotify(LogType.Error, $"Unknown error: {match.Value}");
     }
+
     private void HandleMergingFormats(Match match)
     {
         var path = match.Groups["path"].Value;
@@ -222,6 +241,7 @@ public sealed class ProgressParser
         _deleteCount = 0;
         LogAndNotify(LogType.Info, $"Starting merge → {path}");
     }
+
     private void HandleMergingComplete(Match match)
     {
         if (_isMerging)
@@ -245,21 +265,25 @@ public sealed class ProgressParser
             OnPostProcessingComplete?.Invoke(this, match.Value);
         }
     }
+
     private void HandleExtractingMetadata(Match match)
     {
         string id = match.Groups["id"].Value;
         LogAndNotify(LogType.Info, $"Extracting metadata for video ID: {id}");
     }
+
     private void HandleSpecificError(Match match)
     {
         string error = match.Groups["error"].Value;
         LogAndNotify(LogType.Error, $"Error: {error}");
     }
+
     private void HandleDownloadingSubtitles(Match match)
     {
         string language = match.Groups["language"].Value;
         LogAndNotify(LogType.Info, $"Downloading subtitles for language: {language}");
     }
+
     // ───────────── v2.0 Enhanced Post-Processing Detection ─────────────
     private void HandlePostProcessingStep(Match match)
     {
@@ -288,12 +312,15 @@ public sealed class ProgressParser
             _logger.Log(LogType.Info, "Reliably triggered OnPostProcessingComplete");
         }
     }
+
+
     private void HandleGenericPostProcess(Match match)
     {
         var action = match.Groups["action"].Value.Trim();
         LogAndNotify(LogType.Info, $"Post-process: {action}");
         _postProcessStepCount++;
     }
+
     // ───────────── New Handlers for modern features ─────────────
     private void HandleSponsorBlock(Match match)
     {
@@ -301,22 +328,26 @@ public sealed class ProgressParser
         var details = match.Groups["details"].Success ? match.Groups["details"].Value.Trim() : "";
         LogAndNotify(LogType.Info, $"SponsorBlock {action}{(string.IsNullOrEmpty(details) ? "" : $": {details}")}");
     }
+
     private void HandleConcurrentFragment(Match match)
     {
         var frag = match.Groups["frag"].Value;
         LogAndNotify(LogType.Info, $"Concurrent fragment processing: {frag}");
     }
+
     private void HandleSubtitleConversion(Match match)
     {
         var file = match.Groups["file"].Value.Trim();
         var format = match.Groups["format"].Value.Trim();
         LogAndNotify(LogType.Info, $"Converting subtitle → {file} to {format}");
     }
+
     private void HandleFFmpegPostProcess(Match match)
     {
         var action = match.Groups["action"].Value.Trim();
         LogAndNotify(LogType.Info, $"FFmpeg: {action}");
     }
+
     private void HandleUnknownOutput(string output)
     {
         var lower = output.ToLowerInvariant().Trim();
@@ -331,9 +362,12 @@ public sealed class ProgressParser
         var message = $"[{category}] {output}";
         LogAndNotify(logType, message);
     }
+
     #endregion
+
     // ───────────── Helpers (unchanged except minor polish) ─────────────
     #region helpers
+
     private void LogAndNotify(LogType logType, string message)
     {
         _logger.Log(logType, message);
@@ -342,12 +376,15 @@ public sealed class ProgressParser
         else
             OnProgressMessage?.Invoke(this, message);
     }
+
     private void LogAndNotifyComplete(string message)
     {
         _logger.Log(LogType.Info, message);
         OnCompleteDownload?.Invoke(this, message);
     }
+
     #endregion
+
     // ───────────── Events (unchanged) ─────────────
     #region Events
     public event EventHandler<string>? OnOutputMessage;
