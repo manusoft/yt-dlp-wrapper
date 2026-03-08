@@ -2,6 +2,7 @@
 
 namespace YtdlpNET;
 
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 public class Metadata
 {
     [JsonPropertyName("id")]

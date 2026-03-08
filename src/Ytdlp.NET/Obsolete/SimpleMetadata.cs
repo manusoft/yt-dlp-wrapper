@@ -4,6 +4,7 @@
 /// Lightweight metadata model returned by GetSimpleMetadataAsync.
 /// Contains only the most commonly used fields, fetched in a single fast yt-dlp call.
 /// </summary>
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 public class SimpleMetadata
 {
     /// <summary>

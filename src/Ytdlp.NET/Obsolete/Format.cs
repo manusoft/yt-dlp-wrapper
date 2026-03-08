@@ -7,6 +7,7 @@ namespace YtdlpNET;
 /// Represents a single format available for a video/audio from yt-dlp's -F (--list-formats) output.
 /// Enriched for v2.0 with more parsed fields from the format table.
 /// </summary>
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 public sealed class Format
 {
     // Core identifiers

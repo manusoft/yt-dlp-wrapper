@@ -1,5 +1,6 @@
 ﻿namespace YtdlpNET;
 
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 internal static class RegexPatterns
 {
     // ───────────── Core / Existing Patterns (unchanged) ─────────────

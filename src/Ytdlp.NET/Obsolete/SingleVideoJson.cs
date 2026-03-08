@@ -4,6 +4,7 @@ namespace YtdlpNET;
 
 // Supporing class for single
 
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 public class SingleVideoJson
 {
     [JsonPropertyName("id")]
@@ -16,6 +17,7 @@ public class SingleVideoJson
     public List<FormatJson>? Formats { get; set; }
 }
 
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 public class FormatJson
 {
     [JsonPropertyName("format_id")] public string? FormatId { get; set; }

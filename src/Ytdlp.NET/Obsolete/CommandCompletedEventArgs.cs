@@ -1,5 +1,6 @@
 ﻿namespace YtdlpNET;
 
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 public class CommandCompletedEventArgs : EventArgs
 {
     public bool Success { get; }

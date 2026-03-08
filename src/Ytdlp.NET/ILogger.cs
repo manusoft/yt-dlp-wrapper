@@ -1,5 +1,4 @@
-﻿namespace YtdlpNET;
-
+﻿namespace ManuHub.Ytdlp;
 
 public interface ILogger
 {

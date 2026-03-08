@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ytdlp.NET.Test
+namespace ManuHub.Ytdlp.Core
 {
-    internal class ProgressParserTests
+    internal class Sanitize
     {
     }
 }

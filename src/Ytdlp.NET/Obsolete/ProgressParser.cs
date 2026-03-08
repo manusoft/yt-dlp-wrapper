@@ -2,6 +2,7 @@
 
 namespace YtdlpNET;
 
+[Obsolete("This class is no longer used and will be removed in a future version.")]
 public sealed class ProgressParser
 {
     private readonly Dictionary<Regex, Action<Match>> _regexHandlers;
