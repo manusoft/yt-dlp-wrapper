@@ -13,8 +13,9 @@ internal class Program
         Console.WriteLine("yt-dlp .NET Wrapper v2.0 Demo Console App");
         Console.WriteLine("----------------------------------------");
 
+        var ytdlpPath = $"tools\\yt-dlp.exe";
         var consoleLogger = new ConsoleLogger();
-        var builder = Ytdlp.Create($"tools\\yt-dlp.exe", consoleLogger);
+        var builder = Ytdlp.Create(ytdlpPath, consoleLogger);
         //var command = builder.WithFormat("b").Build();
         //await command.ExecuteAsync("https://www.youtube.com/watch?v=bkst470K_n4");
 
@@ -41,11 +42,27 @@ internal class Program
         //string? bestAudio = await YtdlpProbe.GetBestAudioFormatIdAsync("https://youtu.be/dQw4w9WgXcQ", builder);
 
         // List formats (text parsed)
-        var formats = await YtdlpProbe.GetAvailableFormatsAsync("https://youtu.be/dQw4w9WgXcQ", builder);
-        foreach (var f in formats)
-        {
-            Console.WriteLine($"{f.Id} | {f.Extension} | {f.Note}");
-        }
+        //var formats = await YtdlpProbe.GetAvailableFormatsAsync("https://youtu.be/dQw4w9WgXcQ", builder);
+        //foreach (var f in formats)
+        //{
+        //    Console.WriteLine($"{f.Id} | {f.Extension} | {f.Note}");
+        //}
+
+
+        string version = await Ytdlp.VersionAsync(ytdlpPath);
+        Console.WriteLine($"Current yt-dlp version: {version}");
+
+        //var cmd = builder
+        //    .WithExtractAudio("mp3", quality: 3)           // high quality mp3
+        //    .WithDownloadSubtitles("en,ml")                // English + Arabic
+        //    .WithEmbedSubtitles()
+        //    .WithDownloadThumbnails()
+        //    .EmbedThumbnail()
+        //    .WithTempFolder(@"C:\Downloads\temp")
+        //    .WithHomeFolder(@"C:\Downloads")
+        //    .Build();
+
+        //await cmd.ExecuteAsync("https://www.youtube.com/watch?v=Cqln0nwjcYo");
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");
         Console.ReadKey();
