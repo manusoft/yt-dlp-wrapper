@@ -24,6 +24,8 @@ public sealed class YtdlpBuilder
     internal string? Proxy;
     internal string? FfmpegLocation;
     internal string? SponsorblockRemoveCategories;
+    internal string? HomeFolder; // yt-dlp --config-location or working dir
+    internal string? TempFolder; // temporary files during download
 
     public YtdlpBuilder(string? ytDlpPath = null, ILogger? logger = null)
     {
@@ -45,6 +47,8 @@ public sealed class YtdlpBuilder
         Proxy = null;
         FfmpegLocation = null;
         SponsorblockRemoveCategories = null;
+        HomeFolder = null; // no default, user must set if needed
+        TempFolder = null; // same
     }
 
     private YtdlpBuilder(YtdlpBuilder other)
@@ -67,6 +71,8 @@ public sealed class YtdlpBuilder
         Proxy = other.Proxy;
         FfmpegLocation = other.FfmpegLocation;
         SponsorblockRemoveCategories = other.SponsorblockRemoveCategories;
+        HomeFolder = other.HomeFolder;
+        TempFolder = other.TempFolder;
     }
 
     // Core
@@ -79,16 +85,34 @@ public sealed class YtdlpBuilder
         return Copy(b => b.OutputFolder = Path.GetFullPath(folder));
     }
 
-    public YtdlpBuilder WithTempFolder([Required] string folder)
+    /// <summary>
+    /// Sets the home folder for yt-dlp (used for config or as base directory).
+    /// Path is automatically normalized and quoted.
+    /// </summary>
+    public YtdlpBuilder WithHomeFolder(string? homeFolder)
     {
-        if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("Temporary folder path cannot be empty");
-        return this.AddOption("--paths temp:", folder);
+        if (string.IsNullOrWhiteSpace(homeFolder)) throw new ArgumentException("Home folder path cannot be empty");
+        return Copy(b => b.HomeFolder = Path.GetFullPath(homeFolder));
     }
 
-    public YtdlpBuilder WithHomeFolder([Required] string folder)
+    /// <summary>
+    /// Sets the temporary folder for yt-dlp intermediate files (fragments, etc.).
+    /// Path is automatically normalized and quoted.
+    /// </summary>
+    public YtdlpBuilder WithTempFolder(string? tempFolder)
     {
-        if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("Home folder path cannot be empty");
-        return this.AddOption("--paths home:", folder);
+        if (string.IsNullOrWhiteSpace(tempFolder)) throw new ArgumentException("Temp folder path cannot be empty");
+        return Copy(b => b.TempFolder = Path.GetFullPath(tempFolder));
+    }
+
+    /// <summary>
+    /// Sets the path to ffmpeg or other external tools.
+    /// Path is automatically quoted.
+    /// </summary>
+    public YtdlpBuilder WithFFmpegLocation(string? ffmpegPath)
+    {
+        if (string.IsNullOrWhiteSpace(ffmpegPath)) return this;
+        return Copy(b => b.FfmpegLocation = ffmpegPath);
     }
 
     public YtdlpBuilder WithOutputTemplate(string template) => Copy(b => b.OutputTemplate = template);
@@ -127,7 +151,7 @@ public sealed class YtdlpBuilder
 
     public YtdlpBuilder WithUserAgent(string ua) => Copy(b => b.UserAgent = ua);
     public YtdlpBuilder WithProxy(string proxy) => Copy(b => b.Proxy = proxy);
-    public YtdlpBuilder WithFfmpegLocation(string path) => Copy(b => b.FfmpegLocation = path);
+    
     public YtdlpBuilder WithDisableAds() => AddFlag("--no-ads");
 
     public YtdlpBuilder WithPlaylistItems(string items)

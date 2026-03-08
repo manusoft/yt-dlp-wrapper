@@ -10,27 +10,50 @@ public sealed class YtdlpCommand : IAsyncDisposable
     private Process? _process;
     private readonly ProgressParser _progressParser;
 
-    public event EventHandler<DownloadProgressEventArgs>? ProgressChanged;
-    public event EventHandler<string>? OutputReceived;
-    public event EventHandler<string>? ErrorReceived;
-    public event EventHandler? Completed;
-    public event EventHandler<string>? PostProcessingCompleted;
+    // Common
+    public event EventHandler<string>? OnOutputReceived;
+    public event EventHandler<string>? OnErrorReceived;
+    public event EventHandler? OnCompleted;
+
+    // Downloading stages (not mutually exclusive, may overlap or repeat in some cases)
+    public event EventHandler<string>? OnExtracting;                  // url
+    public event EventHandler? OnDownloadingStarted;
+    public event EventHandler<DownloadProgressEventArgs>? OnProgressChanged;
+    public event EventHandler<string>? OnPostProcessingStarted;       // file path if available
+    public event EventHandler<string>? OnPostProcessingCompleted;     // file path if available
 
     internal YtdlpCommand(YtdlpBuilder config)
     {
         _config = config;
         _progressParser = new ProgressParser(config.Logger);
 
-        _progressParser.OnProgressDownload += (s, e) => ProgressChanged?.Invoke(this, e);
-        _progressParser.OnOutputMessage += (s, msg) => OutputReceived?.Invoke(this, msg);
-        _progressParser.OnErrorMessage += (s, msg) => ErrorReceived?.Invoke(this, msg);
-        _progressParser.OnCompleteDownload += (s, _) => Completed?.Invoke(this, EventArgs.Empty);
-        _progressParser.OnPostProcessingComplete += (s, msg) => PostProcessingCompleted?.Invoke(this, msg);
+       
+        _progressParser.OnOutputMessage += (s, msg) => OnOutputReceived?.Invoke(this, msg);
+        _progressParser.OnErrorMessage += (s, msg) => OnErrorReceived?.Invoke(this, msg);
+        _progressParser.OnCompleteDownload += (s, _) => OnCompleted?.Invoke(this, EventArgs.Empty);
+
+        _progressParser.OnProgressDownload += (s, e) => OnProgressChanged?.Invoke(this, e);
+        _progressParser.OnPostProcessingStarted += (s, msg) => OnPostProcessingStarted?.Invoke(this, msg);
+        _progressParser.OnPostProcessingCompleted += (s, msg) => OnPostProcessingCompleted?.Invoke(this, msg);
     }
 
     public async Task ExecuteAsync(string url, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested(); // early check
+
         if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("URL cannot be empty", nameof(url));
+
+        // Create output folder if needed(still useful)
+        try
+        {
+            Directory.CreateDirectory(_config.OutputFolder);
+            _config.Logger.Log(LogType.Info, $"Ensured output folder exists: {_config.OutputFolder}");
+        }
+        catch (Exception ex)
+        {
+            _config.Logger.Log(LogType.Error, $"Failed to create output folder: {ex.Message}");
+            throw new YtdlpException("Failed to create output folder", ex);
+        }
 
         string arguments = BuildArguments(url);
         _config.Logger.Log(LogType.Info, $"Executing yt-dlp {arguments}");
@@ -57,8 +80,6 @@ public sealed class YtdlpCommand : IAsyncDisposable
             if (e.Data != null) _progressParser.ParseProgress(e.Data);
         };
 
-        Directory.CreateDirectory(_config.OutputFolder);
-
         _process.Start();
         _process.BeginOutputReadLine();
         _process.BeginErrorReadLine();
@@ -81,53 +102,67 @@ public sealed class YtdlpCommand : IAsyncDisposable
         }
     }
 
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 4, CancellationToken ct = default)
+    public async Task<List<(string Url, Exception? Error)>> ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 4, CancellationToken ct = default)
     {
         var semaphore = new SemaphoreSlim(maxConcurrency);
-        var tasks = new List<Task>();
-        foreach (var url in urls)
+        var results = new List<(string Url, Exception? Error)>();
+
+        var tasks = urls.Select(async url =>
         {
             await semaphore.WaitAsync(ct);
-            tasks.Add(Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await ExecuteAsync(url, ct);
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            }, ct));
-        }
+                await ExecuteAsync(url, ct);
+                results.Add((url, null));
+            }
+            catch (Exception ex)
+            {
+                results.Add((url, ex));
+                _config.Logger.Log(LogType.Error, $"Failed {url}: {ex.Message}");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
         await Task.WhenAll(tasks);
+        return results;
     }
 
     private string BuildArguments(string url)
     {
         var sb = new StringBuilder();
 
-        // Output
-        string template = Path.Combine(_config.OutputFolder, _config.OutputTemplate.Replace("\\", "/"));
-        sb.Append($"-o \"{template}\" ");
+        // ─── Paths (home & temp) ────────────────────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(_config.HomeFolder))
+            sb.Append($"--paths home:\"{_config.HomeFolder}\" ");
 
-        // Format
+        if (!string.IsNullOrWhiteSpace(_config.TempFolder))
+            sb.Append($"--paths temp:\"{_config.TempFolder}\" ");
+
+        // ─── Output ─────────────────────────────────────────────────────────────
+        // Keep template RELATIVE — do NOT combine OutputFolder here
+        string relativeTemplate = _config.OutputTemplate;
+        sb.Append($"-o \"{relativeTemplate}\" ");
+
+        // ─── Format ─────────────────────────────────────────────────────────────
         if (!string.IsNullOrWhiteSpace(_config.Format))
             sb.Append($"-f \"{_config.Format}\" ");
 
-        // Concurrent
+        // ─── Concurrent fragments ───────────────────────────────────────────────
         if (_config.ConcurrentFragments.HasValue)
             sb.Append($"--concurrent-fragments {_config.ConcurrentFragments.Value} ");
 
-        // Flags
+        // ─── Flags ──────────────────────────────────────────────────────────────
         foreach (var flag in _config.Flags)
             sb.Append($"{flag} ");
 
-        // Options
+        // ─── Key-value options ──────────────────────────────────────────────────
         foreach (var kv in _config.Options)
             sb.Append(kv.Value is null ? $"{kv.Key} " : $"{kv.Key} \"{kv.Value}\" ");
 
-        // Booleans / specials
+        // ─── Special booleans & paths (all quoted where needed) ─────────────────
         if (_config.Simulate) sb.Append("--simulate ");
         if (_config.NoOverwrites) sb.Append("--no-overwrites ");
         if (_config.KeepFragments) sb.Append("--keep-fragments ");
@@ -137,10 +172,12 @@ public sealed class YtdlpCommand : IAsyncDisposable
         if (_config.UserAgent != null) sb.Append($"--user-agent \"{_config.UserAgent}\" ");
         if (_config.Proxy != null) sb.Append($"--proxy \"{_config.Proxy}\" ");
         if (_config.FfmpegLocation != null) sb.Append($"--ffmpeg-location \"{_config.FfmpegLocation}\" ");
-        if (_config.SponsorblockRemoveCategories != null) sb.Append($"--sponsorblock-remove {_config.SponsorblockRemoveCategories} ");
+        if (_config.SponsorblockRemoveCategories != null)
+            sb.Append($"--sponsorblock-remove {_config.SponsorblockRemoveCategories} ");
 
-        // URL
-        sb.Append($" \"{url.Replace("\"", "\\\"")}\"");  // basic sanitize
+        // ─── URL (minimal sanitization) ─────────────────────────────────────────
+        string safeUrl = url.Replace("\"", "\\\"");
+        sb.Append($" \"{safeUrl}\"");
 
         return sb.ToString().Trim();
     }

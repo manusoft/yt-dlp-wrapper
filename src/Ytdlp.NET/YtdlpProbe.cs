@@ -220,8 +220,8 @@ public static class YtdlpProbe
         void OnOutput(object? s, string line) => outputBuilder.AppendLine(line);
         void OnError(object? s, string line) => errorBuilder.AppendLine(line);
 
-        command.OutputReceived += OnOutput;
-        command.ErrorReceived += OnError;
+        command.OnOutputReceived += OnOutput;
+        command.OnErrorReceived += OnError;
 
         try
         {
@@ -237,8 +237,8 @@ public static class YtdlpProbe
         }
         finally
         {
-            command.OutputReceived -= OnOutput;
-            command.ErrorReceived -= OnError;
+            command.OnOutputReceived -= OnOutput;
+            command.OnErrorReceived -= OnError;
         }
     }
 

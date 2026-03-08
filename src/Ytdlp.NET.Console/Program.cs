@@ -52,17 +52,37 @@ internal class Program
         string version = await Ytdlp.VersionAsync(ytdlpPath);
         Console.WriteLine($"Current yt-dlp version: {version}");
 
-        //var cmd = builder
-        //    .WithExtractAudio("mp3", quality: 3)           // high quality mp3
-        //    .WithDownloadSubtitles("en,ml")                // English + Arabic
-        //    .WithEmbedSubtitles()
-        //    .WithDownloadThumbnails()
-        //    .EmbedThumbnail()
-        //    .WithTempFolder(@"C:\Downloads\temp")
-        //    .WithHomeFolder(@"C:\Downloads")
-        //    .Build();
+        //builder 
+        //    .WithFormat("best")
+        //    .WithOutputFolder("C:\\downloads");
 
-        //await cmd.ExecuteAsync("https://www.youtube.com/watch?v=Cqln0nwjcYo");
+        //var urls = new[] {
+        //    "https://youtu.be/dQw4w9WgXcQ",
+        //    "https://youtu.be/9bZkp7q19f0",
+        //    "https://youtu.be/kXYiU_JCYtU"
+        //};
+
+        //var tasks = urls.Select(url => builder.Build().ExecuteAsync(url));
+        //await Task.WhenAll(tasks);
+
+        var cmd = builder
+            .WithFormat("b")
+            .WithConcurrentFragments(8)
+            .WithFFmpegLocation($"tools")            
+            .WithHomeFolder(@"C:\Downloads")
+            .WithTempFolder(@"C:\Downloads\Temp")
+            .WithOutputTemplate( "%(title)s [%(id)s].%(ext)s")
+            .Build();
+
+
+        //cmd.OnExtracting += (s, url) => Console.WriteLine($"[Stage] Extracting: {url}");
+        //cmd.OnDownloadingStarted += (s, e) => Console.WriteLine("[Stage] Downloading started");
+        //cmd.OnPostProcessingStarted += (s, path) => Console.WriteLine($"[Stage] Processing started: {path}");
+        //cmd.OnPostProcessingCompleted += (s, path) => Console.WriteLine($"[Stage] Processing completed: {path}");
+        //cmd.OnCompleted += (s, e) => Console.WriteLine("[Stage] Finished!");
+        //cmd.OnProgressChanged += (s, e) => Console.WriteLine($"[Progress] {e.Message}");
+
+        await cmd.ExecuteAsync("https://www.youtube.com/watch?v=Cqln0nwjcYo");
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");
         Console.ReadKey();
