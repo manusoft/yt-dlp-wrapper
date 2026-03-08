@@ -44,7 +44,7 @@ internal class Program
         var formats = await YtdlpProbe.GetAvailableFormatsAsync("https://youtu.be/dQw4w9WgXcQ", builder);
         foreach (var f in formats)
         {
-            Console.WriteLine($"{f.FormatId} | {f.Extension} | {f.FormatNote}");
+            Console.WriteLine($"{f.Id} | {f.Extension} | {f.Note}");
         }
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");

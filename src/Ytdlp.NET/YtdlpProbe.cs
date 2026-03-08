@@ -1,6 +1,7 @@
 ﻿using ManuHub.Ytdlp.Models;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ManuHub.Ytdlp;
 
@@ -24,8 +25,9 @@ public static class YtdlpProbe
     public static async Task<Metadata?> GetVideoMetadataAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
-            .AddFlag("--dump-json")
-            .AddFlag("--no-download")
+            .AddFlag("--dump-single-json")
+            .AddFlag("--no-simulate")
+            .AddFlag("--skip-download")
             .AddFlag("--quiet")
             .AddFlag("--no-warnings")
             .AddFlag("--no-playlist"); // single video only
@@ -59,56 +61,8 @@ public static class YtdlpProbe
             .AddFlag("--quiet");
 
         var command = builder.Build();
-        string output = await RunProbeAsync(command, url, ct);
-
-        var formats = new List<Format>();
-        bool inFormatTable = false;
-
-        using var reader = new StringReader(output);
-        string? line;
-
-        while ((line = await reader.ReadLineAsync(ct)) != null)
-        {
-            line = line.Trim();
-            if (string.IsNullOrEmpty(line)) continue;
-
-            if (line.Contains("format code") || line.StartsWith("[info] Available"))
-            {
-                inFormatTable = true;
-                continue;
-            }
-
-            if (inFormatTable && line.Contains("extension"))
-                continue; // header
-
-            if (inFormatTable && !string.IsNullOrWhiteSpace(line))
-            {
-                // Rough parsing of format line (can be improved with regex)
-                var parts = System.Text.RegularExpressions.Regex.Split(line.Trim(), @"\s+");
-                if (parts.Length < 3) continue;
-
-                var format = new Format
-                {
-                    FormatId = parts[0],
-                    Extension = parts[1],
-                    FormatNote = string.Join(" ", parts, 2, parts.Length - 2)
-                };
-
-                // Try to extract resolution/fps from note if possible
-                if (format.FormatNote.Contains("p"))
-                {
-                    var resMatch = System.Text.RegularExpressions.Regex.Match(format.FormatNote, @"(\d+)p");
-                    if (resMatch.Success && int.TryParse(resMatch.Groups[1].Value, out int h))
-                    {
-                        format.Height = h;
-                    }
-                }
-
-                formats.Add(format);
-            }
-        }
-
-        return formats;
+        string output = await RunProbeAsync(command, url, ct);       
+        return ParseFormats(output);
     }
 
 
@@ -286,5 +240,44 @@ public static class YtdlpProbe
             command.OutputReceived -= OnOutput;
             command.ErrorReceived -= OnError;
         }
+    }
+
+    private static List<Format> ParseFormats(string result)
+    {
+        var formats = new List<Format>();
+        if (string.IsNullOrWhiteSpace(result)) return formats;
+
+        var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var line_ in lines)
+        {
+            var line = line_.Trim();
+            if (string.IsNullOrEmpty(line)) continue;
+
+            // Skip header & separator
+            if (line.Contains("RESOLUTION") ||
+                line.StartsWith("---") ||
+                line.StartsWith("ID EXT") ||
+                line.Contains("FILESIZE TBR PROTO"))
+                continue;
+
+            // Optional: early exit if we hit non-format content (e.g. "[info] ...")
+            if (line.StartsWith("[") && line.Contains("]")) break;
+
+            try
+            {
+                var format = Format.FromParsedLine(line);
+                if (!string.IsNullOrEmpty(format.Id) &&
+                    !formats.Any(f => f.Id == format.Id))
+                {
+                    formats.Add(format);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Optionally log: Console.WriteLine($"Failed to parse: {line}\n{ex.Message}");
+            }
+        }
+        return formats;
     }
 }
