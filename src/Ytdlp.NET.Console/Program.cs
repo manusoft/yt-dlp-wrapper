@@ -52,7 +52,10 @@ internal class Program
         string version = await Ytdlp.VersionAsync(ytdlpPath);
         Console.WriteLine($"Current yt-dlp version: {version}");
 
-        //builder 
+        string? size = await YtdlpProbe.GetFileSizeAsync("https://www.youtube.com/watch?v=wRHiaNvLSes", builder);
+        Console.WriteLine($"Current file size: {size}");
+
+        //builder
         //    .WithFormat("best")
         //    .WithOutputFolder("C:\\downloads");
 
@@ -65,14 +68,14 @@ internal class Program
         //var tasks = urls.Select(url => builder.Build().ExecuteAsync(url));
         //await Task.WhenAll(tasks);
 
-        var cmd = builder
-            .WithFormat("b")
-            .WithConcurrentFragments(8)
-            .WithFFmpegLocation($"tools")            
-            .WithHomeFolder(@"C:\Downloads")
-            .WithTempFolder(@"C:\Downloads\Temp")
-            .WithOutputTemplate( "%(title)s [%(id)s].%(ext)s")
-            .Build();
+        //var cmd = builder
+        //    .WithFormat("b")
+        //    .WithConcurrentFragments(8)
+        //    .WithFFmpegLocation($"tools")
+        //    .WithHomeFolder(@"C:\Downloads")
+        //    .WithTempFolder(@"C:\Downloads\Temp")
+        //    .WithOutputTemplate("%(title)s [%(id)s].%(ext)s")
+        //    .Build();
 
 
         //cmd.OnExtracting += (s, url) => Console.WriteLine($"[Stage] Extracting: {url}");
@@ -82,7 +85,7 @@ internal class Program
         //cmd.OnCompleted += (s, e) => Console.WriteLine("[Stage] Finished!");
         //cmd.OnProgressChanged += (s, e) => Console.WriteLine($"[Progress] {e.Message}");
 
-        await cmd.ExecuteAsync("https://www.youtube.com/watch?v=Cqln0nwjcYo");
+        //await cmd.ExecuteAsync("https://www.youtube.com/watch?v=Cqln0nwjcYo");
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");
         Console.ReadKey();

@@ -1,7 +1,6 @@
 ﻿using ManuHub.Ytdlp.Models;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace ManuHub.Ytdlp;
 
@@ -170,10 +169,11 @@ public static class YtdlpProbe
         CancellationToken ct = default)
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
+            .Probe()
             .AddOption("--print", "%(bestaudio/format_id)s")
-            .AddFlag("--no-download")
-            .AddFlag("--quiet")
-            .AddFlag("--no-warnings");
+            .SkipDownload()
+            .Quiet()
+            .NoWarnings();
 
         var command = builder.Build();
         string output = await RunProbeAsync(command, url, ct);
@@ -193,10 +193,11 @@ public static class YtdlpProbe
         selector += "/best";
 
         var builder = (baseBuilder ?? Ytdlp.Create())
+            .Probe()
             .WithFormat(selector)
             .AddOption("--print", "%(format_id)s")
-            .AddFlag("--no-download")
-            .AddFlag("--quiet");
+            .SkipDownload()
+            .Quiet();
 
         var command = builder.Build();
         string output = await RunProbeAsync(command, url, ct);
@@ -204,19 +205,19 @@ public static class YtdlpProbe
         return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
     }
 
-    //public static async Task<string?> GetFileSizeAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
-    //{
-    //    var builder = (baseBuilder ?? Ytdlp.Create())
-    //        .WithFormat(selector)
-    //        .AddOption("--print", "%(format_id)s")
-    //        .AddFlag("--no-download")
-    //        .AddFlag("--quiet");
+    public static async Task<string?> GetFileSizeAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
+    {
+        var builder = (baseBuilder ?? Ytdlp.Create())
+            .Probe()
+            .AddOption("--print", "%(filesize,filesize_approx)s")
+            .SkipDownload()
+            .Quiet();
 
-    //    var command = builder.Build();
-    //    string output = await RunProbeAsync(command, url, ct);
+        var command = builder.Build();
+        string output = await RunProbeAsync(command, url, ct);
 
-    //    return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
-    //}
+        return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
+    }
 
     // ──────────────────────────────────────────────
     // Internal helper: Run yt-dlp probe and capture stdout

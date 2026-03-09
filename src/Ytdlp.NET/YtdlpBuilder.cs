@@ -8,6 +8,7 @@ public sealed class YtdlpBuilder
     #region Frozen state
 
     internal string YtDlpPath;
+    internal bool IsProbe;
     internal ILogger Logger;
     internal string OutputFolder;
     internal string OutputTemplate;
@@ -29,6 +30,7 @@ public sealed class YtdlpBuilder
     public YtdlpBuilder(string? ytDlpPath = null, ILogger? logger = null)
     {
         YtDlpPath = ytDlpPath ?? "yt-dlp"; // or resolve from path
+        IsProbe = false;
         Logger = logger ?? new DefaultLogger();
         OutputFolder = Directory.GetCurrentDirectory();
         OutputTemplate = "%(title)s [%(id)s].%(ext)s";
@@ -48,6 +50,7 @@ public sealed class YtdlpBuilder
     private YtdlpBuilder(YtdlpBuilder other)
     {
         YtDlpPath = other.YtDlpPath;
+        IsProbe = other.IsProbe;
         Logger = other.Logger;
         OutputFolder = other.OutputFolder;
         OutputTemplate = other.OutputTemplate;
@@ -750,6 +753,8 @@ public sealed class YtdlpBuilder
     {
         return new YtdlpCommand(this);
     }
+
+    public YtdlpBuilder Probe() => Copy(b => b.IsProbe = true);
 
     #endregion
 }

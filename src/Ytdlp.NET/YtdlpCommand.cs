@@ -46,8 +46,11 @@ public sealed class YtdlpCommand : IAsyncDisposable
         // Create output folder if needed(still useful)
         try
         {
-            Directory.CreateDirectory(_config.OutputFolder);
-            _config.Logger.Log(LogType.Info, $"Ensured output folder exists: {_config.OutputFolder}");
+            if (!_config.IsProbe)
+            {
+                Directory.CreateDirectory(_config.OutputFolder);
+                _config.Logger.Log(LogType.Info, $"Ensured output folder exists: {_config.OutputFolder}");
+            }
         }
         catch (Exception ex)
         {
@@ -134,25 +137,31 @@ public sealed class YtdlpCommand : IAsyncDisposable
     {
         var sb = new StringBuilder();
 
-        // ─── Paths (home & temp) ────────────────────────────────────────────────
-        if (!string.IsNullOrWhiteSpace(_config.HomeFolder))
-            sb.Append($"--paths home:\"{_config.HomeFolder}\" ");
+        if (!_config.IsProbe)
+        {
+            // ─── Paths (home & temp) ────────────────────────────────────────────────
+            if (!string.IsNullOrWhiteSpace(_config.HomeFolder))
+                sb.Append($"--paths home:\"{_config.HomeFolder}\" ");
 
-        if (!string.IsNullOrWhiteSpace(_config.TempFolder))
-            sb.Append($"--paths temp:\"{_config.TempFolder}\" ");
+            if (!string.IsNullOrWhiteSpace(_config.TempFolder))
+                sb.Append($"--paths temp:\"{_config.TempFolder}\" ");
 
-        // ─── Output ─────────────────────────────────────────────────────────────
-        // Keep template RELATIVE — do NOT combine OutputFolder here
-        string relativeTemplate = _config.OutputTemplate;
-        sb.Append($"-o \"{relativeTemplate}\" ");
+            // ─── Output ─────────────────────────────────────────────────────────────
+            // Keep template RELATIVE — do NOT combine OutputFolder here
 
-        // ─── Format ─────────────────────────────────────────────────────────────
-        if (!string.IsNullOrWhiteSpace(_config.Format))
-            sb.Append($"-f \"{_config.Format}\" ");
+            string relativeTemplate = _config.OutputTemplate;
+            sb.Append($"-o \"{relativeTemplate}\" ");
 
-        // ─── Concurrent fragments ───────────────────────────────────────────────
-        if (_config.ConcurrentFragments.HasValue)
-            sb.Append($"--concurrent-fragments {_config.ConcurrentFragments.Value} ");
+
+            // ─── Format ─────────────────────────────────────────────────────────────
+            if (!string.IsNullOrWhiteSpace(_config.Format))
+                sb.Append($"-f \"{_config.Format}\" ");
+
+            // ─── Concurrent fragments ───────────────────────────────────────────────
+            if (_config.ConcurrentFragments.HasValue)
+                sb.Append($"--concurrent-fragments {_config.ConcurrentFragments.Value} ");
+
+        }
 
         // ─── Flags ──────────────────────────────────────────────────────────────
         foreach (var flag in _config.Flags)
@@ -167,8 +176,8 @@ public sealed class YtdlpCommand : IAsyncDisposable
         if (_config.CookiesFromBrowser != null) sb.Append($"--cookies-from-browser {_config.CookiesFromBrowser} ");
         if (_config.Proxy != null) sb.Append($"--proxy \"{_config.Proxy}\" ");
         if (_config.FfmpegLocation != null) sb.Append($"--ffmpeg-location \"{_config.FfmpegLocation}\" ");
-        if (_config.SponsorblockRemoveCategories != null)
-            sb.Append($"--sponsorblock-remove {_config.SponsorblockRemoveCategories} ");
+        if (_config.SponsorblockRemoveCategories != null) sb.Append($"--sponsorblock-remove {_config.SponsorblockRemoveCategories} ");
+
 
         // ─── URL (minimal sanitization) ─────────────────────────────────────────
         string safeUrl = url.Replace("\"", "\\\"");
