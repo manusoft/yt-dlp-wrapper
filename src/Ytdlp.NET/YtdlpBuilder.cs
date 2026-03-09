@@ -15,7 +15,7 @@ public sealed class YtdlpBuilder
     internal string Format;
     internal int? ConcurrentFragments;
     internal ImmutableArray<string> Flags;
-    internal ImmutableDictionary<string, string?> Options;
+    internal ImmutableArray<(string Key, string? Value)> Options;
     internal string? CookiesFile;
     internal string? CookiesFromBrowser;
     internal string? Proxy;
@@ -37,7 +37,7 @@ public sealed class YtdlpBuilder
         Format = "b";
         ConcurrentFragments = null;
         Flags = ImmutableArray<string>.Empty;
-        Options = ImmutableDictionary<string, string?>.Empty;
+        Options = ImmutableArray<(string Key, string? Value)>.Empty;
         CookiesFile = null;
         CookiesFromBrowser = null;
         Proxy = null;
@@ -98,8 +98,7 @@ public sealed class YtdlpBuilder
     /// <summary>
     /// Download livestreams from the start. Currently experimental and only supported for YouTube, Twitch, and TVer.
     /// </summary>
-    /// <param name="fromStart"></param>
-    public YtdlpBuilder WithDownloadLivestream(bool fromStart = true) => AddFlag("--live-from-start");
+    public YtdlpBuilder DownloadLivestream() => AddFlag("--live-from-start");
 
     /// <summary>
     /// Mark videos watched (even with Simulate())
@@ -208,17 +207,27 @@ public sealed class YtdlpBuilder
     public YtdlpBuilder WithDate(string date) => AddOption("--date", date);
 
     /// <summary>
+    /// Download only the video, if the URL refers to a video and a playlist
+    /// </summary>
+    /// <returns></returns>
+    public YtdlpBuilder NoPlaylist() => AddFlag("--no-playlist");
+
+    /// <summary>
+    /// Download the playlist, if the URL refers to a video and a playlist
+    /// </summary>
+    /// <returns></returns>
+    public YtdlpBuilder YesPlaylist()=> AddFlag("--yes-playlist");
+
+    /// <summary>
     /// Download only videos suitable for the given age
     /// </summary>
     /// <param name="years"></param>
-    /// <returns></returns>
     public YtdlpBuilder WithAgeLimit(int years) => AddOption("--age-limit", years.ToString());
 
     /// <summary>
     /// Abort after downloading number files
     /// </summary>
     /// <param name="number"></param>
-    /// <returns></returns>
     public YtdlpBuilder WithMaxDownloads(int number) => AddOption("--max-downloads", number.ToString());
 
     #endregion
@@ -627,7 +636,8 @@ public sealed class YtdlpBuilder
     /// <param name="convertTo"></param>
     public YtdlpBuilder WithEmbedSubtitles(string languages = "all", string? convertTo = null)
     {
-        var builder = AddOption("--write-sub --sub-langs", languages);
+        var builder = AddFlag("--sub-langs")
+            .AddOption("--write-sub", languages);
         if (!string.IsNullOrWhiteSpace(convertTo))
             builder = builder.AddOption("--convert-subs", convertTo);
         if (convertTo?.Equals("embed", StringComparison.OrdinalIgnoreCase) == true)
@@ -739,7 +749,7 @@ public sealed class YtdlpBuilder
     public YtdlpBuilder AddOption(string key, string? value)
     {
         if (string.IsNullOrWhiteSpace(key)) return this;
-        return Copy(b => b.Options = b.Options.SetItem(key.Trim(), value));
+        return Copy(b => b.Options = b.Options.Add((key.Trim(), value)));
     }
 
     private YtdlpBuilder Copy(Action<YtdlpBuilder> modifier)

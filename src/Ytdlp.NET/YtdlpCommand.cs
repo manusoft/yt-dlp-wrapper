@@ -1,4 +1,5 @@
 ﻿using ManuHub.Ytdlp.Core;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 
@@ -30,7 +31,6 @@ public sealed class YtdlpCommand : IAsyncDisposable
 
         _progressParser.OnOutputMessage += (s, msg) => OnOutputReceived?.Invoke(this, msg);
         _progressParser.OnErrorMessage += (s, msg) => OnErrorReceived?.Invoke(this, msg);
-        _progressParser.OnCompleteDownload += (s, _) => OnCompleted?.Invoke(this, EventArgs.Empty);
 
         _progressParser.OnProgressDownload += (s, e) => OnProgressChanged?.Invoke(this, e);
         _progressParser.OnPostProcessingStarted += (s, msg) => OnPostProcessingStarted?.Invoke(this, msg);
@@ -69,7 +69,9 @@ public sealed class YtdlpCommand : IAsyncDisposable
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-            WorkingDirectory = _config.OutputFolder
+            WorkingDirectory = Directory.Exists(_config.OutputFolder)
+                ? _config.OutputFolder
+                : Directory.GetCurrentDirectory()
         };
 
         _process = new Process { StartInfo = psi };
@@ -90,8 +92,11 @@ public sealed class YtdlpCommand : IAsyncDisposable
         try
         {
             await _process.WaitForExitAsync(ct);
+
             if (_process.ExitCode != 0)
                 throw new YtdlpException($"yt-dlp exited with code {_process.ExitCode}");
+
+            OnCompleted?.Invoke(this, EventArgs.Empty);
             _config.Logger.Log(LogType.Info, "Execution completed successfully.");
         }
         catch (OperationCanceledException)
@@ -108,14 +113,14 @@ public sealed class YtdlpCommand : IAsyncDisposable
     public async Task<List<(string Url, Exception? Error)>> ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 4, CancellationToken ct = default)
     {
         var semaphore = new SemaphoreSlim(maxConcurrency);
-        var results = new List<(string Url, Exception? Error)>();
+        var results = new ConcurrentBag<(string Url, Exception? Error)>();
 
         var tasks = urls.Select(async url =>
         {
             await semaphore.WaitAsync(ct);
             try
             {
-                await ExecuteAsync(url, ct);
+                await new YtdlpCommand(_config).ExecuteAsync(url, ct);
                 results.Add((url, null));
             }
             catch (Exception ex)
@@ -130,7 +135,7 @@ public sealed class YtdlpCommand : IAsyncDisposable
         });
 
         await Task.WhenAll(tasks);
-        return results;
+        return results.ToList();
     }
 
     private string BuildArguments(string url)
@@ -169,21 +174,29 @@ public sealed class YtdlpCommand : IAsyncDisposable
 
         // ─── Key-value options ──────────────────────────────────────────────────
         foreach (var kv in _config.Options)
-            sb.Append(kv.Value is null ? $"{kv.Key} " : $"{kv.Key} \"{kv.Value}\" ");
+            sb.Append(kv.Value is null ? $"{kv.Key} " : $"{kv.Key} {Quote(kv.Value)} ");
 
         // ─── Special booleans & paths (all quoted where needed) ─────────────────
-        if (_config.CookiesFile != null) sb.Append($"--cookies \"{_config.CookiesFile}\" ");
+        if (_config.CookiesFile != null) sb.Append($"--cookies {Quote(_config.CookiesFile)} ");
         if (_config.CookiesFromBrowser != null) sb.Append($"--cookies-from-browser {_config.CookiesFromBrowser} ");
-        if (_config.Proxy != null) sb.Append($"--proxy \"{_config.Proxy}\" ");
-        if (_config.FfmpegLocation != null) sb.Append($"--ffmpeg-location \"{_config.FfmpegLocation}\" ");
-        if (_config.SponsorblockRemoveCategories != null) sb.Append($"--sponsorblock-remove {_config.SponsorblockRemoveCategories} ");
+        if (_config.Proxy != null) sb.Append($"--proxy {Quote(_config.Proxy)} ");
+        if (_config.FfmpegLocation != null) sb.Append($"--ffmpeg-location {Quote(_config.FfmpegLocation)} ");
+        if (_config.SponsorblockRemoveCategories != null) sb.Append($"--sponsorblock-remove {Quote(_config.SponsorblockRemoveCategories)} ");
 
 
         // ─── URL (minimal sanitization) ─────────────────────────────────────────
-        string safeUrl = url.Replace("\"", "\\\"");
-        sb.Append($" \"{safeUrl}\"");
+        string safeUrl = Quote(url);
+        sb.Append($" {safeUrl}");
 
         return sb.ToString().Trim();
+    }
+
+    private static string Quote(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "\"\"";
+        // Escape " and \
+        string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        return $"\"{escaped}\"";
     }
 
     public async ValueTask DisposeAsync()
@@ -192,7 +205,9 @@ public sealed class YtdlpCommand : IAsyncDisposable
 
         try
         {
-            _process.Kill(true);
+            if (!_process.HasExited)
+                _process.Kill(true);
+
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await _process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
         }

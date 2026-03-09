@@ -1,6 +1,7 @@
 ﻿using ManuHub.Ytdlp.Models;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ManuHub.Ytdlp;
 
@@ -18,18 +19,69 @@ public static class YtdlpProbe
     };
 
     /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="url"></param>
+    /// <param name="baseBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="YtdlpException"></exception>
+    public static async Task<List<Format>> GetFormatsDetailedAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        try
+        {
+            var builder = (baseBuilder ?? Ytdlp.Create())
+                .Probe()
+                .Simulate()
+                .SkipDownload()
+                .NoPlaylist()
+                .AddFlag("--dump-single-json")
+                .Quiet()
+                .NoWarnings();
+
+            var cmd = builder.Build();
+            var json = await RunProbeAsync(cmd, url, ct);
+
+            if (string.IsNullOrWhiteSpace(json))
+                throw new YtdlpException("Empty JSON response");
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString
+            };
+
+            var info = JsonSerializer.Deserialize<MetadataLite>(json, options);
+
+            if (info?.Formats == null || info.Formats.Count == 0)
+                return await GetAvailableFormatsAsync(url, baseBuilder, ct);
+
+            return MapFormats(info.Formats);
+        }
+        catch (JsonException)
+        {
+            return await GetAvailableFormatsAsync(url, baseBuilder, ct);
+        }
+    }
+
+    /// <summary>
     /// Fetches full video metadata (including formats list) using --dump-json.
     /// Returns null if parsing fails or yt-dlp errors.
     /// </summary>
     public static async Task<Metadata?> GetVideoMetadataAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
+            .Probe()
+            .Simulate()
+            .SkipDownload()
+            .NoPlaylist()
             .AddFlag("--dump-single-json")
-            .AddFlag("--no-simulate")
-            .AddFlag("--skip-download")
-            .AddFlag("--quiet")
-            .AddFlag("--no-warnings")
-            .AddFlag("--no-playlist"); // single video only
+            .Quiet()
+            .NoWarnings();
 
         var command = builder.Build();
 
@@ -55,9 +107,12 @@ public static class YtdlpProbe
     public static async Task<List<Format>> GetAvailableFormatsAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
+            .Probe()
             .AddFlag("--list-formats")
-            .AddFlag("--no-download")
-            .AddFlag("--quiet");
+            .SkipDownload()
+            .Quiet()
+            .NoWarnings()
+            .NoPlaylist();
 
         var command = builder.Build();
         string output = await RunProbeAsync(command, url, ct);
@@ -73,10 +128,13 @@ public static class YtdlpProbe
     {
         var builder = configBuilder ?? Ytdlp.Create();
         builder = builder
+            .Probe()
+            .Simulate()
+            .SkipDownload()
+            .NoPlaylist()
             .AddFlag("--dump-json")
-            .AddFlag("--no-download")
-            .AddFlag("--quiet")
-            .AddFlag("--no-warnings");
+            .Quiet()
+            .NoWarnings();
 
         var command = builder.Build();
 
@@ -103,9 +161,12 @@ public static class YtdlpProbe
     {
         var builder = configBuilder ?? Ytdlp.Create();
         builder = builder
+            .Probe()
             .AddFlag("--list-formats")
-            .AddFlag("--no-download")
-            .AddFlag("--quiet");
+            .SkipDownload()
+            .Quiet()
+            .NoWarnings()
+            .NoPlaylist();
 
         var command = builder.Build();
 
@@ -170,10 +231,12 @@ public static class YtdlpProbe
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
             .Probe()
-            .AddOption("--print", "%(bestaudio/format_id)s")
+            .WithFormat("bestaudio")
+            .AddOption("--print", "%(format_id)s")
             .SkipDownload()
-            .Quiet()
-            .NoWarnings();
+            .Simulate()
+            .NoWarnings()
+            .Quiet();
 
         var command = builder.Build();
         string output = await RunProbeAsync(command, url, ct);
@@ -197,6 +260,8 @@ public static class YtdlpProbe
             .WithFormat(selector)
             .AddOption("--print", "%(format_id)s")
             .SkipDownload()
+            .Simulate()
+            .NoWarnings()
             .Quiet();
 
         var command = builder.Build();
@@ -211,6 +276,8 @@ public static class YtdlpProbe
             .Probe()
             .AddOption("--print", "%(filesize,filesize_approx)s")
             .SkipDownload()
+            .Simulate()
+            .NoWarnings()
             .Quiet();
 
         var command = builder.Build();
@@ -237,6 +304,7 @@ public static class YtdlpProbe
         try
         {
             await command.ExecuteAsync(url, ct);
+            await command.DisposeAsync();
             string result = outputBuilder.ToString().Trim();
 
             if (errorBuilder.Length > 0)
@@ -290,5 +358,49 @@ public static class YtdlpProbe
             }
         }
         return formats;
+    }
+
+    private static List<Format> MapFormats(List<FormatLite> formats)
+    {
+        var result = new List<Format>(formats.Count);
+
+        foreach (var f in formats)
+        {
+            if (string.IsNullOrEmpty(f.FormatId))
+                continue;
+
+            result.Add(new Format
+            {
+                Id = f.FormatId,
+                Extension = f.Ext ?? "",
+                Height = f.Height,
+                Width = f.Width,
+                Resolution = !string.IsNullOrEmpty(f.Resolution)
+                    ? f.Resolution
+                    : (f.Height.HasValue ? $"{f.Height}p" : "audio only"),
+
+                Fps = f.Fps,
+                Channels = f.AudioChannels?.ToString(),
+                AudioSampleRate = f.Asr,
+
+                TotalBitrate = f.Tbr?.ToString(),
+                VideoBitrate = f.Vbr?.ToString(),
+                AudioBitrate = f.Abr?.ToString(),
+
+                VideoCodec = f.Vcodec == "none" ? null : f.Vcodec,
+                AudioCodec = f.Acodec == "none" ? null : f.Acodec,
+
+                Protocol = f.Protocol,
+                Language = f.Language,
+
+                FileSize = f.Filesize.ToString() ?? f.Filesize.ToString(),
+                FileSizeApprox = (f.FilesizeApprox ?? f.Filesize),
+
+                Note = f.FormatNote,
+                MoreInfo = f.FormatNote
+            });
+        }
+
+        return result;
     }
 }

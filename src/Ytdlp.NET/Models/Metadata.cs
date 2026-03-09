@@ -239,6 +239,8 @@ public class FormatMetadata
     public Dictionary<string, object>? DownloaderOptions { get; set; }
 
     public bool IsAudio => Acodec != "none";
+    public bool IsAudioOnly => Vcodec == "none" && Acodec != "none";
+    public bool IsVideoOnly => Vcodec != "none" && Acodec == "none";
     public bool HasFragments => Fragments != null && Fragments.Count > 0;
 }
 

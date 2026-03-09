@@ -36,17 +36,17 @@ internal class Program
         //}
 
         // Best video ≤ 720p
-        //string? video720p = await YtdlpProbe.GetBestVideoFormatIdAsync("https://youtu.be/dQw4w9WgXcQ", maxHeight: 720, builder);
+        string? video720p = await YtdlpProbe.GetBestVideoFormatIdAsync("https://youtu.be/dQw4w9WgXcQ", maxHeight: 720, builder);
 
         // Best audio format ID
-        //string? bestAudio = await YtdlpProbe.GetBestAudioFormatIdAsync("https://youtu.be/dQw4w9WgXcQ", builder);
+        string? bestAudio = await YtdlpProbe.GetBestAudioFormatIdAsync("https://youtu.be/dQw4w9WgXcQ", builder);
 
         // List formats (text parsed)
-        //var formats = await YtdlpProbe.GetAvailableFormatsAsync("https://youtu.be/dQw4w9WgXcQ", builder);
-        //foreach (var f in formats)
-        //{
-        //    Console.WriteLine($"{f.Id} | {f.Extension} | {f.Note}");
-        //}
+        var formats = await YtdlpProbe.GetAvailableFormatsAsync("https://youtu.be/dQw4w9WgXcQ", builder);
+        foreach (var f in formats)
+        {
+            Console.WriteLine($"{f.Id} | {f.Extension} | {f.Note}");
+        }
 
 
         string version = await Ytdlp.VersionAsync(ytdlpPath);
@@ -54,6 +54,12 @@ internal class Program
 
         string? size = await YtdlpProbe.GetFileSizeAsync("https://www.youtube.com/watch?v=wRHiaNvLSes", builder);
         Console.WriteLine($"Current file size: {size}");
+
+        var liteMetadata = await YtdlpProbe.GetFormatsDetailedAsync("https://www.youtube.com/watch?v=wRHiaNvLSes", builder);
+        foreach (var format in liteMetadata)
+        {
+            Console.WriteLine($"{format.Id} | {format.Extension} | {format.Note}");
+        }
 
         //builder
         //    .WithFormat("best")

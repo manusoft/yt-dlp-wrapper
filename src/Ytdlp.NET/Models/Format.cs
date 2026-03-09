@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace ManuHub.Ytdlp.Models;
@@ -47,7 +48,8 @@ public class Format
 
     // Additional fields if needed (e.g. quality sort key, has_audio, etc.)
     public bool HasVideo => !string.IsNullOrEmpty(VideoCodec) && VideoCodec != "none" && Resolution != "audio only";
-    public bool HasAudio => !string.IsNullOrEmpty(AudioCodec) && AudioCodec != "none" && Resolution == "audio only";
+    public bool HasAudio => !string.IsNullOrEmpty(AudioCodec) && AudioCodec != "none";
+    public bool IsAudioOnly => Resolution == "audio only" || VideoCodec == "none";
     public bool HasStoryboard => VideoCodec == "images" || MoreInfo?.Contains("storyboard") == true;
 
     public override string ToString()
@@ -208,7 +210,7 @@ public class Format
         return format;
     }
 
-    public IEnumerable<Format> FilterFormats(IEnumerable<Format> formats, string type)
+    public static IEnumerable<Format> FilterFormats(IEnumerable<Format> formats, string type)
     {
         return formats.Where(f => type == "audio" ? f.Resolution == "audio only" :
                                   type == "video" ? f.Resolution != "audio only" && f.Extension != "mhtml" :
