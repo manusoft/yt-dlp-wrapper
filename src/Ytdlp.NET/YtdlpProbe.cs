@@ -94,7 +94,7 @@ public static class YtdlpProbe
         {
             return JsonSerializer.Deserialize<Metadata>(rawJson, JsonOptions);
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
             return null; // or throw new YtdlpException("Failed to parse metadata JSON", ex);
         }
@@ -295,11 +295,11 @@ public static class YtdlpProbe
         var outputBuilder = new StringBuilder();
         var errorBuilder = new StringBuilder();
 
-        void OnOutput(object? s, string line) => outputBuilder.AppendLine(line);
+        //void OnOutput(object? s, string line) => outputBuilder.AppendLine(line);
         void OnError(object? s, string line) => errorBuilder.AppendLine(line);
 
-        command.OnOutputReceived += OnOutput;
-        command.OnErrorReceived += OnError;
+        //command.OnOutputReceived += OnOutput;
+        command.OnErrorMessage += OnError;
 
         try
         {
@@ -316,8 +316,8 @@ public static class YtdlpProbe
         }
         finally
         {
-            command.OnOutputReceived -= OnOutput;
-            command.OnErrorReceived -= OnError;
+            //command.OnOutputReceived -= OnOutput;
+            command.OnErrorMessage -= OnError;
         }
     }
 
@@ -352,7 +352,7 @@ public static class YtdlpProbe
                     formats.Add(format);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Optionally log: Console.WriteLine($"Failed to parse: {line}\n{ex.Message}");
             }

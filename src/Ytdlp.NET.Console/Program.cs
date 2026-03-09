@@ -10,91 +10,75 @@ internal class Program
         Console.InputEncoding = Encoding.UTF8;
 
         Console.Clear();
-        Console.WriteLine("yt-dlp .NET Wrapper v2.0 Demo Console App");
-        Console.WriteLine("----------------------------------------");
+        Console.WriteLine("yt-dlp .NET Wrapper v3.0 Demo Console App");
+        Console.WriteLine("=========================================");
 
         var ytdlpPath = $"tools\\yt-dlp.exe";
         var consoleLogger = new ConsoleLogger();
-        var builder = Ytdlp.Create(ytdlpPath, consoleLogger);
-        //var command = builder.WithFormat("b").Build();
-        //await command.ExecuteAsync("https://www.youtube.com/watch?v=bkst470K_n4");
 
-        // Raw metadata JSON
-        //var rawjson = await YtdlpProbe.GetVideoMetadataRawAsync("https://youtu.be/dQw4w9WgXcQ", builder) ?? "Error";        
-
-        // With custom config (e.g. cookies, proxy)
-        //var builder = Ytdlp.Create().WithCookiesFile("cookies.txt");
-        //var rawformats = await YtdlpProbe.GetFormatsRawAsync("https://youtu.be/dQw4w9WgXcQ", builder);
-
-        // Full metadata with formats list
-        //var metadata = await YtdlpProbe.GetVideoMetadataAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ", builder);
-        //if (metadata != null)
-        //{
-        //    Console.WriteLine($"Title: {metadata.Title}");
-        //    Console.WriteLine($"Duration: {metadata.Duration} s");
-        //    Console.WriteLine($"Formats count: {metadata.Formats?.Count ?? 0}");
-        //}
-
-        // Best video ≤ 720p
-        string? video720p = await YtdlpProbe.GetBestVideoFormatIdAsync("https://youtu.be/dQw4w9WgXcQ", maxHeight: 720, builder);
-
-        // Best audio format ID
-        string? bestAudio = await YtdlpProbe.GetBestAudioFormatIdAsync("https://youtu.be/dQw4w9WgXcQ", builder);
-
-        // List formats (text parsed)
-        var formats = await YtdlpProbe.GetAvailableFormatsAsync("https://youtu.be/dQw4w9WgXcQ", builder);
-        foreach (var f in formats)
+        // Create CancellationTokenSource for Ctrl+C
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (s, e) =>
         {
-            Console.WriteLine($"{f.Id} | {f.Extension} | {f.Note}");
+            e.Cancel = true; // prevent immediate termination
+            cts.Cancel();
+            Console.WriteLine("Cancellation requested...");
+        };
+
+        // Setup YtdlpBuilder
+        var builder = Ytdlp.Create(ytdlpPath, consoleLogger)
+            .WithFormat("mp4/b")               // bestaudio
+            .WithConcurrentFragments(8)    // 8 fragment downloads in parallel
+            .WithFFmpegLocation("tools")   // folder where ffmpeg.exe is located
+            .WithHomeFolder(@"C:\Downloads")
+            .WithTempFolder(@"C:\Downloads\Temp")
+            .WithOutputTemplate("%(title)s [%(id)s].%(ext)s");
+
+        // Build command
+        var cmd = builder.Build();
+
+        // Event hooks
+        cmd.OnProgressMessage += (s, e) => Console.WriteLine($"PROG_MSG: {e}");
+        cmd.OnCompleteDownload += (s, e) => Console.WriteLine($"DOWN_FIN: {e}");
+        cmd.OnProgressDownload += (s, e) => Console.WriteLine($"DOWN_PROG: {e.Percent}% | {e.Size} | {e.ETA} | {e.Speed} | {e.Fragments}");
+        cmd.OnPostProcessingStarted += (s, e) => Console.WriteLine($"POST_PROC_BEG: {e}");
+        cmd.OnPostProcessingCompleted += (s, e) => Console.WriteLine($"POST_PROC_END: {e}");
+        cmd.OnProcessCompleted += (s, e) => Console.WriteLine($"COMPLETE: {e}");
+        cmd.OnErrorMessage += (s, e) => Console.WriteLine($"ERROR: {e}");
+
+        // List of URLs
+        var urls = new[]
+        {
+            "https://www.dailymotion.com/video/x7twwcf",
+            "https://www.youtube.com/watch?v=l5U5Ij5Jtf8"
+        };
+
+        try
+        {
+            // Download sequentially
+            foreach (var url in urls)
+            {
+                Console.WriteLine($"=== Downloading: {url} ===");
+                await cmd.ExecuteAsync(url, cts.Token);
+            }
+
+            // Download in parallel
+            //Console.WriteLine("=== Downloading in parallel ===");
+            //var tasks = urls.Select(url => cmd.ExecuteAsync(url));
+            //await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Download cancelled by user.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unexpected error: {ex.Message}");
         }
 
+        Console.WriteLine("=== Test Completed ===");
+        Console.ReadLine();
 
-        string version = await Ytdlp.VersionAsync(ytdlpPath);
-        Console.WriteLine($"Current yt-dlp version: {version}");
-
-        string? size = await YtdlpProbe.GetFileSizeAsync("https://www.youtube.com/watch?v=wRHiaNvLSes", builder);
-        Console.WriteLine($"Current file size: {size}");
-
-        var liteMetadata = await YtdlpProbe.GetFormatsDetailedAsync("https://www.youtube.com/watch?v=wRHiaNvLSes", builder);
-        foreach (var format in liteMetadata)
-        {
-            Console.WriteLine($"{format.Id} | {format.Extension} | {format.Note}");
-        }
-
-        //builder
-        //    .WithFormat("best")
-        //    .WithOutputFolder("C:\\downloads");
-
-        //var urls = new[] {
-        //    "https://youtu.be/dQw4w9WgXcQ",
-        //    "https://youtu.be/9bZkp7q19f0",
-        //    "https://youtu.be/kXYiU_JCYtU"
-        //};
-
-        //var tasks = urls.Select(url => builder.Build().ExecuteAsync(url));
-        //await Task.WhenAll(tasks);
-
-        //var cmd = builder
-        //    .WithFormat("b")
-        //    .WithConcurrentFragments(8)
-        //    .WithFFmpegLocation($"tools")
-        //    .WithHomeFolder(@"C:\Downloads")
-        //    .WithTempFolder(@"C:\Downloads\Temp")
-        //    .WithOutputTemplate("%(title)s [%(id)s].%(ext)s")
-        //    .Build();
-
-
-        //cmd.OnExtracting += (s, url) => Console.WriteLine($"[Stage] Extracting: {url}");
-        //cmd.OnDownloadingStarted += (s, e) => Console.WriteLine("[Stage] Downloading started");
-        //cmd.OnPostProcessingStarted += (s, path) => Console.WriteLine($"[Stage] Processing started: {path}");
-        //cmd.OnPostProcessingCompleted += (s, path) => Console.WriteLine($"[Stage] Processing completed: {path}");
-        //cmd.OnCompleted += (s, e) => Console.WriteLine("[Stage] Finished!");
-        //cmd.OnProgressChanged += (s, e) => Console.WriteLine($"[Progress] {e.Message}");
-
-        //await cmd.ExecuteAsync("https://www.youtube.com/watch?v=Cqln0nwjcYo");
-
-        Console.WriteLine("\nAll tests completed. Press any key to exit...");
-        Console.ReadKey();
     }
 
     // Custom logger to output to console
@@ -109,7 +93,7 @@ internal class Program
                 LogType.Debug => ConsoleColor.Gray,
                 _ => ConsoleColor.White
             };
-            Console.WriteLine($"[{type}] {message}");
+            //Console.WriteLine($"[{type}] {message}");
             Console.ResetColor();
         }
     }

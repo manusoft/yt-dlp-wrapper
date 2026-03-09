@@ -12,29 +12,25 @@ public sealed class YtdlpCommand : IAsyncDisposable
     private readonly ProgressParser _progressParser;
 
     // Common
-    public event EventHandler<string>? OnOutputReceived;
-    public event EventHandler<string>? OnErrorReceived;
-    public event EventHandler? OnCompleted;
-
-    // Downloading stages (not mutually exclusive, may overlap or repeat in some cases)
-    public event EventHandler<string>? OnExtracting;                  // url
-    public event EventHandler? OnDownloadingStarted;
-    public event EventHandler<DownloadProgressEventArgs>? OnProgressChanged;
-    public event EventHandler<string>? OnPostProcessingStarted;       // file path if available
-    public event EventHandler<string>? OnPostProcessingCompleted;     // file path if available
+    public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
+    public event EventHandler<string>? OnProgressMessage;
+    public event EventHandler<string>? OnPostProcessingStarted;
+    public event EventHandler<string>? OnPostProcessingCompleted;
+    public event EventHandler<string>? OnCompleteDownload;
+    public event EventHandler<string>? OnProcessCompleted;
+    public event EventHandler<string>? OnErrorMessage;
 
     internal YtdlpCommand(YtdlpBuilder config)
     {
         _config = config;
         _progressParser = new ProgressParser(config.Logger);
 
-
-        _progressParser.OnOutputMessage += (s, msg) => OnOutputReceived?.Invoke(this, msg);
-        _progressParser.OnErrorMessage += (s, msg) => OnErrorReceived?.Invoke(this, msg);
-
-        _progressParser.OnProgressDownload += (s, e) => OnProgressChanged?.Invoke(this, e);
+        _progressParser.OnProgressDownload += (s, e) => OnProgressDownload?.Invoke(this, e);
+        _progressParser.OnProgressMessage += (s, msg) => OnProgressMessage?.Invoke(this, msg);
         _progressParser.OnPostProcessingStarted += (s, msg) => OnPostProcessingStarted?.Invoke(this, msg);
         _progressParser.OnPostProcessingCompleted += (s, msg) => OnPostProcessingCompleted?.Invoke(this, msg);
+        _progressParser.OnCompleteDownload += (s, msg) => OnCompleteDownload?.Invoke(this, msg);
+        _progressParser.OnErrorMessage += (s, msg) => OnErrorMessage?.Invoke(this, msg);       
     }
 
     public async Task ExecuteAsync(string url, CancellationToken ct = default)
@@ -96,7 +92,7 @@ public sealed class YtdlpCommand : IAsyncDisposable
             if (_process.ExitCode != 0)
                 throw new YtdlpException($"yt-dlp exited with code {_process.ExitCode}");
 
-            OnCompleted?.Invoke(this, EventArgs.Empty);
+            OnProcessCompleted?.Invoke(this, "Process completed successfully.");
             _config.Logger.Log(LogType.Info, "Execution completed successfully.");
         }
         catch (OperationCanceledException)
