@@ -27,7 +27,7 @@ public sealed class YtdlpCommand : IAsyncDisposable
         _config = config;
         _progressParser = new ProgressParser(config.Logger);
 
-       
+
         _progressParser.OnOutputMessage += (s, msg) => OnOutputReceived?.Invoke(this, msg);
         _progressParser.OnErrorMessage += (s, msg) => OnErrorReceived?.Invoke(this, msg);
         _progressParser.OnCompleteDownload += (s, _) => OnCompleted?.Invoke(this, EventArgs.Empty);
@@ -163,13 +163,8 @@ public sealed class YtdlpCommand : IAsyncDisposable
             sb.Append(kv.Value is null ? $"{kv.Key} " : $"{kv.Key} \"{kv.Value}\" ");
 
         // ─── Special booleans & paths (all quoted where needed) ─────────────────
-        if (_config.Simulate) sb.Append("--simulate ");
-        if (_config.NoOverwrites) sb.Append("--no-overwrites ");
-        if (_config.KeepFragments) sb.Append("--keep-fragments ");
         if (_config.CookiesFile != null) sb.Append($"--cookies \"{_config.CookiesFile}\" ");
         if (_config.CookiesFromBrowser != null) sb.Append($"--cookies-from-browser {_config.CookiesFromBrowser} ");
-        if (_config.Referer != null) sb.Append($"--referer \"{_config.Referer}\" ");
-        if (_config.UserAgent != null) sb.Append($"--user-agent \"{_config.UserAgent}\" ");
         if (_config.Proxy != null) sb.Append($"--proxy \"{_config.Proxy}\" ");
         if (_config.FfmpegLocation != null) sb.Append($"--ffmpeg-location \"{_config.FfmpegLocation}\" ");
         if (_config.SponsorblockRemoveCategories != null)

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using ManuHub.Ytdlp.Core;
+using System.Diagnostics;
 using System.Text;
 
 namespace ManuHub.Ytdlp;
@@ -74,11 +75,11 @@ public static class Ytdlp
     /// <param name="ytDlpPath">Optional custom path to yt-dlp executable</param>
     /// <param name="nightly">If true, installs the nightly build instead of stable</param>
     /// <param name="ct">Cancellation token</param>
-    public static async Task<string> UpdateAsync(string? ytDlpPath = null, bool nightly = false, CancellationToken ct = default)
+    public static async Task<string> UpdateAsync(string? ytDlpPath = null, UpdateChannel channel = UpdateChannel.Stable, CancellationToken ct = default)
     {
         ytDlpPath ??= "yt-dlp";
 
-        var args = nightly ? "--update-to nightly" : "--update";
+        var args = $"--update-to {channel.ToString().ToLowerInvariant()}";
 
         var psi = new ProcessStartInfo
         {

@@ -61,7 +61,7 @@ public static class YtdlpProbe
             .AddFlag("--quiet");
 
         var command = builder.Build();
-        string output = await RunProbeAsync(command, url, ct);       
+        string output = await RunProbeAsync(command, url, ct);
         return ParseFormats(output);
     }
 
@@ -184,11 +184,7 @@ public static class YtdlpProbe
     /// <summary>
     /// Gets the format ID of the best video format, optionally capped by max height.
     /// </summary>
-    public static async Task<string?> GetBestVideoFormatIdAsync(
-        string url,
-        int? maxHeight = null,
-        YtdlpBuilder? baseBuilder = null,
-        CancellationToken ct = default)
+    public static async Task<string?> GetBestVideoFormatIdAsync(string url, int? maxHeight = null, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         string selector = "bestvideo";
         if (maxHeight.HasValue)
@@ -207,6 +203,20 @@ public static class YtdlpProbe
 
         return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
     }
+
+    //public static async Task<string?> GetFileSizeAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
+    //{
+    //    var builder = (baseBuilder ?? Ytdlp.Create())
+    //        .WithFormat(selector)
+    //        .AddOption("--print", "%(format_id)s")
+    //        .AddFlag("--no-download")
+    //        .AddFlag("--quiet");
+
+    //    var command = builder.Build();
+    //    string output = await RunProbeAsync(command, url, ct);
+
+    //    return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
+    //}
 
     // ──────────────────────────────────────────────
     // Internal helper: Run yt-dlp probe and capture stdout

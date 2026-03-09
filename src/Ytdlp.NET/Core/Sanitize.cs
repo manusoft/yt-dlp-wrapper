@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace ManuHub.Ytdlp.Core;
 
-namespace ManuHub.Ytdlp.Core
+internal class Sanitize
 {
-    internal class Sanitize
-    {
-    }
 }
