@@ -1,4 +1,4 @@
-﻿namespace Ytdlp.NET.Test;
+﻿namespace Ytdlp.NET.Test.Obsolete;
 
 internal static class TestConstants
 {

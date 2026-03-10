@@ -1,7 +1,6 @@
-﻿namespace YtdlpNET;
+﻿namespace ManuHub.Ytdlp;
 
-
-public sealed class YtdlpException : Exception
+public class YtdlpException : Exception
 {
     public YtdlpException(string message) : base(message) { }
     public YtdlpException(string message, Exception inner) : base(message, inner) { }

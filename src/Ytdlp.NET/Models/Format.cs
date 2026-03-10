@@ -1,13 +1,13 @@
 ﻿using System.Globalization;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace YtdlpNET;
+namespace ManuHub.Ytdlp.Models;
 
 /// <summary>
-/// Represents a single format available for a video/audio from yt-dlp's -F (--list-formats) output.
-/// Enriched for v2.0 with more parsed fields from the format table.
+/// Represents a single format available for the video (from yt-dlp --list-formats or JSON).
 /// </summary>
-public sealed class Format
+public class Format
 {
     // Core identifiers
     public string Id { get; set; } = string.Empty;          // format code / ID
@@ -37,18 +37,20 @@ public sealed class Format
     public string? Container { get; set; }                 // sometimes inferred from ext or more info
 
     // Size & approx
-    public string? FileSizeApprox { get; set; }            // e.g. "~123.45MiB", "N/A"
-    public long? ApproxFileSizeBytes { get; set; }         // parsed numeric value (approximate)
+    public string? FileSize { get; set; }            // e.g. "~123.45MiB", "N/A"
+    public long? FileSizeApprox { get; set; }         // parsed numeric value (approximate)
 
     // Other metadata
     public string? Language { get; set; }                  // from more info or subs column if present
     public string? MoreInfo { get; set; }                  // remaining text (hdr, quality note, etc.)
     public string? Note { get; set; }                      // sometimes separate note column
 
-    // Convenience flags
-    public bool IsVideo => !string.IsNullOrEmpty(VideoCodec) && VideoCodec != "none" && Resolution != "audio only";
-    public bool IsAudioOnly => Resolution == "audio only" || (VideoCodec == "none" && !string.IsNullOrEmpty(AudioCodec));
-    public bool IsStoryboard => VideoCodec == "images" || MoreInfo?.Contains("storyboard") == true;
+
+    // Additional fields if needed (e.g. quality sort key, has_audio, etc.)
+    public bool HasVideo => !string.IsNullOrEmpty(VideoCodec) && VideoCodec != "none" && Resolution != "audio only";
+    public bool HasAudio => !string.IsNullOrEmpty(AudioCodec) && AudioCodec != "none";
+    public bool IsAudioOnly => Resolution == "audio only" || VideoCodec == "none";
+    public bool HasStoryboard => VideoCodec == "images" || MoreInfo?.Contains("storyboard") == true;
 
     public override string ToString()
     {
@@ -59,7 +61,7 @@ public sealed class Format
             (Resolution ?? "unknown").PadRight(12),
             Fps?.ToString("F0", CultureInfo.InvariantCulture) ?? "-".PadRight(4),
             Channels ?? "-".PadRight(3),
-            FileSizeApprox ?? "-".PadRight(12),
+            FileSize ?? "-".PadRight(12),
             Protocol ?? "-".PadRight(8),
             VideoCodec ?? "-".PadRight(10),
             AudioCodec ?? "-".PadRight(10),
@@ -68,7 +70,6 @@ public sealed class Format
 
         return string.Join("  ", parts.Where(p => !string.IsNullOrEmpty(p)));
     }
-
 
     /// <summary>
     /// Factory method to create Format from a single line of yt-dlp -F output.
@@ -141,7 +142,7 @@ public sealed class Format
         // File size approx
         if (idx < parts.Length && (parts[idx].Contains("MiB") || parts[idx].Contains("GiB") || parts[idx] == "~"))
         {
-            format.FileSizeApprox = parts[idx];
+            format.FileSize = parts[idx];
             // Try parse numeric
             var sizeMatch = Regex.Match(parts[idx], @"~?(\d+\.?\d*)\s*(MiB|GiB|KiB)?");
             if (sizeMatch.Success)
@@ -155,7 +156,7 @@ public sealed class Format
                         "KiB" => 1024,
                         _ => 1
                     };
-                    format.ApproxFileSizeBytes = (long)(val * multiplier);
+                    format.FileSizeApprox = (long)(val * multiplier);
                 }
             }
             idx++;
@@ -209,7 +210,7 @@ public sealed class Format
         return format;
     }
 
-    public IEnumerable<Format> FilterFormats(IEnumerable<Format> formats, string type)
+    public static IEnumerable<Format> FilterFormats(IEnumerable<Format> formats, string type)
     {
         return formats.Where(f => type == "audio" ? f.Resolution == "audio only" :
                                   type == "video" ? f.Resolution != "audio only" && f.Extension != "mhtml" :

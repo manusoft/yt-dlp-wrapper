@@ -1,4 +1,4 @@
-﻿namespace YtdlpNET;
+﻿namespace ManuHub.Ytdlp;
 
 internal sealed class DefaultLogger : ILogger
 {

@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using YtdlpDotNet;
 
-namespace Ytdlp.NET.Test;
+namespace Ytdlp.NET.Test.Obsolete;
 
 public class ParseFormatTest
 {
