@@ -331,3 +331,259 @@ Contributions are welcome! Please submit issues or pull requests to the [GitHub 
 ## 📄 License
 
 This project is licensed under the MIT License. See the [LICENSE](https://github.com/manusoft/yt-dlp-wrapper/blob/master/LICENSE.txt) file for details.
+
+# Ytdlp.NET v3 - Modern .NET YouTube Downloader
+
+![NuGet](https://img.shields.io/nuget/v/Ytdlp.NET)
+![Downloads](https://img.shields.io/nuget/dt/Ytdlp.NET)
+
+---
+
+## 1. Introduction
+
+**Ytdlp.NET v3** is a modern, fully asynchronous .NET wrapper around `yt-dlp` for downloading videos and audio from YouTube and other supported sites. This version introduces a completely refactored API, better event handling, improved concurrency, and robust progress reporting.
+
+> **Note:** v3 is a breaking change from v2. Read the migration guide carefully.
+
+---
+
+## 2. Installation
+
+Install via NuGet:
+
+```powershell
+Install-Package Ytdlp.NET -Version 3.0.0
+```
+
+Make sure you have `yt-dlp.exe` accessible on your system, or provide a path via `YtdlpBuilder.YtDlpPath`.
+
+---
+
+## 3. Migration Guide v2 → v3
+
+* **Namespaces and class names remain the same**, but the API is fully async and event-driven.
+* Old synchronous methods are removed.
+* `ExecuteAsync` replaces the old `Run` / `Download` methods.
+* Batch operations are fully asynchronous with concurrency limits.
+* Event handling is centralized through `YtdlpCommand`.
+
+### Example:
+
+```csharp
+// v2
+var result = ytdlp.Download(url);
+
+// v3
+var command = new YtdlpCommand(builder);
+await command.ExecuteAsync(url);
+```
+
+---
+
+## 4. Quick Start
+
+```csharp
+var builder = new YtdlpBuilder()
+{
+    OutputFolder = "Downloads",
+    Format = "bestvideo+bestaudio",
+    YtDlpPath = "yt-dlp.exe"
+};
+
+var command = new YtdlpCommand(builder);
+
+command.OnProgressDownload += (s, e) => Console.WriteLine($"Progress: {e.Percent}%");
+command.OnCompleteDownload += (s, url) => Console.WriteLine($"Completed: {url}");
+
+await command.ExecuteAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+```
+
+---
+
+## 5. Core Classes & Usage
+
+### YtdlpBuilder
+
+Builder class for configuration.
+
+```csharp
+var builder = new YtdlpBuilder()
+{
+    OutputFolder = "Downloads",
+    Format = "bestaudio",
+    HomeFolder = "C:\\YtdlpHome",
+    TempFolder = "C:\\YtdlpTemp",
+    ConcurrentFragments = 4,
+    YtDlpPath = "yt-dlp.exe",
+    Logger = new ConsoleLogger()
+};
+
+// Optional flags
+builder.Flags.Add("--no-check-certificate");
+
+// Key-value options
+builder.Options.Add(("--retries", "10"));
+```
+
+### YtdlpCommand
+
+Handles execution and event forwarding.
+
+```csharp
+var command = new YtdlpCommand(builder);
+
+// Event subscriptions
+command.OnProgressDownload += (s, e) => Console.WriteLine($"{e.Percent}% {e.Speed}");
+command.OnProgressMessage += (s, msg) => Console.WriteLine(msg);
+command.OnPostProcessingStarted += (s, msg) => Console.WriteLine("Post-processing started: " + msg);
+command.OnPostProcessingCompleted += (s, msg) => Console.WriteLine("Post-processing completed: " + msg);
+command.OnCompleteDownload += (s, url) => Console.WriteLine("Completed: " + url);
+command.OnProcessCompleted += (s, msg) => Console.WriteLine("Process done: " + msg);
+command.OnErrorMessage += (s, msg) => Console.WriteLine("Error: " + msg);
+```
+
+---
+
+## 6. Command Options / Arguments
+
+* `OutputFolder` - Where files are saved.
+* `Format` - Video/audio format, e.g., `bestvideo+bestaudio`.
+* `ConcurrentFragments` - Number of fragments to download in parallel.
+* `Flags` - Additional yt-dlp flags.
+* `Options` - Key-value options.
+* `CookiesFile` / `CookiesFromBrowser` - Authentication.
+* `Proxy` - HTTP/SOCKS proxy.
+* `FfmpegLocation` - Custom FFmpeg path.
+* `SponsorblockRemoveCategories` - Remove sponsor segments.
+
+All options are forwarded automatically to yt-dlp.
+
+---
+
+## 7. Event Handling & Progress Reporting
+
+Events provide full real-time feedback:
+
+| Event                     | Description                               |
+| ------------------------- | ----------------------------------------- |
+| OnProgressDownload        | Fires periodically with download progress |
+| OnProgressMessage         | Any general message from yt-dlp           |
+| OnPostProcessingStarted   | When post-processing (like merge) starts  |
+| OnPostProcessingCompleted | When post-processing completes            |
+| OnCompleteDownload        | When a download finishes                  |
+| OnProcessCompleted        | Process finished (exit)                   |
+| OnErrorMessage            | Error messages                            |
+
+```csharp
+command.OnProgressDownload += (s, e) =>
+    Console.WriteLine($"{e.Percent}% | {e.DownloadedMB}/{e.TotalMB} MB");
+```
+
+---
+
+## 8. Examples
+
+### Simple Download
+
+```csharp
+await command.ExecuteAsync(url);
+```
+
+### Audio-Only Download
+
+```csharp
+builder.Format = "bestaudio";
+await command.ExecuteAsync(url);
+```
+
+### Batch Download
+
+```csharp
+var urls = new[] { url1, url2, url3 };
+var results = await command.ExecuteBatchAsync(urls, maxConcurrency: 3);
+
+foreach(var r in results)
+    Console.WriteLine(r.Url + (r.Error == null ? " OK" : " Failed"));
+```
+
+### Custom Proxy & Cookies
+
+```csharp
+builder.Proxy = "socks5://127.0.0.1:1080";
+builder.CookiesFile = "cookies.txt";
+await command.ExecuteAsync(url);
+```
+
+---
+
+## 9. Advanced Usage
+
+### Running Probes
+
+```csharp
+var output = await YtdlpCommand.RunProbeAsync(command, url, ct);
+Console.WriteLine(output);
+```
+
+### Cancellation
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+await command.ExecuteAsync(url, cts.Token);
+```
+
+### Capture Stdout & Errors
+
+* v3 automatically captures both stdout and stderr via events.
+* Use `OnProgressMessage` and `OnErrorMessage`.
+
+---
+
+## 10. Error Handling
+
+* `YtdlpException` for yt-dlp related errors.
+* Exceptions are thrown if:
+
+  * Process exits with non-zero code
+  * Probe fails
+  * Output folder cannot be created
+
+```csharp
+try
+{
+    await command.ExecuteAsync(url);
+}
+catch(YtdlpException ex)
+{
+    Console.WriteLine("Download failed: " + ex.Message);
+}
+```
+
+---
+
+## 11. Notes & Tips
+
+* Use `ExecuteBatchAsync` for multiple downloads.
+* Always unsubscribe from events if using long-lived `YtdlpCommand` instances.
+* Set `ConcurrentFragments` for faster downloads on multi-core systems.
+* Ensure `yt-dlp` is updated for best compatibility.
+
+---
+
+## 12. Changelog / Breaking Changes
+
+### v3.0.0
+
+* Fully async API
+* Consolidated `ExecuteAsync` method
+* Event-driven progress and messages
+* Batch execution with concurrency
+* Old v2 synchronous methods removed
+* `BuildArgs` moved to `YtdlpBuilder`
+* Breaking API changes require code updates
+
+---
+
+**Author:** Your Name
+**License:** MIT
+**Repository:** [https://github.com/YourRepo/Ytdlp.NET](https://github.com/YourRepo/Ytdlp.NET)
