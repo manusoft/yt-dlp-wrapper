@@ -33,13 +33,15 @@ public sealed class YtdlpCommand : IAsyncDisposable
         _progressParser.OnErrorMessage += (s, msg) => OnErrorMessage?.Invoke(this, msg);       
     }
 
+    private int _isRunning; // 0 = not running, 1 = running
+
     public async Task ExecuteAsync(string url, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested(); // early check
+        ct.ThrowIfCancellationRequested(); 
 
         if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("URL cannot be empty", nameof(url));
 
-        // Create output folder if needed(still useful)
+        // Ensure output folder exists
         try
         {
             if (!_config.IsProbe)
@@ -54,7 +56,9 @@ public sealed class YtdlpCommand : IAsyncDisposable
             throw new YtdlpException("Failed to create output folder", ex);
         }
 
-        string arguments = BuildArguments(url);
+        // Build args using YtdlpBuilder
+        var argsList = _config.BuildArgs(url);
+        string arguments = string.Join(" ", argsList.Select(Quote));
         _config.Logger.Log(LogType.Info, $"Executing yt-dlp {arguments}");
 
         var psi = new ProcessStartInfo
@@ -81,12 +85,16 @@ public sealed class YtdlpCommand : IAsyncDisposable
             if (e.Data != null) _progressParser.ParseProgress(e.Data);
         };
 
-        _process.Start();
-        _process.BeginOutputReadLine();
-        _process.BeginErrorReadLine();
+        // Thread-safety: prevent concurrent execution
+        if (Interlocked.Exchange(ref _isRunning, 1) == 1)
+            throw new InvalidOperationException("Command is already running.");
 
         try
         {
+            _process.Start();
+            _process.BeginOutputReadLine();
+            _process.BeginErrorReadLine();
+
             await _process.WaitForExitAsync(ct);
 
             if (_process.ExitCode != 0)
@@ -103,7 +111,19 @@ public sealed class YtdlpCommand : IAsyncDisposable
         finally
         {
             _progressParser.Reset();
+            Interlocked.Exchange(ref _isRunning, 0); // Reset running flag
         }
+    }
+
+    /// <summary>
+    /// Quotes an argument if it contains spaces or special characters
+    /// </summary>
+    private static string Quote(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "\"\"";
+        // Escape " and \
+        string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        return $"\"{escaped}\"";
     }
 
     public async Task<List<(string Url, Exception? Error)>> ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 4, CancellationToken ct = default)
@@ -114,15 +134,27 @@ public sealed class YtdlpCommand : IAsyncDisposable
         var tasks = urls.Select(async url =>
         {
             await semaphore.WaitAsync(ct);
+
             try
             {
-                await new YtdlpCommand(_config).ExecuteAsync(url, ct);
+                var command = new YtdlpCommand(_config);
+
+                // Forward all events to the batch caller
+                command.OnProgressDownload += (s, e) => OnProgressDownload?.Invoke(s, e);
+                command.OnProgressMessage += (s, e) => OnProgressMessage?.Invoke(s, e);
+                command.OnPostProcessingStarted += (s, e) => OnPostProcessingStarted?.Invoke(s, e);
+                command.OnPostProcessingCompleted += (s, e) => OnPostProcessingCompleted?.Invoke(s, e);
+                command.OnCompleteDownload += (s, e) => OnCompleteDownload?.Invoke(s, e);
+                command.OnProcessCompleted += (s, e) => OnProcessCompleted?.Invoke(s, e);
+                command.OnErrorMessage += (s, e) => OnErrorMessage?.Invoke(s, e);
+
+                await command.ExecuteAsync(url, ct);
                 results.Add((url, null));
             }
             catch (Exception ex)
             {
                 results.Add((url, ex));
-                _config.Logger.Log(LogType.Error, $"Failed {url}: {ex.Message}");
+                _config.Logger.Log(LogType.Error, $"Failed to download {url}: {ex.Message}");
             }
             finally
             {
@@ -132,67 +164,6 @@ public sealed class YtdlpCommand : IAsyncDisposable
 
         await Task.WhenAll(tasks);
         return results.ToList();
-    }
-
-    private string BuildArguments(string url)
-    {
-        var sb = new StringBuilder();
-
-        if (!_config.IsProbe)
-        {
-            // ─── Paths (home & temp) ────────────────────────────────────────────────
-            if (!string.IsNullOrWhiteSpace(_config.HomeFolder))
-                sb.Append($"--paths home:\"{_config.HomeFolder}\" ");
-
-            if (!string.IsNullOrWhiteSpace(_config.TempFolder))
-                sb.Append($"--paths temp:\"{_config.TempFolder}\" ");
-
-            // ─── Output ─────────────────────────────────────────────────────────────
-            // Keep template RELATIVE — do NOT combine OutputFolder here
-
-            string relativeTemplate = _config.OutputTemplate;
-            sb.Append($"-o \"{relativeTemplate}\" ");
-
-
-            // ─── Format ─────────────────────────────────────────────────────────────
-            if (!string.IsNullOrWhiteSpace(_config.Format))
-                sb.Append($"-f \"{_config.Format}\" ");
-
-            // ─── Concurrent fragments ───────────────────────────────────────────────
-            if (_config.ConcurrentFragments.HasValue)
-                sb.Append($"--concurrent-fragments {_config.ConcurrentFragments.Value} ");
-
-        }
-
-        // ─── Flags ──────────────────────────────────────────────────────────────
-        foreach (var flag in _config.Flags)
-            sb.Append($"{flag} ");
-
-        // ─── Key-value options ──────────────────────────────────────────────────
-        foreach (var kv in _config.Options)
-            sb.Append(kv.Value is null ? $"{kv.Key} " : $"{kv.Key} {Quote(kv.Value)} ");
-
-        // ─── Special booleans & paths (all quoted where needed) ─────────────────
-        if (_config.CookiesFile != null) sb.Append($"--cookies {Quote(_config.CookiesFile)} ");
-        if (_config.CookiesFromBrowser != null) sb.Append($"--cookies-from-browser {_config.CookiesFromBrowser} ");
-        if (_config.Proxy != null) sb.Append($"--proxy {Quote(_config.Proxy)} ");
-        if (_config.FfmpegLocation != null) sb.Append($"--ffmpeg-location {Quote(_config.FfmpegLocation)} ");
-        if (_config.SponsorblockRemoveCategories != null) sb.Append($"--sponsorblock-remove {Quote(_config.SponsorblockRemoveCategories)} ");
-
-
-        // ─── URL (minimal sanitization) ─────────────────────────────────────────
-        string safeUrl = Quote(url);
-        sb.Append($" {safeUrl}");
-
-        return sb.ToString().Trim();
-    }
-
-    private static string Quote(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return "\"\"";
-        // Escape " and \
-        string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
-        return $"\"{escaped}\"";
     }
 
     public async ValueTask DisposeAsync()

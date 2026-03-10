@@ -19,7 +19,7 @@ public static class YtdlpProbe
     };
 
     /// <summary>
-    /// 
+    /// Get detailed list of available formats using --dump-single-json (returns Format objects).
     /// </summary>
     /// <param name="url"></param>
     /// <param name="baseBuilder"></param>
@@ -44,7 +44,7 @@ public static class YtdlpProbe
                 .NoWarnings();
 
             var cmd = builder.Build();
-            var json = await RunProbeAsync(cmd, url, ct);
+            string json = await RunProbeAsync(cmd, url, ct);
 
             if (string.IsNullOrWhiteSpace(json))
                 throw new YtdlpException("Empty JSON response");
@@ -69,41 +69,13 @@ public static class YtdlpProbe
     }
 
     /// <summary>
-    /// Fetches full video metadata (including formats list) using --dump-json.
-    /// Returns null if parsing fails or yt-dlp errors.
-    /// </summary>
-    public static async Task<Metadata?> GetVideoMetadataAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
-    {
-        var builder = (baseBuilder ?? Ytdlp.Create())
-            .Probe()
-            .Simulate()
-            .SkipDownload()
-            .NoPlaylist()
-            .AddFlag("--dump-single-json")
-            .Quiet()
-            .NoWarnings();
-
-        var command = builder.Build();
-
-        string rawJson = await RunProbeAsync(command, url, ct);
-
-        if (string.IsNullOrWhiteSpace(rawJson))
-            return null;
-
-        try
-        {
-            return JsonSerializer.Deserialize<Metadata>(rawJson, JsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null; // or throw new YtdlpException("Failed to parse metadata JSON", ex);
-        }
-    }
-
-    /// <summary>
     /// Gets the list of available formats (parsed from --list-formats output).
     /// This is text-based parsing (not JSON), suitable for quick format listing.
     /// </summary>
+    /// <param name="url"></param>
+    /// <param name="baseBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
     public static async Task<List<Format>> GetAvailableFormatsAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
@@ -119,11 +91,48 @@ public static class YtdlpProbe
         return ParseFormats(output);
     }
 
+    /// <summary>
+    /// Fetches full video metadata (including formats list) using --dump-json.
+    /// Returns null if parsing fails or yt-dlp errors.
+    /// </summary>
+    /// <param name="url"></param>
+    /// <param name="baseBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static async Task<Metadata?> GetVideoMetadataAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
+    {
+        var builder = (baseBuilder ?? Ytdlp.Create())
+            .Probe()
+            .Simulate()
+            .SkipDownload()
+            .NoPlaylist()
+            .AddFlag("--dump-single-json")
+            .Quiet()
+            .NoWarnings();
+
+        var command = builder.Build();
+        string rawJson = await RunProbeAsync(command, url, ct);
+
+        if (string.IsNullOrWhiteSpace(rawJson)) return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<Metadata>(rawJson, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null; // or throw new YtdlpException("Failed to parse metadata JSON", ex);
+        }
+    }
 
     /// <summary>
     /// Gets the full video metadata as a parsed object (requires Metadata class).
     /// Falls back to raw JSON string if parsing fails or Metadata not available.
     /// </summary>
+    /// <param name="url"></param>
+    /// <param name="configBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
     public static async Task<object> GetVideoMetadataRawAsync(string url, YtdlpBuilder? configBuilder = null, CancellationToken ct = default)
     {
         var builder = configBuilder ?? Ytdlp.Create();
@@ -137,7 +146,6 @@ public static class YtdlpProbe
             .NoWarnings();
 
         var command = builder.Build();
-
         string jsonOutput = await RunProbeAsync(command, url, ct);
 
         try
@@ -157,6 +165,10 @@ public static class YtdlpProbe
     /// <summary>
     /// Gets detailed list of available formats (parsed into Format objects or raw lines).
     /// </summary>
+    /// <param name="url"></param>
+    /// <param name="configBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
     public static async Task<List<object>> GetFormatsRawAsync(string url, YtdlpBuilder? configBuilder = null, CancellationToken ct = default)
     {
         var builder = configBuilder ?? Ytdlp.Create();
@@ -169,7 +181,6 @@ public static class YtdlpProbe
             .NoPlaylist();
 
         var command = builder.Build();
-
         string output = await RunProbeAsync(command, url, ct);
 
         var formats = new List<object>();
@@ -224,10 +235,11 @@ public static class YtdlpProbe
     /// <summary>
     /// Gets the format ID of the best audio-only format.
     /// </summary>
-    public static async Task<string?> GetBestAudioFormatIdAsync(
-        string url,
-        YtdlpBuilder? baseBuilder = null,
-        CancellationToken ct = default)
+    /// <param name="url"></param>
+    /// <param name="baseBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static async Task<string?> GetBestAudioFormatIdAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
             .Probe()
@@ -240,13 +252,17 @@ public static class YtdlpProbe
 
         var command = builder.Build();
         string output = await RunProbeAsync(command, url, ct);
-
         return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
     }
 
     /// <summary>
     /// Gets the format ID of the best video format, optionally capped by max height.
     /// </summary>
+    /// <param name="url"></param>
+    /// <param name="maxHeight"></param>
+    /// <param name="baseBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
     public static async Task<string?> GetBestVideoFormatIdAsync(string url, int? maxHeight = null, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         string selector = "bestvideo";
@@ -266,10 +282,16 @@ public static class YtdlpProbe
 
         var command = builder.Build();
         string output = await RunProbeAsync(command, url, ct);
-
         return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
     }
 
+    /// <summary>
+    /// Gets the file size (in bytes) of the best format (audio/video) using yt-dlp's --print option.
+    /// </summary>
+    /// <param name="url"></param>
+    /// <param name="baseBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
     public static async Task<string?> GetFileSizeAsync(string url, YtdlpBuilder? baseBuilder = null, CancellationToken ct = default)
     {
         var builder = (baseBuilder ?? Ytdlp.Create())
@@ -282,7 +304,6 @@ public static class YtdlpProbe
 
         var command = builder.Build();
         string output = await RunProbeAsync(command, url, ct);
-
         return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
     }
 
@@ -295,28 +316,25 @@ public static class YtdlpProbe
         var outputBuilder = new StringBuilder();
         var errorBuilder = new StringBuilder();
 
-        //void OnOutput(object? s, string line) => outputBuilder.AppendLine(line);
+        void OnOutput(object? s, string line) => outputBuilder.AppendLine(line);
         void OnError(object? s, string line) => errorBuilder.AppendLine(line);
 
-        //command.OnOutputReceived += OnOutput;
+        command.OnProgressMessage += OnOutput;
         command.OnErrorMessage += OnError;
 
         try
         {
             await command.ExecuteAsync(url, ct);
             await command.DisposeAsync();
-            string result = outputBuilder.ToString().Trim();
 
             if (errorBuilder.Length > 0)
-            {
                 throw new YtdlpException($"Probe error: {errorBuilder}");
-            }
 
-            return result;
+            return outputBuilder.ToString().Trim();
         }
         finally
         {
-            //command.OnOutputReceived -= OnOutput;
+            command.OnProgressMessage -= OnOutput;
             command.OnErrorMessage -= OnError;
         }
     }

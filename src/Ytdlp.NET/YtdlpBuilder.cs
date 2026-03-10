@@ -736,8 +736,16 @@ public sealed class YtdlpBuilder
     #endregion
 
     #region Generic Core
+    
+    private YtdlpBuilder Copy(Action<YtdlpBuilder> modifier)
+    {
+        var clone = new YtdlpBuilder(this);
+        modifier(clone);
+        return clone;
+    }
 
     public YtdlpBuilder WithYtDlpPath(string path) => Copy(b => b.YtDlpPath = path);
+
     public YtdlpBuilder WithLogger(ILogger logger) => Copy(b => b.Logger = logger);
 
     public YtdlpBuilder AddFlag(string flag)
@@ -752,19 +760,104 @@ public sealed class YtdlpBuilder
         return Copy(b => b.Options = b.Options.Add((key.Trim(), value)));
     }
 
-    private YtdlpBuilder Copy(Action<YtdlpBuilder> modifier)
-    {
-        var clone = new YtdlpBuilder(this);
-        modifier(clone);
-        return clone;
-    }
-
-    public YtdlpCommand Build()
-    {
-        return new YtdlpCommand(this);
-    }
-
+    public YtdlpCommand Build() => new YtdlpCommand(this);
+    
     public YtdlpBuilder Probe() => Copy(b => b.IsProbe = true);
 
+    public IReadOnlyList<string> BuildArgs(string url)
+    {
+        var args = new List<string>();
+
+        if (!IsProbe)
+        {
+            // ─── Paths (home & temp) ────────────────────────────────────────────────
+            if (!string.IsNullOrWhiteSpace(HomeFolder))
+            {
+                args.Add("--paths");
+                args.Add($"home:{HomeFolder}");
+            }
+                       
+            if (!string.IsNullOrWhiteSpace(TempFolder))
+            {
+                args.Add("--paths");
+                args.Add($"temp:{TempFolder}");
+            }
+
+            // ─── Output ─────────────────────────────────────────────────────────────
+            // Keep template RELATIVE — do NOT combine OutputFolder here
+            if (!string.IsNullOrWhiteSpace(OutputTemplate))
+            {
+                args.Add("-o");
+                args.Add(OutputTemplate);
+            }
+
+            // ─── Format ─────────────────────────────────────────────────────────────
+            if (!string.IsNullOrWhiteSpace(Format))
+            {
+                args.Add("-f");
+                args.Add(Format);
+            }
+
+            // ─── Concurrent fragments ───────────────────────────────────────────────
+            if (ConcurrentFragments.HasValue)
+            {
+                args.Add("--concurrent-fragments");
+                args.Add(ConcurrentFragments.Value.ToString());
+            }
+        }
+
+        // ─── Flags ──────────────────────────────────────────────────────────────
+        if (Flags.Length > 0)
+            args.AddRange(Flags);
+
+        // ─── Key-value options ──────────────────────────────────────────────────
+        if (Options.Length > 0)
+        {
+            foreach (var kv in Options)
+            {
+                args.Add(kv.Key);
+                if (kv.Value != null)
+                    args.Add(kv.Value);
+            }
+        }
+
+        // ─── Special booleans & paths ───────────────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(CookiesFile))
+        {
+            args.Add("--cookies");
+            args.Add(CookiesFile);
+        }
+
+        if (!string.IsNullOrWhiteSpace(CookiesFromBrowser))
+        {
+            args.Add("--cookies-from-browser");
+            args.Add(CookiesFromBrowser);
+        }
+
+        if (!string.IsNullOrWhiteSpace(Proxy))
+        {
+            args.Add("--proxy");
+            args.Add(Proxy);
+        }
+
+        if (!string.IsNullOrWhiteSpace(FfmpegLocation))
+        {
+            args.Add("--ffmpeg-location");
+            args.Add(FfmpegLocation);
+        }
+
+        if (!string.IsNullOrWhiteSpace(SponsorblockRemoveCategories))
+        {
+            args.Add("--sponsorblock-remove");
+            args.Add(SponsorblockRemoveCategories);
+        }
+
+        // ─── URL  ──────────────────────────────────────────────────────────────
+        args.Add(url);
+
+        return args.AsReadOnly();
+    }
+
     #endregion
+
 }
