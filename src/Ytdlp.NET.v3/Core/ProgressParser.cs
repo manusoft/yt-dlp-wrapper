@@ -13,23 +13,19 @@ public sealed class ProgressParser
 
     public ProgressParser(ILogger? logger = null)
     {
-        _logger = logger ?? new DefaultLogger();       
+        _logger = logger ?? new DefaultLogger();
 
         _regexHandlers = new Dictionary<Regex, Action<Match>>
         {
             // ───────────── Download Progress ─────────────
-            { new Regex(RegexPatterns.DownloadProgress, RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                HandleDownloadProgress },
-            { new Regex(RegexPatterns.DownloadProgressComplete, RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                HandleDownloadComplete },
+            { new Regex(RegexPatterns.DownloadProgress, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadProgress },
+            { new Regex(RegexPatterns.DownloadProgressWithFrag, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadProgress },
+            { new Regex(RegexPatterns.DownloadProgressComplete, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadComplete },
 
             // ───────────── Post-Processing ─────────────
-            { new Regex(RegexPatterns.MergerStart, RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                HandleMergingStart },
-            { new Regex(RegexPatterns.MergerSuccess, RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                HandleMergingComplete },
-            { new Regex(RegexPatterns.FFmpegAction, RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                HandleFFmpeg },
+            { new Regex(RegexPatterns.MergerStart, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleMergingStart },
+            { new Regex(RegexPatterns.MergerSuccess, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleMergingComplete },
+            { new Regex(RegexPatterns.FFmpegAction, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleFFmpeg },
 
             // ───────────── FixupM3u8 + MoveFiles Post-Processing ─────────────
             { new Regex(@"\[(?<source>FixupM3u8|MoveFiles)\]\s*(?<action>.+)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
@@ -169,6 +165,6 @@ public sealed class ProgressParser
     public event EventHandler<string>? OnErrorMessage;
     public event EventHandler<string>? OnPostProcessingStarted;
     public event EventHandler<string>? OnPostProcessingCompleted;
-    public event EventHandler<string>? OnCompleteDownload;   
+    public event EventHandler<string>? OnCompleteDownload;
     #endregion
 }

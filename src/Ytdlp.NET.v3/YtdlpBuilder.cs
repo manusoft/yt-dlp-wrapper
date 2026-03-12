@@ -8,7 +8,6 @@ public sealed class YtdlpBuilder
     #region Frozen state
 
     internal string YtDlpPath;
-    internal bool IsProbe;
     internal ILogger Logger;
     internal string OutputFolder;
     internal string OutputTemplate;
@@ -30,7 +29,6 @@ public sealed class YtdlpBuilder
     public YtdlpBuilder(string? ytDlpPath = null, ILogger? logger = null)
     {
         YtDlpPath = ytDlpPath ?? "yt-dlp"; // or resolve from path
-        IsProbe = false;
         Logger = logger ?? new DefaultLogger();
         OutputFolder = Directory.GetCurrentDirectory();
         OutputTemplate = "%(title)s [%(id)s].%(ext)s";
@@ -50,7 +48,6 @@ public sealed class YtdlpBuilder
     private YtdlpBuilder(YtdlpBuilder other)
     {
         YtDlpPath = other.YtDlpPath;
-        IsProbe = other.IsProbe;
         Logger = other.Logger;
         OutputFolder = other.OutputFolder;
         OutputTemplate = other.OutputTemplate;
@@ -216,7 +213,7 @@ public sealed class YtdlpBuilder
     /// Download the playlist, if the URL refers to a video and a playlist
     /// </summary>
     /// <returns></returns>
-    public YtdlpBuilder YesPlaylist()=> AddFlag("--yes-playlist");
+    public YtdlpBuilder YesPlaylist() => AddFlag("--yes-playlist");
 
     /// <summary>
     /// Download only videos suitable for the given age
@@ -736,7 +733,7 @@ public sealed class YtdlpBuilder
     #endregion
 
     #region Generic Core
-    
+
     private YtdlpBuilder Copy(Action<YtdlpBuilder> modifier)
     {
         var clone = new YtdlpBuilder(this);
@@ -761,49 +758,44 @@ public sealed class YtdlpBuilder
     }
 
     public YtdlpCommand Build() => new YtdlpCommand(this);
-    
-    public YtdlpBuilder Probe() => Copy(b => b.IsProbe = true);
 
     public IReadOnlyList<string> BuildArgs(string url)
     {
         var args = new List<string>();
 
-        if (!IsProbe)
+        // ─── Paths (home & temp) ────────────────────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(HomeFolder))
         {
-            // ─── Paths (home & temp) ────────────────────────────────────────────────
-            if (!string.IsNullOrWhiteSpace(HomeFolder))
-            {
-                args.Add("--paths");
-                args.Add($"home:{HomeFolder}");
-            }
-                       
-            if (!string.IsNullOrWhiteSpace(TempFolder))
-            {
-                args.Add("--paths");
-                args.Add($"temp:{TempFolder}");
-            }
+            args.Add("--paths");
+            args.Add($"home:{HomeFolder}");
+        }
 
-            // ─── Output ─────────────────────────────────────────────────────────────
-            // Keep template RELATIVE — do NOT combine OutputFolder here
-            if (!string.IsNullOrWhiteSpace(OutputTemplate))
-            {
-                args.Add("-o");
-                args.Add(OutputTemplate);
-            }
+        if (!string.IsNullOrWhiteSpace(TempFolder))
+        {
+            args.Add("--paths");
+            args.Add($"temp:{TempFolder}");
+        }
 
-            // ─── Format ─────────────────────────────────────────────────────────────
-            if (!string.IsNullOrWhiteSpace(Format))
-            {
-                args.Add("-f");
-                args.Add(Format);
-            }
+        // ─── Output ─────────────────────────────────────────────────────────────
+        // Keep template RELATIVE — do NOT combine OutputFolder here
+        if (!string.IsNullOrWhiteSpace(OutputTemplate))
+        {
+            args.Add("-o");
+            args.Add(OutputTemplate);
+        }
 
-            // ─── Concurrent fragments ───────────────────────────────────────────────
-            if (ConcurrentFragments.HasValue)
-            {
-                args.Add("--concurrent-fragments");
-                args.Add(ConcurrentFragments.Value.ToString());
-            }
+        // ─── Format ─────────────────────────────────────────────────────────────
+        if (!string.IsNullOrWhiteSpace(Format))
+        {
+            args.Add("-f");
+            args.Add(Format);
+        }
+
+        // ─── Concurrent fragments ───────────────────────────────────────────────
+        if (ConcurrentFragments.HasValue)
+        {
+            args.Add("--concurrent-fragments");
+            args.Add(ConcurrentFragments.Value.ToString());
         }
 
         // ─── Flags ──────────────────────────────────────────────────────────────
@@ -857,7 +849,6 @@ public sealed class YtdlpBuilder
 
         return args.AsReadOnly();
     }
-
     #endregion
 
 }

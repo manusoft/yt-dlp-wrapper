@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ManuHub.Deno" Version="2.7.4" />
+    <PackageReference Include="ManuHub.FFmpeg" Version="6.3.9" />
+    <PackageReference Include="ManuHub.FFprobe" Version="6.3.9" />
+    <PackageReference Include="ManuHub.Ytdlp" Version="6.3.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ytdlp.NET.v3\Ytdlp.NET.v3.csproj" />
+  </ItemGroup>
+
+</Project>

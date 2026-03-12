@@ -3,7 +3,8 @@
 public static class RegexPatterns
 {
     // Download progress
-    public static string DownloadProgress = @"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(~?\s*(?<size>[^\s]+))\s*at\s*(?<speed>[^\s]+)\s*ETA\s*(?<eta>[^\s]+)\s*\(frag\s*(?<frag>\d+/\d+)\)"; /*@"\[download\]\s*(?<percent>[\d.]+)%\s*of\s*(?<size>[^\s]+)\s*at\s*(?<speed>[^\s]+)\s*ETA\s*(?<eta>[^\s]+)";*/
+    public static string DownloadProgress = @"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(?<size>[^\s]+)\s*at\s*(?<speed>[^\s]+)\s*ETA\s*(?<eta>[^\s]+)";
+    public static string DownloadProgressWithFrag = @"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(~?\s*(?<size>[^\s]+))\s*at\s*(?<speed>[^\s]+)\s*ETA\s*(?<eta>[^\s]+)\s*\(frag\s*(?<frag>\d+/\d+)\)"; /*@"\[download\]\s*(?<percent>[\d.]+)%\s*of\s*(?<size>[^\s]+)\s*at\s*(?<speed>[^\s]+)\s*ETA\s*(?<eta>[^\s]+)";*/
     public static string DownloadProgressComplete = @"\[download\]\s*100%\s*of\s*(?<size>[^\s]+)\s*in\s*(?<time>[^\s]+)\s*at\s*(?<speed>[^\s]+)";
 
     // Post-processing

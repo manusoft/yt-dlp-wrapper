@@ -1,7 +1,6 @@
 ﻿using ManuHub.Ytdlp.Core;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Text;
 
 namespace ManuHub.Ytdlp;
 
@@ -30,25 +29,22 @@ public sealed class YtdlpCommand : IAsyncDisposable
         _progressParser.OnPostProcessingStarted += (s, msg) => OnPostProcessingStarted?.Invoke(this, msg);
         _progressParser.OnPostProcessingCompleted += (s, msg) => OnPostProcessingCompleted?.Invoke(this, msg);
         _progressParser.OnCompleteDownload += (s, msg) => OnCompleteDownload?.Invoke(this, msg);
-        _progressParser.OnErrorMessage += (s, msg) => OnErrorMessage?.Invoke(this, msg);       
+        _progressParser.OnErrorMessage += (s, msg) => OnErrorMessage?.Invoke(this, msg);
     }
 
     private int _isRunning; // 0 = not running, 1 = running
 
     public async Task ExecuteAsync(string url, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested(); 
+        ct.ThrowIfCancellationRequested();
 
         if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("URL cannot be empty", nameof(url));
 
         // Ensure output folder exists
         try
         {
-            if (!_config.IsProbe)
-            {
-                Directory.CreateDirectory(_config.OutputFolder);
-                _config.Logger.Log(LogType.Info, $"Ensured output folder exists: {_config.OutputFolder}");
-            }
+            Directory.CreateDirectory(_config.OutputFolder);
+            _config.Logger.Log(LogType.Info, $"Ensured output folder exists: {_config.OutputFolder}");
         }
         catch (Exception ex)
         {
