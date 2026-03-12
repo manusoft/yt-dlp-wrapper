@@ -1,57 +1,34 @@
-﻿using YtdlpNET;
+﻿using ManuHub.Ytdlp;
+using ManuHub.Ytdlp.Models;
 
 namespace VideoDownloader.Core;
 
 public sealed class YtdlpService
 {
-    private readonly Ytdlp _ytdlp;
+    private readonly YtdlpBuilder _builder;
     private readonly ILogger _logger;
+    private readonly string _path;
 
     public event Action<DownloadProgressEventArgs>? Progress;
     public event Action<string>? Log;
     public event Action<string>? Error;
-    public event Action? Completed;
-    public event Action? MergeCompleted;
+    public event Action? DownloadCompleted;
+    public event Action? PostProcessStarted;
+    public event Action? PostProcessCompleted;
+    public event Action? ProcessCompleted;
 
     public YtdlpService(string path, ILogger logger)
     {
+        _path = path;
         _logger = logger;
-        _ytdlp = new Ytdlp(path, logger);
-        Subscribe();
-    }
-
-    private void Subscribe()
-    {
-        _ytdlp.OnOutputMessage += (s, e) => Log?.Invoke(e);
-        _ytdlp.OnErrorMessage += (s, e) => Error?.Invoke(e);
-
-        _ytdlp.OnProgressDownload += (s, e) =>
-        {
-            Progress?.Invoke(e);
-        };
-
-        _ytdlp.OnProgressMessage += (s, e) =>
-        {
-            if (e.Contains("Merging formats"))
-                Log?.Invoke("Merging...");
-        };
-
-        _ytdlp.OnCompleteDownload += (s, e) =>
-        {
-            Completed?.Invoke();
-        };
-
-        _ytdlp.OnPostProcessingComplete += (s, e) =>
-        {
-            MergeCompleted?.Invoke();
-        };
+        _builder = Ytdlp.Create(path, logger);
     }
 
     public async Task<string> GetVersionAsync()
-        => await _ytdlp.GetVersionAsync() ?? "unknown";
+        => await Ytdlp.VersionAsync(_path) ?? "unknown";
 
     public async Task<List<Format>> GetFormatsAsync(string url)
-        => await _ytdlp.GetFormatsDetailedAsync(url) ?? [];
+        => await YtdlpProbe.GetFormatsDetailedAsync(url, _builder) ?? [];
 
     public async Task DownloadAsync(
         string url,
@@ -62,19 +39,54 @@ public sealed class YtdlpService
     {
         try
         {
-            await _ytdlp
-           .SetFormat(format)
-           .SetOutputFolder(outputFolder)
-           .SetFFmpegLocation(ffmpeg)
-           .SetOutputTemplate(outputTemplate)
-           .AddCustomCommand("--newline")
-           .AddCustomCommand("--windows-filenames")
-           .AddCustomCommand("--no-playlist")
-           .ExecuteAsync(url);
+         var command = _builder
+            .WithFormat(format)
+            .WithOutputFolder(outputFolder)
+            .WithFFmpegLocation(ffmpeg)
+            .WithOutputTemplate(outputTemplate)
+            .WindowsFileNames()
+            .NoPlaylist()
+            .AddFlag("--newline")
+            .Build();
+
+            Subscribe(command);
+
+            await command.ExecuteAsync(url);
         }
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message);
         }
+    }
+
+    private void Subscribe(YtdlpCommand command)
+    {
+        command.OnProgressMessage += (s, e) => Log?.Invoke(e);
+        command.OnErrorMessage += (s, e) => Error?.Invoke(e);
+
+        command.OnProgressDownload += (s, e) =>
+        {
+            Progress?.Invoke(e);
+        };
+
+        command.OnPostProcessingStarted += (s, e) =>
+        {
+            PostProcessStarted?.Invoke();
+        };
+
+        command.OnPostProcessingCompleted += (s, e) =>
+        {
+            PostProcessCompleted?.Invoke();
+        };
+
+        command.OnCompleteDownload += (s, e) =>
+        {
+            DownloadCompleted?.Invoke();
+        };
+
+        command.OnProcessCompleted += (s, e) =>
+        {
+            ProcessCompleted?.Invoke();
+        };
     }
 }

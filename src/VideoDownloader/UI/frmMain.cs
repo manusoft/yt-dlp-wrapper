@@ -1,15 +1,16 @@
+using ManuHub.Ytdlp;
+using ManuHub.Ytdlp.Models;
 using Microsoft.WindowsAPICodePack.Taskbar;
 using System.Reflection;
 using VideoDownloader.Core;
 using VideoDownloader.UI;
-using YtdlpNET;
 
 namespace VideoDownloader;
 
 public partial class frmMain : Form
 {
     private const string YTDLP_PATH = @".\Tools\yt-dlp.exe";
-    private const string FFMPEG_PATH = @".\Tools\ffmpeg.exe";
+    private const string FFMPEG_PATH = @".\Tools";
 
     private const string DefaultOutputTemplate =
         "%(upload_date>%Y-%m-%d)s - %(title).90s [%(resolution)s].%(ext)s";
@@ -21,7 +22,6 @@ public partial class frmMain : Form
 
     private YtdlpService _service = null!;
     private readonly DownloadSession _session = new();
-
 
     public frmMain()
     {
@@ -36,8 +36,8 @@ public partial class frmMain : Form
         _service.Progress += OnProgress;
         _service.Log += AppendDetail;
         _service.Error += OnError;
-        _service.Completed += OnCompleted;
-        _service.MergeCompleted += OnMergeCompleted;
+        _service.DownloadCompleted += OnCompleted;
+        _service.PostProcessCompleted += OnMergeCompleted;
 
         var version = await _service.GetVersionAsync();
         UpdateStatus($"Engine ready ({version})");
@@ -86,7 +86,7 @@ public partial class frmMain : Form
             comboQuality.Format += ComboQuality_Format;
 
             comboQuality.DataSource = formats
-                .Where(f => !f.IsStoryboard)
+                .Where(f => !f.HasStoryboard)
                 .ToList();
 
             comboQuality.ValueMember = "Id";
@@ -98,7 +98,7 @@ public partial class frmMain : Form
         if (e.ListItem is not Format f)
             return;
 
-        if (f.IsVideo)
+        if (f.HasStoryboard)
             e.Value = $"{f.Height}p • {f.Extension}";
         else
             e.Value = $"Audio • {f.Extension}";
@@ -116,7 +116,7 @@ public partial class frmMain : Form
             return;
         }
 
-        string fmt = format.IsVideo
+        string fmt = format.HasVideo
             ? $"{format.Id}+bestaudio"
             : format.Id;
 

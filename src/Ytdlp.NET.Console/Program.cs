@@ -16,6 +16,10 @@ internal class Program
         var ytdlpPath = $"tools\\yt-dlp.exe";
         var consoleLogger = new ConsoleLogger();
 
+        var probeBuilder = Ytdlp.Create(ytdlpPath,consoleLogger);
+
+        var formats = await YtdlpProbe.GetAvailableFormatsAsync("https://www.youtube.com/watch?v=tsZN2xRraGg", probeBuilder);
+
         // Create CancellationTokenSource for Ctrl+C
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (s, e) =>

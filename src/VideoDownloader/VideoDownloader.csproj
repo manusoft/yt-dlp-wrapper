@@ -18,10 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ManuHub.Deno" Version="2.7.1-preview.1" />
-    <PackageReference Include="ManuHub.FFmpeg" Version="6.2.25-preview.1" />
-    <PackageReference Include="ManuHub.FFprobe" Version="6.2.25-preview.1" />
-    <PackageReference Include="ManuHub.Ytdlp" Version="6.2.21-preview.3" />
+    <PackageReference Include="ManuHub.Deno" Version="2.7.4" />
+    <PackageReference Include="ManuHub.FFmpeg" Version="6.3.9" />
+    <PackageReference Include="ManuHub.FFprobe" Version="6.3.9" />
+    <PackageReference Include="ManuHub.Ytdlp" Version="6.3.3" />
     <PackageReference Include="Microsoft-Windows10-APICodePack-ShellExtensions" Version="1.1.8" />
   </ItemGroup>
 

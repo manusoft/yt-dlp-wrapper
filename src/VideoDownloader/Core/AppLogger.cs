@@ -1,4 +1,5 @@
-﻿using YtdlpNET;
+﻿
+using ManuHub.Ytdlp;
 
 namespace VideoDownloader.Core;
 
