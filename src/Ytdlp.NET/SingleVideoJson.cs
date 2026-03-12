@@ -1,8 +1,10 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace ManuHub.Ytdlp.Models;
+namespace YtdlpNET;
 
-public class MetadataLite
+// Supporing class for single
+
+public class SingleVideoJson
 {
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
@@ -11,10 +13,10 @@ public class MetadataLite
     public string? Title { get; set; }
 
     [JsonPropertyName("formats")]
-    public List<FormatLite>? Formats { get; set; }
+    public List<FormatJson>? Formats { get; set; }
 }
 
-public class FormatLite
+public class FormatJson
 {
     [JsonPropertyName("format_id")] public string? FormatId { get; set; }
     [JsonPropertyName("ext")] public string? Ext { get; set; }

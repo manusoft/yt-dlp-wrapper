@@ -1,9 +1,9 @@
-﻿namespace ManuHub.Ytdlp;
+﻿namespace YtdlpNET;
 
 public enum LogType
 {
+    Debug,
+    Error,
     Info,
     Warning,
-    Error,
-    Debug
 }

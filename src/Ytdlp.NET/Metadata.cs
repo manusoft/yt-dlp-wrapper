@@ -1,10 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace ManuHub.Ytdlp.Models;
+namespace YtdlpNET;
 
-/// <summary>
-/// Full metadata model for a single video from yt-dlp --dump-json.
-/// </summary>
 public class Metadata
 {
     [JsonPropertyName("id")]
@@ -239,8 +236,6 @@ public class FormatMetadata
     public Dictionary<string, object>? DownloaderOptions { get; set; }
 
     public bool IsAudio => Acodec != "none";
-    public bool IsAudioOnly => Vcodec == "none" && Acodec != "none";
-    public bool IsVideoOnly => Vcodec != "none" && Acodec == "none";
     public bool HasFragments => Fragments != null && Fragments.Count > 0;
 }
 
@@ -285,3 +280,4 @@ public class FragmentMetadata
     [JsonPropertyName("duration")]
     public double Duration { get; set; }
 }
+
