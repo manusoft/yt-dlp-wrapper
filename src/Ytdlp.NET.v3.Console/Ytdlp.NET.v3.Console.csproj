@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ManuHub.Deno" Version="2.7.4" />
-    <PackageReference Include="ManuHub.FFmpeg" Version="6.3.9" />
-    <PackageReference Include="ManuHub.FFprobe" Version="6.3.9" />
+    <PackageReference Include="ManuHub.Deno" Version="2.7.5" />
+    <PackageReference Include="ManuHub.FFmpeg" Version="6.3.13" />
+    <PackageReference Include="ManuHub.FFprobe" Version="6.3.13" />
     <PackageReference Include="ManuHub.Ytdlp" Version="6.3.3" />
   </ItemGroup>
 
