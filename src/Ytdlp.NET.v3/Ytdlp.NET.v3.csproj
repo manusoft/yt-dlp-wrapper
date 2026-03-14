@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<PackageId>Ytdlp.NET</PackageId>
+	<AssemblyName>ManuHub.Ytdlp</AssemblyName>
+	<RootNamespace>ManuHub.Ytdlp</RootNamespace>
+	<Version>3.0.0-preview-1</Version>
+	<Authors>ManuHub Manojbabu</Authors>
+	<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
+	<Copyright>© 2025-2026 ManuHub. Allrights researved</Copyright>	
+	<PackageTags>yt-dlp youtube downloader video audio subtitles thumbnails fluent-api progress-tracking csharp dotnet sponsorblock concurrent</PackageTags>
+	<PackageProjectUrl>https://github.com/manusoft/yt-dlp-wrapper</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/yt-dlp/yt-dlp</RepositoryUrl>
+	<RepositoryType>git</RepositoryType>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+	<PackageIcon>icon.png</PackageIcon>
+	<Icon>icon.png</Icon>	
+	<VersionSuffix></VersionSuffix>
+	<PackageReleaseNotes>
+		Upgraded to v3.0 with advanced features and fixes
+	</PackageReleaseNotes>
+	<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+	<IsPackable>true</IsPackable>
+	<LangVersion>latest</LangVersion>
+	<AotAssemblies>true</AotAssemblies>
+  </PropertyGroup>
+	
+  <ItemGroup>
+	<Content Include="icon.png" Pack="true" PackagePath="" />
+	<Content Include="README.md" Pack="true" PackagePath="" />
+	<Content Include="LICENSE.txt" Pack="true" PackagePath="" />
+  </ItemGroup>    
+</Project>

@@ -1,9 +1,6 @@
-﻿
-using ManuHub.Ytdlp;
+﻿namespace ManuHub.Ytdlp;
 
-namespace VideoDownloader.Core;
-
-public sealed class AppLogger : ILogger
+internal sealed class DefaultLogger : ILogger
 {
     public void Log(LogType type, string message)
     {

@@ -9,8 +9,8 @@ namespace VideoDownloader;
 
 public partial class frmMain : Form
 {
-    private const string YTDLP_PATH = @".\Tools\yt-dlp.exe";
-    private const string FFMPEG_PATH = @".\Tools";
+    private const string YTDLP_PATH = @".\tools\yt-dlp.exe";
+    private string FFMPEG_PATH = Path.Combine(AppContext.BaseDirectory, "tools");
 
     private const string DefaultOutputTemplate =
         "%(upload_date>%Y-%m-%d)s - %(title).90s [%(resolution)s].%(ext)s";
@@ -34,10 +34,12 @@ public partial class frmMain : Form
         _service = new YtdlpService(YTDLP_PATH, _logger);
 
         _service.Progress += OnProgress;
-        _service.Log += AppendDetail;
-        _service.Error += OnError;
-        _service.DownloadCompleted += OnCompleted;
-        _service.PostProcessCompleted += OnMergeCompleted;
+        _service.ProgressMessage += AppendDetail;
+        _service.ErrorMessage += OnError;
+        _service.DownloadCompleted += OnDownloadCompleted;
+        _service.PostProcessStarted += OnPostProcessStarted;
+        _service.PostProcessCompleted += OnPostProcessCompleted;
+        _service.ProcessCompleted += OnProcessCompleted;
 
         var version = await _service.GetVersionAsync();
         UpdateStatus($"Engine ready ({version})");
@@ -98,7 +100,7 @@ public partial class frmMain : Form
         if (e.ListItem is not Format f)
             return;
 
-        if (f.HasStoryboard)
+        if (f.HasVideo)
             e.Value = $"{f.Height}p • {f.Extension}";
         else
             e.Value = $"Audio • {f.Extension}";
@@ -153,16 +155,30 @@ public partial class frmMain : Form
         UpdateStatus("Downloading", p, e.Size, e.Speed, e.ETA);
     }
 
-    private void OnCompleted()
+    private void OnDownloadCompleted()
     {
         UpdateStatus("Download completed");
-        progressDownload.Value = 0;
+
+        UIThread.Run(progressDownload, () => { progressDownload.Value = 0; });
     }
 
-    private void OnMergeCompleted()
+    private void OnProcessCompleted()
     {
+        UpdateStatus("Process completed");
         EnableControls();
-        UpdateStatus("Merging completed");
+        UIThread.Run(progressDownload, () => { progressDownload.Value = 0; });
+    }
+
+    private void OnPostProcessStarted()
+    {
+        UpdateStatus("Post process started");
+
+        if (checkAutoClose.Checked && !_session.HasError)
+            Close();
+    }
+    private void OnPostProcessCompleted()
+    {
+        UpdateStatus("Post process completed");
 
         if (checkAutoClose.Checked && !_session.HasError)
             Close();
@@ -233,7 +249,7 @@ public partial class frmMain : Form
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);
     }
-         
+
 
     private void buttonBrowseFolder_Click(object sender, EventArgs e)
     {

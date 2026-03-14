@@ -19,12 +19,12 @@ internal class Program
         ytdlp.SetFFmpegLocation($"tools");
 
         // Run all demos/tests sequentially
-        await TestGetVersionAsync(ytdlp);
+        //await TestGetVersionAsync(ytdlp);
         // await TestGetFormatsAsync(ytdlp);
         //await TestGetFormatsDetailedAsync(ytdlp);
-        //await TestGetMetadataAsync(ytdlp);
+        await TestGetMetadataAsync(ytdlp);
         //await TestGetSimpleMetadataAsync(ytdlp);
-        await TestDownloadVideoAsync(ytdlp);
+        //await TestDownloadVideoAsync(ytdlp);
         //await TestDownloadAudioAsync(ytdlp);
         // await TestBatchDownloadAsync(ytdlp);
         // await TestSponsorBlockAsync(ytdlp);
