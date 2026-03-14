@@ -148,15 +148,10 @@ We provide official build packages that automatically download and manage the la
 
 ```xml
 <ItemGroup>
-  <!-- Core yt-dlp binary (recommended) -->
-  <PackageReference Include="ManuHub.Ytdlp" Version="*" />
-
-  <!-- FFmpeg + FFprobe for merging, audio extraction, thumbnails, etc. (strongly recommended) -->
+  <PackageReference Include="ManuHub.Ytdlp" Version="*" />  
   <PackageReference Include="ManuHub.FFmpeg" Version="*" />
   <PackageReference Include="ManuHub.FFprobe" Version="*" />
-
-  <!-- Deno runtime — only needed if you use advanced JavaScript extractor features -->
-  <!-- <PackageReference Include="ManuHub.Deno" Version="*" /> -->
+  <PackageReference Include="ManuHub.Deno" Version="*" /> 
 </ItemGroup>
 ```
 
@@ -383,7 +378,7 @@ public class ConsoleLogger : ILogger
 ### Future versions 
 - `IDisposable` with process cleanup
 - `YtdlpBuilder` for immutable instances
-- `Ytdlp.Create()` will create a `YtdlpRootBuilder()` with `General()`, `Probe()` amd `Download()` for easy use
+- `Ytdlp.Create()` will create a `YtdlpRootBuilder()` with `General()`, `Probe()` and `Download()` for easy use
 - Persistent process pool for speed
 - IAsyncDisposable for async cleanup
 
