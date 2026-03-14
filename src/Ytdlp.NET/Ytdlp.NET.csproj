@@ -8,8 +8,6 @@
 		<AssemblyName>Ytdlp.NET</AssemblyName>
 		<RootNamespace>YtdlpNET</RootNamespace>
 		<Version>2.0.2</Version>
-		<AssemblyVersion>2.0.0.0</AssemblyVersion>
-		<FileVersion>2.0.0.0</FileVersion>
 		<Authors>ManuHub Manojbabu</Authors>
 		<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
 		<Copyright>© 2026-2026 ManuHub. Allrights researved</Copyright>
@@ -22,8 +20,6 @@
 		<PackageIcon>icon.png</PackageIcon>
 		<Icon>icon.png</Icon>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<VersionPrefix>2.0.0</VersionPrefix>
-		<VersionSuffix></VersionSuffix>
 		<PackageReleaseNotes>
 			Upgraded to v2.0 with advanced features and fixes
 			- SponsorBlock
