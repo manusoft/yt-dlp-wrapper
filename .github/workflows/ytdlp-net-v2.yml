@@ -3,7 +3,7 @@ name: Publish Ytdlp.NET v2.x.x Package
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
   
 permissions:
