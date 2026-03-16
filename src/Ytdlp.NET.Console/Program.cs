@@ -1,6 +1,6 @@
-﻿using System.Diagnostics;
+﻿using ManuHub.Ytdlp.NET;
+using System.Diagnostics;
 using System.Text;
-using YtdlpNET;
 
 internal class Program
 {
@@ -20,7 +20,7 @@ internal class Program
 
         // Run all demos/tests sequentially
         //await TestGetVersionAsync(ytdlp);
-        // await TestGetFormatsAsync(ytdlp);
+        //await TestGetFormatsAsync(ytdlp);
         //await TestGetFormatsDetailedAsync(ytdlp);
         await TestGetMetadataAsync(ytdlp);
         //await TestGetSimpleMetadataAsync(ytdlp);
@@ -99,7 +99,7 @@ internal class Program
 
         Console.WriteLine("\nTest 3: Fetching detailed formats...");
         var url = "https://www.youtube.com/watch?v=cbGywxIH4mI";
-        var formats = await ytdlp.GetFormatsDetailedAsync(url);
+        var formats = await ytdlp.GetAvailableFormatsAsync(url);
 
         stopwatch.Stop(); // stop timer
         Console.WriteLine($"Detailed formats took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
@@ -128,10 +128,11 @@ internal class Program
 
         Console.WriteLine("\nTest 4: Fetching detailed metedata...");
 
-        var url = "https://www.youtube.com/watch?v=cbGywxIH4mI";
-        var metadata = await ytdlp.GetVideoMetadataJsonAsync(url);
-
+        var url1 = "https://www.youtube.com/watch?v=YyepU5ztLf4&list=PLXCoHsJ9oLef1c83KIbl9_h7tYyodL15J"; //playlist
+        var url2 = "https://www.youtube.com/watch?v=JOIqPThxFb8"; // video
+        var metadata = await ytdlp.GetMetadataAsync(url2);
         stopwatch.Stop(); // stop timer
+
         Console.WriteLine($"Detailed metedata took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
 
         if (metadata == null)
@@ -141,14 +142,18 @@ internal class Program
         }
 
         // Basic info
+        Console.WriteLine($"Type        : {metadata.Type}");
         Console.WriteLine($"ID          : {metadata.Id}");
         Console.WriteLine($"Title       : {metadata.Title}");
         Console.WriteLine($"Description : {(metadata.Description?.Length > 120 ? metadata.Description.Substring(0, 120) + "..." : metadata.Description)}");
         Console.WriteLine($"Thumbnail   : {metadata.Thumbnail}");
 
-        // Show formats (both full list and requested/selected)
-        PrintFormats("All available formats", metadata.Formats);
-        PrintFormats("Selected / requested formats", metadata.RequestedFormats);
+        if (metadata.Type == "video")
+        {
+            // Show formats (both full list and requested/selected)
+            PrintFormats("All available formats", metadata.Formats);
+            //PrintFormats("Selected / requested formats", metadata.RequestedFormats);
+        }
     }
 
     // Test 5: Get simple metedata 
@@ -160,7 +165,7 @@ internal class Program
         var url = "https://www.youtube.com/watch?v=1K7OkfKAx24";
 
         var fields = new[] { "id", "thumbnail" };
-        var data = await ytdlp.GetSimpleMetadataAsync(url, fields);
+        var data = await ytdlp.GetMetadataLiteAsync(url, fields);
 
         stopwatch.Stop(); // stop timer
         Console.WriteLine($"Simple metedata took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
@@ -383,4 +388,89 @@ internal class Program
         }
     }
 
+}
+
+public class Rootobject
+{
+    public string id { get; set; }
+    public string title { get; set; }
+    public object availability { get; set; }
+    public object channel_follower_count { get; set; }
+    public string description { get; set; }
+    public object[] tags { get; set; }
+    public Thumbnail[] thumbnails { get; set; }
+    public string modified_date { get; set; }
+    public int view_count { get; set; }
+    public int playlist_count { get; set; }
+    public string channel { get; set; }
+    public string channel_id { get; set; }
+    public string uploader_id { get; set; }
+    public string uploader { get; set; }
+    public string channel_url { get; set; }
+    public string uploader_url { get; set; }
+    public string _type { get; set; }
+    public Entry[] entries { get; set; }
+    public string extractor_key { get; set; }
+    public string extractor { get; set; }
+    public string webpage_url { get; set; }
+    public string original_url { get; set; }
+    public string webpage_url_basename { get; set; }
+    public string webpage_url_domain { get; set; }
+    public object release_year { get; set; }
+    public int epoch { get; set; }
+    public __Files_To_Move __files_to_move { get; set; }
+    public _Version _version { get; set; }
+}
+
+public class __Files_To_Move
+{
+}
+
+public class _Version
+{
+    public string version { get; set; }
+    public object current_git_head { get; set; }
+    public string release_git_head { get; set; }
+    public string repository { get; set; }
+}
+
+public class Thumbnail
+{
+    public string url { get; set; }
+    public int height { get; set; }
+    public int width { get; set; }
+    public string id { get; set; }
+    public string resolution { get; set; }
+}
+
+public class Entry
+{
+    public string _type { get; set; }
+    public string ie_key { get; set; }
+    public string id { get; set; }
+    public string url { get; set; }
+    public string title { get; set; }
+    public object description { get; set; }
+    public int duration { get; set; }
+    public string channel_id { get; set; }
+    public string channel { get; set; }
+    public string channel_url { get; set; }
+    public string uploader { get; set; }
+    public string uploader_id { get; set; }
+    public string uploader_url { get; set; }
+    public Thumbnail1[] thumbnails { get; set; }
+    public object timestamp { get; set; }
+    public object release_timestamp { get; set; }
+    public object availability { get; set; }
+    public int view_count { get; set; }
+    public object live_status { get; set; }
+    public object channel_is_verified { get; set; }
+    public object __x_forwarded_for_ip { get; set; }
+}
+
+public class Thumbnail1
+{
+    public string url { get; set; }
+    public int height { get; set; }
+    public int width { get; set; }
 }

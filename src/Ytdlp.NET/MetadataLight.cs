@@ -4,8 +4,7 @@
 /// Lightweight metadata model returned by GetSimpleMetadataAsync.
 /// Contains only the most commonly used fields, fetched in a single fast yt-dlp call.
 /// </summary>
-[Obsolete("This class will be removed in the next version. Use MetadataLight instead.", true)]
-public class SimpleMetadata
+public class MetadataLight
 {
     /// <summary>
     /// Video ID (e.g. "Xt50Sodg7sA")

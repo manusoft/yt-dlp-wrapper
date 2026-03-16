@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace YtdlpNET;
+namespace ManuHub.Ytdlp.NET;
 
 /// <summary>
 /// Represents a single format available for a video/audio from yt-dlp's -F (--list-formats) output.

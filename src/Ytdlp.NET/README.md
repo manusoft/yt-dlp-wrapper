@@ -1,15 +1,20 @@
 ﻿﻿![Static Badge](https://img.shields.io/badge/Ytdlp.NET-red) ![NuGet Version](https://img.shields.io/nuget/v/Ytdlp.NET)  ![NuGet Downloads](https://img.shields.io/nuget/dt/Ytdlp.NET)
 
 # Ytdlp.NET
-> **v2**
+> **v2.1**
 
 **Ytdlp.NET** is a fluent, strongly-typed .NET wrapper around the powerful [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) command-line tool. It provides an intuitive and customizable interface to download videos, extract audio, retrieve metadata, and process media from YouTube and hundreds of other supported platforms.
 
+---
+
 ## Importanant Note
+
+> ### Namespace migrated to ``ManuHub.Ytdlp.NET`` (Update your using directives).
 
 ### External JS Scripts Setup Guide
  - To download from YouTube, yt-dlp needs to solve JavaScript challenges presented by YouTube using an external JavaScript runtime.
-
+ - **deno.exe** binary from denoland/deno, required as an external JavaScript runtime for yt-dlp since late 2025.
+ 
 ### Recommended: Use companion NuGet packages
 > **Manuhub.Ytdlp**  
 > **Manuhub.Deno**  
@@ -32,6 +37,7 @@ var ytdlpPath = Path.Combine(AppContext.BaseDirectory, "tools", "yt-dlp.exe");
 var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "tools");
 ```
 
+---
 
 ## ✨ Features
 
@@ -46,13 +52,18 @@ var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "tools");
 - **Update**: Implements update method to update latest yt-dlp version. 
 ---
 
-## 🚀 New in v2
+---
+## 🚀 New in v2.1
 
-- Rich JSON metadata parsing via `GetVideoMetadataJsonAsync`
-- Detailed format selection with `GetFormatsDetailedAsync`
+- Added high-performance probe methods for metadata extraction
+- Rich Metadata model parsing via `GetMetadataAsync()`
+- JSON raw metadata parsing via `GetMetadataRawAsync()`
+- Available formats parsing via `GetAvailableFormatsAsync()`
+- Lite metadata pasing via `GetMetadataLiteAsync()`
 - Ro get best video format `GetBestVideoFormatIdAsync(URL, maxHeight: 720)`
 - To get best audio format `GetBestAudioFormatIdAsync(URL)`
 - Convenience methods for best format auto-selection
+- Implemented custom buffer size support (bufferKb) across all probe methods for optimized memory usage.
 - Improved cancellation handling
 - Better progress parsing and event system
 
@@ -84,21 +95,47 @@ var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "tools");
   Internal resources (e.g. child processes) are cleaned up automatically when the instance is garbage-collected.
   Proper Dispose support and an immutable builder pattern (for safe reuse) are planned for later.
 
-### Fetching Video Metadata
+### Fetching Video/Playlist Metadata
 
 ```csharp
-var ytdlp = new Ytdlp();
+var ytdlp = new Ytdlp(ytdlpPath: $"tools\\yt-dlp.exe", logger: new ConsoleLogger());
 
 string url = "https://www.youtube.com/watch?v=Xt50Sodg7sA";
 
-var metadata = await ytdlp.GetVideoMetadataJsonAsync(url);
+var metadata = await ytdlp.GetMetadataAsync(url);
 
-if (metadata != null)
+if (metadata == null)
 {
-    Console.WriteLine($"Title: {metadata.Title}");
-    Console.WriteLine($"Duration: {metadata.Duration} seconds");
-    Console.WriteLine($"Views: {metadata.ViewCount:N0}");
-    Console.WriteLine($"Thumbnail: {metadata.Thumbnail}");
+    Console.WriteLine("No metadata returned.");
+    return;
+}
+
+// Basic info
+Console.WriteLine($"Type        : {metadata.Type}");
+Console.WriteLine($"ID          : {metadata.Id}");
+Console.WriteLine($"Title       : {metadata.Title}");
+Console.WriteLine($"Description : {(metadata.Description?.Length > 120 ? metadata.Description.Substring(0, 120) + "..." : metadata.Description)}");
+Console.WriteLine($"Thumbnail   : {metadata.Thumbnail}");
+
+if (metadata.Type == "video")
+{
+    Console.WriteLine("  ID       NOTE              EXT   RESOLUTION   FPS   VCODEC     ACODEC    PROTOCOL   SIZE/APPROX");
+    Console.WriteLine("  ──────────────────────────────────────────────────────────────────────────────────────────────");
+
+    // Show formats (both full list and requested/selected)
+    Console.WriteLine(
+            $"  {f.FormatId,-8} " +
+            $"{(f.FormatNote ?? "-"),-17} " +
+            $"{f.Ext,-5} " +
+            $"{(f.Resolution ?? "-"),-12} " +
+            $"{f.Fps?.ToString("0.#") ?? "-",5} " +
+            $"{(f.Vcodec ?? "-"),-10} " +
+            $"{(f.Acodec ?? "-"),-9} " +
+            $"{(f.Protocol ?? "-"),-10} " +
+            $"{size,-12}"
+        );
+
+    //PrintFormats("Selected / requested formats", metadata.RequestedFormats);
 }
 ```
 
@@ -121,7 +158,7 @@ await ytdlp
 
 ### Full Metadata + Format Selection Example
 ```
-var metadata = await ytdlp.GetVideoMetadataJsonAsync(url);
+var metadata = await ytdlp.GetMetadataAsync(url);
 
 var best1080p = metadata.Formats?
     .Where(f => f.Height == 1080 && f.Vcodec != "none")
@@ -133,6 +170,13 @@ if (best1080p != null)
     Console.WriteLine($"Best 1080p format: {best1080p.FormatId} – {best1080p.Resolution} @ {best1080p.Fps} fps");
 }
 ```
+
+### Full Raw JSON Metadata Example
+```
+var jsonObjectMetadata = await ytdlp.GetMetadataRawAsync(url);
+
+```
+
 
 ## 📦 Prerequisites
 
@@ -199,7 +243,7 @@ foreach (var f in formats)
 ### 🧪 Get Video Metadata Only
 
 ```csharp
-var metadata = await ytdlp.GetVideoMetadataJsonAsync("https://youtube.com/watch?v=abc123");
+var metadata = await ytdlp.GetMetadataAsync("https://youtube.com/watch?v=abc123");
 Console.WriteLine($"Title: {metadata?.Title}, Duration: {metadata?.Duration}");
 ```
 
@@ -321,13 +365,6 @@ ytdlp.SetOutputTemplate("%(title)s-%(id)s.%(ext)s");
 
 All AddCustomCommand(...) calls are validated against a known safe set of yt-dlp options, minimizing the risk of malformed or unsupported commands.
 
-To preview what command will run:
-
-```csharp
-string preview = ytdlp.PreviewCommand();
-Console.WriteLine(preview);
-```
-
 ### ❗ Error Handling
 
 All exceptions are wrapped in YtdlpException:
@@ -347,6 +384,14 @@ catch (YtdlpException ex)
 
 ```csharp
 string version = await ytdlp.GetVersionAsync();
+Console.WriteLine($"yt-dlp version: {version}");
+```
+
+### 🔄 Update Check
+
+```csharp
+UpdateChannel channel = UpdateChannel.Stable; // Master, Nightly.
+string version = await ytdlp.UpdateAsync(channel);
 Console.WriteLine($"yt-dlp version: {version}");
 ```
 
@@ -374,6 +419,18 @@ public class ConsoleLogger : ILogger
     }
 }
 ```
+
+### ⚠️ Deprecated 
+| Deprecated method | New method |
+|-------------------|------------|
+| `GetFormatsDetailedAsync(string url)` | `GetMetadataAsync(string url)` or `GetAvailableFormats(string url)` |
+| `GetSimpleMetadataAsync(string url)` | `GetMetadataLiteAsync(string url)` |
+| `GetSimpleMetadataAsync(string url, IEnumerable<string> fields)` | `GetMetadataLiteAsync(string url, IEnumerable<string> fields)`|
+| `SimpleMetadata` | `MetedataLight`|
+
+| Deprecated model | New model      |
+|------------------|----------------|
+| `SimpleMetadata` | `MetedataLight`|
 
 ### Future versions 
 - `IDisposable` with process cleanup

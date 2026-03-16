@@ -1,5 +1,4 @@
-﻿namespace YtdlpNET;
-
+﻿namespace ManuHub.Ytdlp.NET;
 
 public sealed class YtdlpException : Exception
 {
