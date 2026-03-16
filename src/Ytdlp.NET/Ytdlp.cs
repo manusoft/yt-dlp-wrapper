@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace YtdlpNET;
+namespace ManuHub.Ytdlp.NET;
 
 /// <summary>
 /// Fluent wrapper for yt-dlp, providing methods to build commands, fetch metadata,
@@ -767,47 +767,35 @@ public sealed class Ytdlp
     #region Execution & Utility Methods
 
     /// <summary>
-    /// Returns the current command string (for preview/debug).
+    /// Retrieves the current version string of the underlying yt-dlp executable.
     /// </summary>
-    /// <returns>The built command line arguments.</returns>
-    public string PreviewCommand()
-    {
-        return _commandBuilder.ToString().Trim();
-    }
-
+    /// <param name="ct">A <see cref="CancellationToken"/> to abort the version check process.</param>
+    /// <returns>
+    /// A <see cref="string"/> representing the yt-dlp version (e.g., "2023.03.04"); 
+    /// returns an empty string or throws if the binary cannot be found.
+    /// </returns>
     public async Task<string> GetVersionAsync(CancellationToken ct = default)
     {
-        var process = CreateProcess($"--version");
-        process.Start();
-
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-
-        using (ct.Register(() =>
-        {
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(true);
-                }
-            }
-            catch { }
-        }))
-        {
-            await process.WaitForExitAsync(ct);
-        }
-
-        var output = await outputTask;
-        string version = output.Trim();
+        var output = await RunProbeAsync("--version", ct);
+        string version = output is null ? string.Empty : output.Trim();
         _logger.Log(LogType.Info, $"yt-dlp version: {version}");
         return version;
     }
 
-    public async Task<string> UpdateAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Updates the underlying yt-dlp binary to the latest version on the specified release channel.
+    /// </summary>
+    /// <param name="channel">The release channel to pull updates from (Master, Nightly, Stable.).</param>
+    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to abort the download and installation process.</param>
+    /// <returns>
+    /// A <see cref="string"/> containing the update log or the new version number; 
+    /// returns an empty string or throws if the update process fails.
+    /// </returns>
+    public async Task<string> UpdateAsync(UpdateChannel channel = UpdateChannel.Stable, CancellationToken cancellationToken = default)
     {
         try
         {
-            var process = CreateProcess("-U");
+            var process = CreateProcess("--update-to {channel.ToString().ToLowerInvariant()}");
 
             process.Start();
 
@@ -853,7 +841,18 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task<Metadata?> GetVideoMetadataJsonAsync(string url, CancellationToken ct = default)
+    /// <summary>
+    ///  Fetches video metadata from the specified URL.
+    /// </summary>
+    /// <param name = "url">The source URL(video or playlist) to probe.</param>
+    /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="bufferKb">Buffer size in KB.</param>
+    /// <returns>
+    /// A <see cref="Metadata"/> object containing the parsed metadata output; 
+    /// returns <see langword="null"/> if the process fails, returns empty, or is cancelled.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<Metadata?> GetMetadataAsync(string url, CancellationToken ct = default, int bufferKb = 128)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -862,39 +861,15 @@ public sealed class Ytdlp
         {
             var arguments =
                 $"--dump-single-json " +
-                $"--no-simulate " +
+                $"--simulate " +
                 $"--skip-download " +
-                $"--no-playlist " +
+                $"--flat-playlist " +
+                $"--lazy-playlist " +
                 $"--quiet " +
                 $"--no-warnings " +
                 $"{SanitizeInput(url)}";
 
-            var process = CreateProcess(arguments);
-            process.Start();
-
-            // Use StreamReader with large buffer + explicit UTF-8
-            string json;
-            using (var reader = new StreamReader(
-                process.StandardOutput.BaseStream,
-                Encoding.UTF8,
-                detectEncodingFromByteOrderMarks: false,
-                bufferSize: 8192,           // good default for JSON
-                leaveOpen: true))           // don't close underlying stream
-            {
-                json = await reader.ReadToEndAsync();
-            }
-
-            // Optional: drain stderr in background (prevents blocking if warnings are many)
-            _ = process.StandardError.ReadToEndAsync();
-
-            using (ct.Register(() =>
-            {
-                try { if (!process.HasExited) process.Kill(true); }
-                catch { }
-            }))
-            {
-                await process.WaitForExitAsync(ct);
-            }
+            var json = await RunProbeAsync(arguments, ct);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -905,7 +880,8 @@ public sealed class Ytdlp
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
-                NumberHandling = JsonNumberHandling.AllowReadingFromString
+                NumberHandling = JsonNumberHandling.AllowReadingFromString,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             };
 
             return JsonSerializer.Deserialize<Metadata>(json, options);
@@ -922,7 +898,18 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken ct = default)
+    /// <summary>
+    /// Fetches raw JSON metadata the specified URL.
+    /// </summary>
+    /// <param name="url">The source URL (video or playlist) to probe.</param>
+    /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="bufferKb">The buffer size for the process output stream (default 128KB).</param>
+    /// <returns>
+    /// A raw JSON <see cref="object"/> containing the parsed metadata output; 
+    /// returns <see langword="null"/> if the process fails, returns empty, or is cancelled.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<object?> GetMetadataRawAsync(string url, CancellationToken ct = default, int bufferKb = 128)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -931,172 +918,75 @@ public sealed class Ytdlp
         {
             var arguments =
                 $"--dump-single-json " +
-                $"--no-simulate " +
+                $"--simulate " +
                 $"--skip-download " +
-                $"--no-playlist " +
+                $"--flat-playlist " +
+                $"--lazy-playlist " +
                 $"--quiet " +
                 $"--no-warnings " +
                 $"{SanitizeInput(url)}";
 
-            var process = CreateProcess(arguments);
-            process.Start();
-
-            //var outputTask = process.StandardOutput.ReadToEndAsync();
-            // Use StreamReader with large buffer + explicit UTF-8
-            string json;
-            using (var reader = new StreamReader(
-                process.StandardOutput.BaseStream,
-                Encoding.UTF8,
-                detectEncodingFromByteOrderMarks: false,
-                bufferSize: 8192,           // good default for JSON
-                leaveOpen: true))           // don't close underlying stream
-            {
-                json = await reader.ReadToEndAsync();
-            }
-
-            // Optional: drain stderr in background (prevents blocking if warnings are many)
-            _ = process.StandardError.ReadToEndAsync();
-
-            using (ct.Register(() =>
-            {
-                try
-                {
-                    if (!process.HasExited)
-                        process.Kill(true);
-                }
-                catch { }
-            }))
-            {
-                await process.WaitForExitAsync(ct);
-            }
-
-            //var jsonOutput = await outputTask;
+            var json = await RunProbeAsync(arguments, ct);
 
             if (string.IsNullOrWhiteSpace(json))
             {
-                _logger.Log(LogType.Warning, "Empty JSON output from --dump-single-json");
-                throw new YtdlpException("No data returned from format query.");
+                _logger.Log(LogType.Warning, "Empty JSON output.");
+                return null;
             }
 
-            // JSON options
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                NumberHandling = JsonNumberHandling.AllowReadingFromString,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
-
-            // Deserialize
-            var videoInfo = JsonSerializer.Deserialize<SingleVideoJson>(json, jsonOptions);
-
-            if (videoInfo?.Formats == null || !videoInfo.Formats.Any())
-            {
-                _logger.Log(LogType.Warning, "No formats array in JSON or empty → falling back to -F");
-                return await GetAvailableFormatsAsync(url, ct);
-            }
-
-            // Map in one clean pass — no modification during enumeration
-            var detailedFormats = new List<Format>(videoInfo.Formats.Count);
-
-            foreach (var f in videoInfo.Formats)
-            {
-                if (string.IsNullOrEmpty(f.FormatId))
-                    continue;
-
-                var fmt = new Format
-                {
-                    Id = f.FormatId!,
-                    Extension = f.Ext ?? string.Empty,
-                    Height = f.Height,
-                    Width = f.Width,
-                    // Build resolution fallback
-                    Resolution = !string.IsNullOrEmpty(f.Resolution)
-                                            ? f.Resolution
-                                            : (f.Height.HasValue ? $"{f.Height}p" : "audio only"),
-                    Fps = f.Fps,
-                    Channels = f.AudioChannels?.ToString(),
-                    AudioSampleRate = f.Asr,
-                    TotalBitrate = f.Tbr?.ToString(CultureInfo.InvariantCulture),
-                    VideoBitrate = f.Vbr?.ToString(CultureInfo.InvariantCulture),
-                    AudioBitrate = f.Abr?.ToString(CultureInfo.InvariantCulture),
-                    VideoCodec = f.Vcodec == "none" ? null : f.Vcodec,
-                    AudioCodec = f.Acodec == "none" ? null : f.Acodec,
-                    Protocol = f.Protocol,
-                    Language = f.Language,
-                    FileSizeApprox = f.FilesizeApprox?.ToString("N0") ?? f.Filesize?.ToString("N0"),
-                    ApproxFileSizeBytes = f.FilesizeApprox ?? f.Filesize,
-                    Note = f.FormatNote,
-                    MoreInfo = f.FormatNote,
-                };
-
-                detailedFormats.Add(fmt);
-            }
-
-            if (detailedFormats.Count > 0)
-            {
-                _logger.Log(LogType.Info, $"Successfully parsed {detailedFormats.Count} detailed formats from JSON");
-                return detailedFormats;
-            }
-
-            _logger.Log(LogType.Warning, "JSON parsed but no valid formats after filtering → fallback");
-        }
-        catch (JsonException jex)
-        {
-            _logger.Log(LogType.Warning, $"JSON deserialization failed: {jex.Message} → falling back");
+            return json;
         }
         catch (OperationCanceledException)
         {
-            _logger.Log(LogType.Warning, "Format fetch cancelled");
-            throw;
+            _logger.Log(LogType.Warning, "Metadata fetch cancelled.");
+            return null;
         }
         catch (Exception ex)
         {
-            _logger.Log(LogType.Error, $"Unexpected error in GetFormatsDetailedAsync: {ex.Message} → fallback");
+            _logger.Log(LogType.Warning, $"Metadata fetch failed: {ex.Message}");
+            return null;
         }
-
-        // Ultimate fallback
-        return await GetAvailableFormatsAsync(url, ct);
     }
 
-    public async Task<List<Format>> GetAvailableFormatsAsync(string videoUrl, CancellationToken ct = default)
+    /// <summary>
+    /// Retrieves a list of all available stream formats for a given URL.
+    /// </summary>
+    /// <param name="url">The video or playlist URL to probe.</param>
+    /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="bufferKb">The buffer size in kilobytes for the process output stream (default 128KB).</param>
+    /// <returns>
+    /// A <see cref="List{Format}"/> containing all available streams; 
+    /// returns an empty list or <see langword="null"/> if the probe fails or is cancelled.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<List<Format>> GetAvailableFormatsAsync(string url, CancellationToken ct = default, int bufferKb = 128)
     {
-        if (string.IsNullOrWhiteSpace(videoUrl))
-            throw new ArgumentException("Video URL cannot be empty.", nameof(videoUrl));
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("Video URL cannot be empty.", nameof(url));
 
-        var process = CreateProcess($"-F {SanitizeInput(videoUrl)}");
-        process.Start();
+        var output = await RunProbeAsync("-F ", ct, bufferKb);
 
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-
-        using (ct.Register(() =>
+        if (string.IsNullOrWhiteSpace(output))
         {
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(true);
-                }
-            }
-            catch { }
-        }))
-        {
-            await process.WaitForExitAsync(ct);
+            _logger.Log(LogType.Info, $"Empty format result.");
+            return new List<Format>();
         }
 
-        var output = await outputTask;
-
-        _logger.Log(LogType.Info, $"Get Format: {output}");
         return ParseFormats(output);
     }
 
     /// <summary>
-    /// Quickly fetches a lightweight set of metadata using --print (very fast, single call).
-    /// Uses a custom separator to avoid parsing issues with Unicode/special characters.
+    /// Fetches a lightweight version of video metadata.
     /// </summary>
-    /// <param name="url">Video or playlist URL</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>SimpleMetadata object or null if parsing failed or no data</returns>
-    public async Task<SimpleMetadata?> GetSimpleMetadataAsync(string url, CancellationToken ct = default)
+    /// <param name="url">The video or playlist URL to probe.</param>
+    /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="bufferKb">The buffer size in kilobytes for the process output stream (default 128KB).</param>
+    /// <returns>
+    /// A <see cref="MetadataLight"/> object if successful; 
+    /// returns <see langword="null"/> if the process fails or is cancelled.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<MetadataLight?> GetMetadataLiteAsync(string url, CancellationToken ct = default, int bufferKb = 128)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -1121,25 +1011,7 @@ public sealed class Ytdlp
 
             var arguments = $"{printArg} --skip-download --no-playlist --quiet {SanitizeInput(url)}";
 
-            var process = CreateProcess(arguments);
-            process.Start();
-
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-
-            using (ct.Register(() =>
-            {
-                try
-                {
-                    if (!process.HasExited)
-                        process.Kill(true);
-                }
-                catch { }
-            }))
-            {
-                await process.WaitForExitAsync(ct);
-            }
-
-            var output = await outputTask;
+            var output = await RunProbeAsync(arguments, ct, bufferKb);
 
             if (string.IsNullOrWhiteSpace(output))
                 return null;
@@ -1149,7 +1021,7 @@ public sealed class Ytdlp
             if (parts.Length < 6) // at least id, title, duration, thumbnail, views, size
                 return null;
 
-            return new SimpleMetadata
+            return new MetadataLight
             {
                 Id = parts[0].Trim(),
                 Title = parts[1].Trim(),
@@ -1170,19 +1042,21 @@ public sealed class Ytdlp
             _logger.Log(LogType.Warning, $"Failed to fetch simple metadata: {ex.Message}");
             return null;
         }
-
     }
 
     /// <summary>
-    /// Fetches lightweight metadata using --print with user-specified fields.
-    /// Returns a dictionary of requested fields (key = field name, value = string value).
-    /// Supports Unicode titles/descriptions correctly.
+    /// Fetches a specific subset of metadata fields from the specified URL.
     /// </summary>
-    /// <param name="url">Video URL</param>
-    /// <param name="fields">List of fields to fetch (e.g. "id", "title", "duration", "thumbnail", "view_count", "filesize", "description")</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Dictionary of field → value, or null if nothing could be fetched</returns>
-    public async Task<Dictionary<string, string>?> GetSimpleMetadataAsync(string url, IEnumerable<string> fields, CancellationToken ct = default)
+    /// <param name="url">The source URL to probe.</param>
+    /// <param name="fields">A collection of field names to extract (e.g., "title", "uploader").</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> to abort the yt-dlp process.</param>
+    /// <param name="bufferKb">The buffer size in kilobytes for the process output (default 128KB).</param>
+    /// <returns>
+    /// A <see cref="Dictionary{TKey, TValue}"/> containing the requested fields and their values; 
+    /// returns <see langword="null"/> if the process fails, returns no data, or is cancelled.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<Dictionary<string, string>?> GetMetadataLiteAsync(string url, IEnumerable<string> fields, CancellationToken ct = default, int bufferKb = 128)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -1200,21 +1074,7 @@ public sealed class Ytdlp
 
             var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {SanitizeInput(url)}";
 
-            var process = CreateProcess(arguments);
-            process.Start();
-
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-
-            using (ct.Register(() =>
-            {
-                try { if (!process.HasExited) process.Kill(true); }
-                catch { }
-            }))
-            {
-                await process.WaitForExitAsync(ct);
-            }
-
-            var rawOutput = await outputTask;
+            var rawOutput = await RunProbeAsync(arguments, ct, bufferKb);
             if (string.IsNullOrWhiteSpace(rawOutput))
                 return null;
 
@@ -1247,9 +1107,20 @@ public sealed class Ytdlp
         }
     }
 
-    public async Task<string> GetBestAudioFormatIdAsync(string url, CancellationToken ct = default)
+    /// <summary>
+    /// Probes the specified URL to find the ID of the best available audio format.
+    /// </summary>
+    /// <param name="url">The video or playlist URL to probe.</param>
+    /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="bufferKb">The buffer size in kilobytes for the process output stream (default 128KB).</param>
+    /// <returns>
+    /// A <see cref="string"/> representing the best audio format ID (e.g., "140"); 
+    /// returns an empty string or throws if no suitable audio is found.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<string> GetBestAudioFormatIdAsync(string url, CancellationToken ct = default, int bufferKb = 128)
     {
-        var meta = await GetVideoMetadataJsonAsync(url, ct);
+        var meta = await GetMetadataAsync(url, ct, bufferKb);
         var best = meta?.Formats?
             .Where(f => f.IsAudio && (f.Abr > 0 || f.Tbr > 0))
             .OrderByDescending(f => f.Abr ?? f.Tbr ?? 0)
@@ -1258,9 +1129,21 @@ public sealed class Ytdlp
         return best?.FormatId ?? "bestaudio";
     }
 
-    public async Task<string> GetBestVideoFormatIdAsync(string url, int maxHeight = 1080, CancellationToken ct = default)
+    /// <summary>
+    /// Probes the specified URL to find the ID of the best available video format within the specified height.
+    /// </summary>
+    /// <param name="url">The source URL to probe for video formats.</param>
+    /// <param name="maxHeight">The maximum vertical resolution allowed (default 1080p).</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> to cancel the underlying yt-dlp process.</param>
+    /// <param name="bufferKb">The buffer size in kilobytes for the process output (default 128KB).</param>
+    /// <returns>
+    /// A <see cref="string"/> representing the best video format ID (e.g., "137" or "248"); 
+    /// returns an empty string or <see langword="null"/> if no suitable format is found.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    public async Task<string> GetBestVideoFormatIdAsync(string url, int maxHeight = 1080, CancellationToken ct = default, int bufferKb = 128)
     {
-        var meta = await GetVideoMetadataJsonAsync(url, ct);
+        var meta = await GetMetadataAsync(url, ct, bufferKb);
         var best = meta?.Formats?
             .Where(f => !f.IsAudio && f.Height.HasValue && f.Height <= maxHeight)
             .OrderByDescending(f => f.Height)
@@ -1270,7 +1153,18 @@ public sealed class Ytdlp
         return best?.FormatId ?? "bestvideo";
     }
 
-    public async Task ExecuteAsync(string url, CancellationToken cancellationToken = default, string? outputTemplate = null)
+
+    /// <summary>
+    /// Executes a download process for the specified URL using an optional output template.
+    /// </summary>
+    /// <param name="url">The source URL to process.</param>
+    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to terminate the process execution.</param>
+    /// <returns>
+    /// A <see cref="Task"/> representing the asynchronous execution of the process.
+    /// </returns>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="YtdlpException"></exception>
+    public async Task ExecuteAsync(string url, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -1304,44 +1198,20 @@ public sealed class Ytdlp
 
         _commandBuilder.Clear(); // Clear after building arguments
 
-        await RunYtdlpAsync(arguments, cancellationToken);
+        await RunDownloadAsync(arguments, ct);
     }
 
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls, CancellationToken cancellationToken = default)
-    {
-        if (urls == null || !urls.Any())
-        {
-            _logger.Log(LogType.Error, "No URLs provided for batch download");
-            throw new YtdlpException("No URLs provided for batch download");
-        }
-
-        // Ensure output folder exists
-        try
-        {
-            Directory.CreateDirectory(_outputFolder);
-            _logger.Log(LogType.Info, $"Output folder for batch: {Path.GetFullPath(_outputFolder)}");
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Failed to create output folder {_outputFolder}: {ex.Message}");
-            throw new YtdlpException($"Failed to create output folder {_outputFolder}", ex);
-        }
-
-        foreach (var url in urls)
-        {
-            try
-            {
-                await ExecuteAsync(url, cancellationToken);
-            }
-            catch (YtdlpException ex)
-            {
-                _logger.Log(LogType.Error, $"Skipping URL {url} due to error: {ex.Message}");
-                continue; // Continue with next URL
-            }
-        }
-    }
-
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Executes batch download processing for a collection of URLs with a specified concurrency limit.
+    /// </summary>
+    /// <param name="urls">An enumerable collection of source URLs to process.</param>
+    /// <param name="maxConcurrency">The maximum number of simultaneous yt-dlp processes (default is 3).</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> to stop the batch execution.</param>
+    /// <returns>
+    /// A <see cref="Task"/> representing the asynchronous execution of the process.
+    /// </returns>
+    /// <exception cref="YtdlpException"></exception>
+    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default)
     {
         if (urls == null || !urls.Any())
         {
@@ -1367,7 +1237,7 @@ public sealed class Ytdlp
             await throttler.WaitAsync();
             try
             {
-                await ExecuteAsync(url, cancellationToken);
+                await ExecuteAsync(url, ct);
             }
             catch (YtdlpException ex)
             {
@@ -1386,7 +1256,67 @@ public sealed class Ytdlp
 
     #region Private Helpers
 
-    private async Task RunYtdlpAsync(string arguments, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Run process for probe and return output.
+    /// </summary>
+    /// <param name="args"></param>
+    /// <param name="bufferKb"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    private async Task<string?> RunProbeAsync(string args, CancellationToken ct = default, int bufferKb = 128)
+    {
+        // Validate buffer size: minimum 8 KB
+        if (bufferKb < 8) bufferKb = 8;
+        int bufferSize = bufferKb * 1024;
+
+        try
+        {
+            var process = CreateProcess(args);
+            process.Start();
+
+            // Use StreamReader with large buffer + explicit UTF-8
+            string output;
+            using (var reader = new StreamReader(process.StandardOutput.BaseStream,
+                                                 Encoding.UTF8,
+                                                 detectEncodingFromByteOrderMarks: false,
+                                                 bufferSize: bufferSize,     // default 8kb for JSON
+                                                 leaveOpen: true))           // don't close underlying stream
+            {
+                output = await reader.ReadToEndAsync();
+            }
+
+            // Optional: drain stderr in background (prevents blocking if warnings are many)
+            _ = Task.Run(() => process.StandardError.ReadToEndAsync(), ct);
+
+            using (ct.Register(() =>
+            {
+                try { if (!process.HasExited) process.Kill(true); } catch { }
+            }))
+            {
+                await process.WaitForExitAsync(ct);
+            }
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                _logger.Log(LogType.Warning, "Empty output.");
+                return null;
+            }
+
+            return output;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Process cancelled.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Process failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task RunDownloadAsync(string arguments, CancellationToken cancellationToken = default)
     {
         using var process = CreateProcess(arguments);
 
@@ -1509,34 +1439,6 @@ public sealed class Ytdlp
         return $"\"{input}\"";
     }
 
-    private static double? ParseDouble(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || value == "NA")
-            return null;
-
-        if (double.TryParse(value,
-            NumberStyles.Any,
-            CultureInfo.InvariantCulture,
-            out var result))
-            return result;
-
-        return null;
-    }
-
-    private static long? ParseLong(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || value == "NA")
-            return null;
-
-        if (long.TryParse(value,
-            NumberStyles.Any,
-            CultureInfo.InvariantCulture,
-            out var result))
-            return result;
-
-        return null;
-    }
-
     private List<Format> ParseFormats(string result)
     {
         var formats = new List<Format>();
@@ -1583,4 +1485,227 @@ public sealed class Ytdlp
 
     #endregion
 
+
+    #region Obsolete Methods
+
+    [Obsolete("This method will be removed in the next version. Use GetAvailableFormatsAsync() or GetMetadataAsync() instead.", true)]
+    public async Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        try
+        {
+            var arguments =
+                $"--dump-single-json " +
+                $"--no-simulate " +
+                $"--skip-download " +
+                $"--no-playlist " +
+                $"--quiet " +
+                $"--no-warnings " +
+                $"{SanitizeInput(url)}";
+
+            var json = await RunProbeAsync(arguments, ct, bufferKb);
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                _logger.Log(LogType.Warning, "Empty JSON output from --dump-single-json");
+                throw new YtdlpException("No data returned from format query.");
+            }
+
+            // JSON options
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
+
+            // Deserialize
+            var videoInfo = JsonSerializer.Deserialize<SingleVideoJson>(json, jsonOptions);
+
+            if (videoInfo?.Formats == null || !videoInfo.Formats.Any())
+            {
+                _logger.Log(LogType.Warning, "No formats array in JSON or empty → falling back to -F");
+                return await GetAvailableFormatsAsync(url, ct);
+            }
+
+            // Map in one clean pass — no modification during enumeration
+            var detailedFormats = new List<Format>(videoInfo.Formats.Count);
+
+            foreach (var f in videoInfo.Formats)
+            {
+                if (string.IsNullOrEmpty(f.FormatId))
+                    continue;
+
+                var fmt = new Format
+                {
+                    Id = f.FormatId!,
+                    Extension = f.Ext ?? string.Empty,
+                    Height = f.Height,
+                    Width = f.Width,
+                    // Build resolution fallback
+                    Resolution = !string.IsNullOrEmpty(f.Resolution)
+                                            ? f.Resolution
+                                            : (f.Height.HasValue ? $"{f.Height}p" : "audio only"),
+                    Fps = f.Fps,
+                    Channels = f.AudioChannels?.ToString(),
+                    AudioSampleRate = f.Asr,
+                    TotalBitrate = f.Tbr?.ToString(CultureInfo.InvariantCulture),
+                    VideoBitrate = f.Vbr?.ToString(CultureInfo.InvariantCulture),
+                    AudioBitrate = f.Abr?.ToString(CultureInfo.InvariantCulture),
+                    VideoCodec = f.Vcodec == "none" ? null : f.Vcodec,
+                    AudioCodec = f.Acodec == "none" ? null : f.Acodec,
+                    Protocol = f.Protocol,
+                    Language = f.Language,
+                    FileSizeApprox = f.FilesizeApprox?.ToString("N0") ?? f.Filesize?.ToString("N0"),
+                    ApproxFileSizeBytes = f.FilesizeApprox ?? f.Filesize,
+                    Note = f.FormatNote,
+                    MoreInfo = f.FormatNote,
+                };
+
+                detailedFormats.Add(fmt);
+            }
+
+            if (detailedFormats.Count > 0)
+            {
+                _logger.Log(LogType.Info, $"Successfully parsed {detailedFormats.Count} detailed formats from JSON");
+                return detailedFormats;
+            }
+
+            _logger.Log(LogType.Warning, "JSON parsed but no valid formats after filtering → fallback");
+        }
+        catch (JsonException jex)
+        {
+            _logger.Log(LogType.Warning, $"JSON deserialization failed: {jex.Message} → falling back");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Format fetch cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Unexpected error in GetFormatsDetailedAsync: {ex.Message} → fallback");
+        }
+
+        // Ultimate fallback
+        return await GetAvailableFormatsAsync(url, ct);
+    }
+
+    [Obsolete("This method will be removed in the next version. Use GetMetadataLiteAsync() instead.", true)]
+    public async Task<SimpleMetadata?> GetSimpleMetadataAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        try
+        {
+            // Use a rare separator that is unlikely to appear in title/description
+            const string separator = "|||YTDLP.NET|||";
+
+            var fields = new[]
+            {
+                "%(id)s",
+                "%(title)s",
+                "%(duration)s",
+                "%(thumbnail)s",
+                "%(view_count)s",
+                "%(filesize,filesize_approx)s",
+                "%(description).500s"  // limit to first 500 chars to avoid huge output
+            };
+
+            var printArg = $"--print \"{string.Join(separator, fields)}\"";
+
+            var arguments = $"{printArg} --skip-download --no-playlist --quiet {SanitizeInput(url)}";
+
+            var output = await RunProbeAsync(arguments, ct, bufferKb);
+
+            if (string.IsNullOrWhiteSpace(output))
+                return null;
+
+            var parts = output.Trim().Split(separator);
+
+            if (parts.Length < 6) // at least id, title, duration, thumbnail, views, size
+                return null;
+
+            return new SimpleMetadata
+            {
+                Id = parts[0].Trim(),
+                Title = parts[1].Trim(),
+                Duration = double.TryParse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var dur) ? dur : null,
+                Thumbnail = parts[3].Trim(),
+                ViewCount = long.TryParse(parts[4], NumberStyles.Any, CultureInfo.InvariantCulture, out var views) ? views : null,
+                FileSize = long.TryParse(parts[5], NumberStyles.Any, CultureInfo.InvariantCulture, out var size) ? size : null,
+                Description = parts.Length > 6 ? parts[6].Trim() : null
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Simple metadata fetch cancelled.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Failed to fetch simple metadata: {ex.Message}");
+            return null;
+        }
+
+    }
+
+    [Obsolete("This method will be removed in the next version. Use GetMetadataLiteAsync() instead.", true)]
+    public async Task<Dictionary<string, string>?> GetSimpleMetadataAsync(string url, IEnumerable<string> fields, CancellationToken ct = default, int bufferKb = 128)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        if (fields == null || !fields.Any())
+            throw new ArgumentException("At least one field must be requested.", nameof(fields));
+
+        try
+        {
+            const string separator = "|||YTDLP.NET|||";
+
+            // Build print format: %(id)s|||YTDLP.NET|||%(title)s|||YTDLP.NET|||...
+            var printParts = fields.Select(f => $"%({f})s");
+            var printFormat = string.Join(separator, printParts);
+
+            var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {SanitizeInput(url)}";
+
+            var rawOutput = await RunProbeAsync(arguments, ct, bufferKb);
+            if (string.IsNullOrWhiteSpace(rawOutput))
+                return null;
+
+            var parts = rawOutput.Trim().Split(separator);
+
+            // Should have exactly as many parts as requested fields
+            if (parts.Length != fields.Count())
+                return null;
+
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            int index = 0;
+            foreach (var field in fields)
+            {
+                var value = parts[index++].Trim();
+                result[field] = value;
+            }
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Simple metadata fetch cancelled.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Simple metadata failed: {ex.Message}");
+            return null;
+        }
+    }
+    #endregion
+
 }
+
+

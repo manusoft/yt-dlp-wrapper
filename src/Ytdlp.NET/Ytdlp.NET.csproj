@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+		<TargetFrameworks>net10.0;net9.0;net8.0;</TargetFrameworks>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<PackageId>Ytdlp.NET</PackageId>
 		<AssemblyName>Ytdlp.NET</AssemblyName>
-		<RootNamespace>YtdlpNET</RootNamespace>
-		<Version>2.0.3</Version>
+		<RootNamespace>ManuHub.Ytdlp.NET</RootNamespace>
+		<Version>2.1.0</Version>
 		<Authors>ManuHub Manojbabu</Authors>
 		<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
 		<Copyright>© 2025-2026 ManuHub. Allrights researved</Copyright>
@@ -20,7 +20,17 @@
 		<PackageIcon>icon.png</PackageIcon>
 		<Icon>icon.png</Icon>
 		<PackageReleaseNotes>
-			
+			⚠️ BREAKING CHANGE:
+			- 🏗️ Namespace migrated to 'ManuHub.Ytdlp.NET' (Update your using directives).
+			- 🛑 Several legacy probe methods are now [Obsolete] and scheduled for removal in the next major version.
+
+			✨ NEW FEATURES:
+			- 🔍 Added high-performance probe methods for metadata extraction.
+			- ⚡ Implemented custom buffer size support (bufferKb) across all probe methods for optimized memory usage.
+
+			⚙️ IMPROVEMENTS:
+			- 🛠️ Internal refactoring of the probe library to ensure significantly faster fetching speeds.
+			- 🛡️ Enhanced input sanitization for yt-dlp process execution.
 		</PackageReleaseNotes>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 		<IsPackable>true</IsPackable>

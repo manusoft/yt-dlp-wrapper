@@ -1,9 +1,10 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace YtdlpNET;
+namespace ManuHub.Ytdlp.NET;
 
 // Supporing class for single
 
+[Obsolete("This class will be removed in the next version. Use Metadta / MetadataLight instead.", true)]
 public class SingleVideoJson
 {
     [JsonPropertyName("id")]
@@ -16,6 +17,7 @@ public class SingleVideoJson
     public List<FormatJson>? Formats { get; set; }
 }
 
+[Obsolete("This class will be removed in the next version. Use Metadta / MetadataLight instead.", true)]
 public class FormatJson
 {
     [JsonPropertyName("format_id")] public string? FormatId { get; set; }
