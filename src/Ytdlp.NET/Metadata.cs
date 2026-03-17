@@ -4,15 +4,24 @@ namespace ManuHub.Ytdlp.NET;
 
 public class Metadata
 {
+    /// <summary>
+    /// Video identifier
+    /// </summary>
     [JsonPropertyName("id")]
     public string? Id { get; set; }   // playlist/video
 
     [JsonPropertyName("_type")]
     public string? Type { get; set; }   // playlist/video
 
+    /// <summary>
+    /// Video title
+    /// </summary>
     [JsonPropertyName("title")]
     public string? Title { get; set; }   // playlist/video   
 
+    /// <summary>
+    /// The description of the video
+    /// </summary>
     [JsonPropertyName("description")]
     public string? Description { get; set; } // playlist/video
 
@@ -20,7 +29,7 @@ public class Metadata
     public string? Thumbnail { get; set; }  // video
 
     [JsonPropertyName("playlist_count")]
-    public long PlaylistCount { get; set; }   // playlist
+    public long? PlaylistCount { get; set; }   // playlist
 
     [JsonPropertyName("categories")]
     public List<string>? Categories { get; set; }   // video
@@ -71,13 +80,15 @@ public class Metadata
     [JsonPropertyName("extractor_key")]
     public string? ExtractorKey { get; set; } // playlist/video
 
-
+    /// <summary>
+    /// How many users have watched the video on the platform
+    /// </summary>
     [JsonPropertyName("view_count")]
-    public long? ViewCount { get; set; }    // playlist/video
+    public float? ViewCount { get; set; }    // playlist/video
 
 
     [JsonPropertyName("duration")]
-    public double? Duration { get; set; }   // video
+    public float? Duration { get; set; }   // video
 
     [JsonPropertyName("age_limit")]
     public int? AgeLimit { get; set; }  // video
@@ -151,6 +162,9 @@ public class FormatMetadata
     [JsonPropertyName("format_note")]
     public string? FormatNote { get; set; }//
 
+    /// <summary>
+    /// Video filename extension
+    /// </summary>
     [JsonPropertyName("ext")]
     public string? Ext { get; set; }//
 
@@ -317,7 +331,7 @@ public class Entry
     public string? Description { get; set; }
 
     [JsonPropertyName("duration")]
-    public int Duration { get; set; }
+    public float Duration { get; set; }
 
     [JsonPropertyName("channel_id")]
     public string? ChannelId { get; set; } 
@@ -340,7 +354,10 @@ public class Entry
     [JsonPropertyName("thumbnails")]
     public List<ThumbnailMetadata>? Thumbnails { get; set; }
 
+    /// <summary>
+    /// How many users have watched the video on the platform
+    /// </summary>
     [JsonPropertyName("view_count")]
-    public int ViewCount { get; set; }
+    public float? ViewCount { get; set; }
 
 }
