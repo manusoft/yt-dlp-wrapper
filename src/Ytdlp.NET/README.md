@@ -1,7 +1,7 @@
 ﻿﻿![Static Badge](https://img.shields.io/badge/Ytdlp.NET-red) ![NuGet Version](https://img.shields.io/nuget/v/Ytdlp.NET)  ![NuGet Downloads](https://img.shields.io/nuget/dt/Ytdlp.NET)
 
 # Ytdlp.NET
-> **v2.1**
+> **v2.2**
 
 **Ytdlp.NET** is a fluent, strongly-typed .NET wrapper around the powerful [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) command-line tool. It provides an intuitive and customizable interface to download videos, extract audio, retrieve metadata, and process media from YouTube and hundreds of other supported platforms.
 
@@ -53,14 +53,15 @@ var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "tools");
 ---
 
 ---
-## 🚀 New in v2.1
+## 🚀 New in v2.2
 
+- Major fixes in various probe sections and models.
 - Added high-performance probe methods for metadata extraction
 - Rich Metadata model parsing via `GetMetadataAsync()`
 - JSON raw metadata parsing via `GetMetadataRawAsync()`
 - Available formats parsing via `GetAvailableFormatsAsync()`
 - Lite metadata pasing via `GetMetadataLiteAsync()`
-- Ro get best video format `GetBestVideoFormatIdAsync(URL, maxHeight: 720)`
+- To get best video format `GetBestVideoFormatIdAsync(URL, maxHeight: 720)`
 - To get best audio format `GetBestAudioFormatIdAsync(URL)`
 - Convenience methods for best format auto-selection
 - Implemented custom buffer size support (bufferKb) across all probe methods for optimized memory usage.
@@ -117,26 +118,6 @@ Console.WriteLine($"Title       : {metadata.Title}");
 Console.WriteLine($"Description : {(metadata.Description?.Length > 120 ? metadata.Description.Substring(0, 120) + "..." : metadata.Description)}");
 Console.WriteLine($"Thumbnail   : {metadata.Thumbnail}");
 
-if (metadata.Type == "video")
-{
-    Console.WriteLine("  ID       NOTE              EXT   RESOLUTION   FPS   VCODEC     ACODEC    PROTOCOL   SIZE/APPROX");
-    Console.WriteLine("  ──────────────────────────────────────────────────────────────────────────────────────────────");
-
-    // Show formats (both full list and requested/selected)
-    Console.WriteLine(
-            $"  {f.FormatId,-8} " +
-            $"{(f.FormatNote ?? "-"),-17} " +
-            $"{f.Ext,-5} " +
-            $"{(f.Resolution ?? "-"),-12} " +
-            $"{f.Fps?.ToString("0.#") ?? "-",5} " +
-            $"{(f.Vcodec ?? "-"),-10} " +
-            $"{(f.Acodec ?? "-"),-9} " +
-            $"{(f.Protocol ?? "-"),-10} " +
-            $"{size,-12}"
-        );
-
-    //PrintFormats("Selected / requested formats", metadata.RequestedFormats);
-}
 ```
 
 ### Auto-Selecting Best Formats
@@ -328,6 +309,7 @@ await ytdlp
 #### 8. Logging & Simulation
 - ``.LogToFile(string logFile)``
 - ``.Simulate()``
+- ``.NoWarnings()``
 
 #### 10. Advanced & Specialized Options
 - ``.WithConcurrentFragments(int count)``
@@ -347,11 +329,13 @@ Will be validated against internal whitelist. Invalid commands will trigger erro
 ### 📡 Events
 
 ```csharp
+ytdlp.OnProgressDownload += (sender, args) => Console.WriteLine($"Progress: {args.Percent:F2}% - {args.Speed} - ETA {args.ETA}");
 ytdlp.OnProgressMessage += (s, msg) => Console.WriteLine($"Progress: {msg}");
 ytdlp.OnErrorMessage += (s, err) => Console.WriteLine($"Error: {err}");
-ytdlp.OnCommandCompleted += (success, message) => Console.WriteLine($"Finished: {message}");
 ytdlp.OnOutputMessage += (s, msg) => Console.WriteLine(msg);
+ytdlp.OnCompleteDownload += (sender, message) => Console.WriteLine($"Download complete: {message}");
 ytdlp.OnPostProcessingComplete += (s, msg) => Console.WriteLine($"Postprocessing: {msg}");
+ytdlp.OnCommandCompleted += (success, message) => Console.WriteLine($"Finished: {message}");
 ```
 
 ### 📄 Output Template
@@ -426,7 +410,6 @@ public class ConsoleLogger : ILogger
 | `GetFormatsDetailedAsync(string url)` | `GetMetadataAsync(string url)` or `GetAvailableFormats(string url)` |
 | `GetSimpleMetadataAsync(string url)` | `GetMetadataLiteAsync(string url)` |
 | `GetSimpleMetadataAsync(string url, IEnumerable<string> fields)` | `GetMetadataLiteAsync(string url, IEnumerable<string> fields)`|
-| `SimpleMetadata` | `MetedataLight`|
 
 | Deprecated model | New model      |
 |------------------|----------------|
