@@ -130,7 +130,8 @@ internal class Program
 
         var url1 = "https://www.youtube.com/watch?v=YyepU5ztLf4&list=PLXCoHsJ9oLef1c83KIbl9_h7tYyodL15J"; //playlist
         var url2 = "https://www.youtube.com/watch?v=JOIqPThxFb8"; // video
-        var metadata = await ytdlp.GetMetadataAsync(url2);
+        var url3 = "https://www.youtube.com/watch?v=lY5V4hSLWY8&list=RDlY5V4hSLWY8&start_radio=1&pp=ygUJcGxheWxpc3RzoAcB";
+        var metadata = await ytdlp.GetMetadataAsync(url3);
         stopwatch.Stop(); // stop timer
 
         Console.WriteLine($"Detailed metedata took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
