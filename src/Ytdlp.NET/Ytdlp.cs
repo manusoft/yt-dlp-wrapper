@@ -1,5 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
+﻿using ManuHub.Ytdlp.NET.Core;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -33,6 +33,9 @@ public sealed class Ytdlp
     private readonly ProgressParser _progressParser;
     private readonly ILogger _logger;
 
+    private readonly ProbeRunner _probe;
+    private readonly DownloadRunner _download;
+
     private string _format = "best";
     private string _outputFolder = ".";
     private string _outputTemplate = "%(title)s.%(ext)s";
@@ -40,13 +43,8 @@ public sealed class Ytdlp
     // <summary>
     /// Fired for general progress messages from yt-dlp output.
     /// </summary>
-    public event EventHandler<string>? OnProgress;
+    //public event EventHandler<string>? OnProgress;
 
-
-    /// <summary>
-    /// Fired when an error message is received from yt-dlp.
-    /// </summary>
-    public event EventHandler<string>? OnError;
 
     /// <summary>
     /// Fired when the yt-dlp process completes (success or failure/cancel).
@@ -205,6 +203,11 @@ public sealed class Ytdlp
         _progressParser = new ProgressParser(logger);
         _logger = logger ?? new DefaultLogger();
 
+        var factory = new ProcessFactory(ytdlpPath);
+
+        _probe = new ProbeRunner(factory, _logger);
+        _download = new DownloadRunner(factory, _progressParser, _logger);
+
         // Subscribe to progress parser events
         _progressParser.OnOutputMessage += (s, e) => OnOutputMessage?.Invoke(this, e);
         _progressParser.OnProgressDownload += (s, e) => OnProgressDownload?.Invoke(this, e);
@@ -212,6 +215,9 @@ public sealed class Ytdlp
         _progressParser.OnProgressMessage += (s, e) => OnProgressMessage?.Invoke(this, e);
         _progressParser.OnErrorMessage += (s, e) => OnErrorMessage?.Invoke(this, e);
         _progressParser.OnPostProcessingComplete += (s, e) => OnPostProcessingComplete?.Invoke(this, e);
+
+        //  Subscribe to process complete events
+        _download.OnCommandCompleted += (s, e) => OnCommandCompleted?.Invoke(this, e);
     }
 
     #endregion
@@ -694,6 +700,16 @@ public sealed class Ytdlp
         return this;
     }
 
+    /// <summary>
+    /// Ignore warnings
+    /// </summary>
+    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
+    public Ytdlp NoWarning()
+    {
+        _commandBuilder.Append("--no-warnings ");
+        return this;
+    }
+
     #endregion
 
     #region Advanced & Specialized Options
@@ -751,7 +767,7 @@ public sealed class Ytdlp
             if (part.StartsWith("-", StringComparison.Ordinal) && !IsAllowedOption(part))
             {
                 var errorMessage = $"Invalid yt-dlp option: {part}";
-                OnError?.Invoke(this, errorMessage);
+                OnErrorMessage?.Invoke(this, errorMessage);
                 _logger.Log(LogType.Error, errorMessage);
                 return this;
             }
@@ -767,6 +783,25 @@ public sealed class Ytdlp
     #region Execution & Utility Methods
 
     /// <summary>
+    /// Preview Commands
+    /// </summary>
+    /// <param name="url"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public string PreviewCommand(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL cannot be empty.", nameof(url));
+
+        string template = Path.Combine(_outputFolder, _outputTemplate.Replace("\\", "/"));
+
+        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" {SanitizeInput(url)}";
+
+        return $"{_ytDlpPath} {arguments}";
+    }
+
+
+    /// <summary>
     /// Retrieves the current version string of the underlying yt-dlp executable.
     /// </summary>
     /// <param name="ct">A <see cref="CancellationToken"/> to abort the version check process.</param>
@@ -776,7 +811,7 @@ public sealed class Ytdlp
     /// </returns>
     public async Task<string> GetVersionAsync(CancellationToken ct = default)
     {
-        var output = await RunProbeAsync("--version", ct);
+        var output = await _probe.RunAsync("--version", ct);
         string version = output is null ? string.Empty : output.Trim();
         _logger.Log(LogType.Info, $"yt-dlp version: {version}");
         return version;
@@ -793,52 +828,20 @@ public sealed class Ytdlp
     /// </returns>
     public async Task<string> UpdateAsync(UpdateChannel channel = UpdateChannel.Stable, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var process = CreateProcess("--update-to {channel.ToString().ToLowerInvariant()}");
+        var output = await _probe.RunAsync($"--update-to {channel.ToString().ToLowerInvariant()}", cancellationToken);
+        if (output is null)
+            return string.Empty;
 
-            process.Start();
+        // Analyze output for professional messages
+        if (output.Contains("Updated", StringComparison.OrdinalIgnoreCase))
+            return "yt-dlp was successfully updated to the latest version.";
 
-            // Read output and error concurrently
-            var readOutputTask = process.StandardOutput.ReadToEndAsync();
-            var readErrorTask = process.StandardError.ReadToEndAsync();
+        if (output.Contains("up to date", StringComparison.OrdinalIgnoreCase))
+            return "yt-dlp is already up to date.";
 
-            using (cancellationToken.Register(() =>
-            {
-                try
-                {
-                    if (!process.HasExited)
-                        process.Kill(true);
-                }
-                catch { }
-            }))
-            {
-                await process.WaitForExitAsync(cancellationToken);
-            }
+        return "yt-dlp update check completed (no changes detected).";
 
-            var output = await readOutputTask;
-            var error = await readErrorTask;
-
-            // Log both
-            if (!string.IsNullOrWhiteSpace(output))
-                _logger.Log(LogType.Info, output.Trim());
-            if (!string.IsNullOrWhiteSpace(error))
-                _logger.Log(LogType.Error, error.Trim());
-
-            // Analyze output for professional messages
-            if (output.Contains("Updated", StringComparison.OrdinalIgnoreCase))
-                return "yt-dlp was successfully updated to the latest version.";
-
-            if (output.Contains("up to date", StringComparison.OrdinalIgnoreCase))
-                return "yt-dlp is already up to date.";
-
-            return "yt-dlp update check completed (no changes detected).";
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Error updating yt-dlp: {ex.Message}");
-            return $"yt-dlp update failed: {ex.Message}";
-        }
+        
     }
 
     /// <summary>
@@ -869,7 +872,7 @@ public sealed class Ytdlp
                 $"--no-warnings " +
                 $"{SanitizeInput(url)}";
 
-            var json = await RunProbeAsync(arguments, ct);
+            var json = await _probe.RunAsync(arguments, ct);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -926,7 +929,7 @@ public sealed class Ytdlp
                 $"--no-warnings " +
                 $"{SanitizeInput(url)}";
 
-            var json = await RunProbeAsync(arguments, ct);
+            var json = await _probe.RunAsync(arguments, ct);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -964,7 +967,7 @@ public sealed class Ytdlp
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("Video URL cannot be empty.", nameof(url));
 
-        var output = await RunProbeAsync("-F ", ct, bufferKb);
+        var output = await _probe.RunAsync($"-F {SanitizeInput(url)}", ct, bufferKb);
 
         if (string.IsNullOrWhiteSpace(output))
         {
@@ -1011,7 +1014,7 @@ public sealed class Ytdlp
 
             var arguments = $"{printArg} --skip-download --no-playlist --quiet {SanitizeInput(url)}";
 
-            var output = await RunProbeAsync(arguments, ct, bufferKb);
+            var output = await _probe.RunAsync(arguments, ct, bufferKb);
 
             if (string.IsNullOrWhiteSpace(output))
                 return null;
@@ -1074,7 +1077,7 @@ public sealed class Ytdlp
 
             var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {SanitizeInput(url)}";
 
-            var rawOutput = await RunProbeAsync(arguments, ct, bufferKb);
+            var rawOutput = await _probe.RunAsync(arguments, ct, bufferKb);
             if (string.IsNullOrWhiteSpace(rawOutput))
                 return null;
 
@@ -1198,7 +1201,7 @@ public sealed class Ytdlp
 
         _commandBuilder.Clear(); // Clear after building arguments
 
-        await RunDownloadAsync(arguments, ct);
+        await _download.RunAsync(arguments, ct);
     }
 
     /// <summary>
@@ -1255,171 +1258,6 @@ public sealed class Ytdlp
     #endregion
 
     #region Private Helpers
-
-    /// <summary>
-    /// Run process for probe and return output.
-    /// </summary>
-    /// <param name="args"></param>
-    /// <param name="bufferKb"></param>
-    /// <param name="ct"></param>
-    /// <returns></returns>
-    private async Task<string?> RunProbeAsync(string args, CancellationToken ct = default, int bufferKb = 128)
-    {
-        // Validate buffer size: minimum 8 KB
-        if (bufferKb < 8) bufferKb = 8;
-        int bufferSize = bufferKb * 1024;
-
-        try
-        {
-            var process = CreateProcess(args);
-            process.Start();
-
-            // Use StreamReader with large buffer + explicit UTF-8
-            string output;
-            using (var reader = new StreamReader(process.StandardOutput.BaseStream,
-                                                 Encoding.UTF8,
-                                                 detectEncodingFromByteOrderMarks: false,
-                                                 bufferSize: bufferSize,     // default 8kb for JSON
-                                                 leaveOpen: true))           // don't close underlying stream
-            {
-                output = await reader.ReadToEndAsync();
-            }
-
-            // Optional: drain stderr in background (prevents blocking if warnings are many)
-            _ = Task.Run(() => process.StandardError.ReadToEndAsync(), ct);
-
-            using (ct.Register(() =>
-            {
-                try { if (!process.HasExited) process.Kill(true); } catch { }
-            }))
-            {
-                await process.WaitForExitAsync(ct);
-            }
-
-            if (string.IsNullOrWhiteSpace(output))
-            {
-                _logger.Log(LogType.Warning, "Empty output.");
-                return null;
-            }
-
-            return output;
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.Log(LogType.Warning, "Process cancelled.");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Warning, $"Process failed: {ex.Message}");
-            return null;
-        }
-    }
-
-    private async Task RunDownloadAsync(string arguments, CancellationToken cancellationToken = default)
-    {
-        using var process = CreateProcess(arguments);
-
-        try
-        {
-            if (!process.Start())
-                throw new YtdlpException("Failed to start yt-dlp process.");
-
-            // Improved cancellation: Try to close streams first, then kill
-            using var ctsRegistration = cancellationToken.Register(() =>
-            {
-                try
-                {
-                    if (!process.HasExited)
-                    {
-                        process.Kill(entireProcessTree: true);
-                        _logger.Log(LogType.Info, "yt-dlp process killed due to cancellation");
-                    }
-                }
-                catch
-                {
-                    // silent - already dead or disposed
-                }
-            });
-
-            // Read output and error concurrently
-            var outputTask = Task.Run(async () =>
-            {
-                string? line;
-                while ((line = await process.StandardOutput.ReadLineAsync()) != null)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    _progressParser.ParseProgress(line);
-                    OnProgress?.Invoke(this, line);
-                }
-            }, cancellationToken);
-
-            var errorTask = Task.Run(async () =>
-            {
-                string? line;
-                while ((line = await process.StandardError.ReadLineAsync()) != null)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    OnErrorMessage?.Invoke(this, line);
-                    OnError?.Invoke(this, line);
-                    _logger.Log(LogType.Error, line);
-                }
-            }, cancellationToken);
-
-            await Task.WhenAll(outputTask, errorTask);
-
-            // Wait for exit (may throw OperationCanceledException)
-            await process.WaitForExitAsync(cancellationToken);
-
-            // Only throw on real failure (not cancellation)
-            if (process.ExitCode != 0 && !cancellationToken.IsCancellationRequested)
-            {
-                throw new YtdlpException($"yt-dlp exited with code {process.ExitCode}");
-            }
-
-            // Success or intentional cancel
-            var success = !cancellationToken.IsCancellationRequested;
-            var message = success ? "Completed successfully" : "Cancelled by user";
-            OnCommandCompleted?.Invoke(this, new CommandCompletedEventArgs(success, message));
-        }
-        catch (OperationCanceledException)
-        {
-            // Normal cancel path — no need to log again
-            OnCommandCompleted?.Invoke(this, new CommandCompletedEventArgs(false, "Cancelled by user"));
-            throw; // let caller handle if needed
-        }
-        catch (Exception ex)
-        {
-            var msg = $"Error executing yt-dlp: {ex.Message}";
-            OnError?.Invoke(this, msg);
-            _logger.Log(LogType.Error, msg);
-            throw new YtdlpException(msg, ex);
-        }
-    }
-
-    private Process CreateProcess(string arguments)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = _ytDlpPath,
-            Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-
-        // Force Python/yt-dlp UTF-8
-        psi.Environment["PYTHONIOENCODING"] = "utf-8";
-        psi.Environment["PYTHONUTF8"] = "1";
-        psi.Environment["LC_ALL"] = "en_US.UTF-8";
-        psi.Environment["LANG"] = "en_US.UTF-8";
-
-        return new Process { StartInfo = psi, EnableRaisingEvents = true };
-    }
-
     private static string ValidatePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -1498,14 +1336,14 @@ public sealed class Ytdlp
         {
             var arguments =
                 $"--dump-single-json " +
-                $"--no-simulate " +
+                $"--simulate " +
                 $"--skip-download " +
                 $"--no-playlist " +
                 $"--quiet " +
                 $"--no-warnings " +
                 $"{SanitizeInput(url)}";
 
-            var json = await RunProbeAsync(arguments, ct, bufferKb);
+            var json = await _probe.RunAsync(arguments, ct, bufferKb);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -1619,7 +1457,7 @@ public sealed class Ytdlp
 
             var arguments = $"{printArg} --skip-download --no-playlist --quiet {SanitizeInput(url)}";
 
-            var output = await RunProbeAsync(arguments, ct, bufferKb);
+            var output = await _probe.RunAsync(arguments, ct, bufferKb);
 
             if (string.IsNullOrWhiteSpace(output))
                 return null;
@@ -1672,7 +1510,7 @@ public sealed class Ytdlp
 
             var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {SanitizeInput(url)}";
 
-            var rawOutput = await RunProbeAsync(arguments, ct, bufferKb);
+            var rawOutput = await _probe.RunAsync(arguments, ct, bufferKb);
             if (string.IsNullOrWhiteSpace(rawOutput))
                 return null;
 
