@@ -7,7 +7,7 @@
 		<PackageId>Ytdlp.NET</PackageId>
 		<AssemblyName>Ytdlp.NET</AssemblyName>
 		<RootNamespace>ManuHub.Ytdlp.NET</RootNamespace>
-		<Version>2.1.0</Version>
+		<Version>2.1.1</Version>
 		<Authors>ManuHub Manojbabu</Authors>
 		<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
 		<Copyright>© 2025-2026 ManuHub. Allrights researved</Copyright>
@@ -31,6 +31,7 @@
 			⚙️ IMPROVEMENTS:
 			- 🛠️ Internal refactoring of the probe library to ensure significantly faster fetching speeds.
 			- 🛡️ Enhanced input sanitization for yt-dlp process execution.
+			- 🛑 Metadata refactored.
 		</PackageReleaseNotes>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 		<IsPackable>true</IsPackable>
