@@ -78,132 +78,146 @@ public sealed class Format
     {
         var format = new Format();
 
-        // Split on multiple spaces/tabs, but preserve meaningful parts
-        var parts = Regex.Split(line.Trim(), @"\s{2,}|\s*\|\s*")
-                         .Where(p => !string.IsNullOrWhiteSpace(p))
-                         .Select(p => p.Trim())
-                         .ToArray();
+        // Step 1: Replace pipes with space (they are just column separators)
+        string cleaned = Regex.Replace(line, @"\s*\|\s*", " ");
 
-        if (parts.Length < 2) return format;
+        // Step 2: Collapse multiple whitespace → single space, trim
+        cleaned = Regex.Replace(cleaned, @"\s{2,}", " ").Trim();
+
+        // Step 3: Split into tokens
+        var tokens = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(t => t.Trim())
+                            .ToList();
+
+        if (tokens.Count < 3) return format;
 
         int idx = 0;
 
-        // [0] ID
-        if (idx < parts.Length) format.Id = parts[idx++];
+        // ID (usually alphanumeric like sb0, 139, 160...)
+        format.Id = tokens[idx++];
 
-        // [1] EXT
-        if (idx < parts.Length) format.Extension = parts[idx++];
+        // Extension (m4a, webm, mp4, mhtml...)
+        format.Extension = tokens[idx++];
 
-        // [2] RESOLUTION / NOTE (may be "audio only" or "144p" etc.)
-        if (idx < parts.Length)
+        // Resolution or "audio only"
+        string token = tokens[idx];
+        if (token == "audio" && idx + 1 < tokens.Count && tokens[idx + 1] == "only")
         {
-            format.Resolution = parts[idx];
-            if (format.Resolution == "audio") // "audio only"
+            format.Resolution = "audio only";
+            format.VideoCodec = "none";
+            idx += 2;
+        }
+        else
+        {
+            format.Resolution = token;
+
+            // Parse 1920x1080 or 1080p etc.
+            var resMatch = Regex.Match(token, @"(\d+)x(\d+)|(\d+)p");
+            if (resMatch.Success)
             {
-                format.Resolution = "audio only";
-                idx++;
-                if (idx < parts.Length && parts[idx] == "only") idx++;
-            }
-            else
-            {
-                // Try parse height/width from e.g. "1920x1080"
-                var resMatch = Regex.Match(format.Resolution, @"(\d+)x(\d+)|(\d+)p");
-                if (resMatch.Success)
+                if (resMatch.Groups[1].Success && resMatch.Groups[2].Success)
                 {
-                    if (resMatch.Groups[1].Success && resMatch.Groups[2].Success)
-                    {
-                        format.Width = int.TryParse(resMatch.Groups[1].Value, out int w) ? w : null;
-                        format.Height = int.TryParse(resMatch.Groups[2].Value, out int h) ? h : null;
-                    }
-                    else if (resMatch.Groups[3].Success)
-                    {
-                        format.Height = int.TryParse(resMatch.Groups[3].Value, out int h) ? h : null;
-                    }
+                    format.Width = int.TryParse(resMatch.Groups[1].Value, out int w) ? w : null;
+                    format.Height = int.TryParse(resMatch.Groups[2].Value, out int h) ? h : null;
                 }
-                idx++;
-            }
-        }
-
-        // [next] FPS
-        if (idx < parts.Length && double.TryParse(parts[idx], NumberStyles.Any, CultureInfo.InvariantCulture, out double fps))
-        {
-            format.Fps = fps;
-            idx++;
-        }
-
-        // Channels / audio channels
-        if (idx < parts.Length && Regex.IsMatch(parts[idx], @"^\d+$|^\d+\|?$"))
-        {
-            format.Channels = parts[idx].TrimEnd('|');
-            idx++;
-        }
-
-        // File size approx
-        if (idx < parts.Length && (parts[idx].Contains("MiB") || parts[idx].Contains("GiB") || parts[idx] == "~"))
-        {
-            format.FileSizeApprox = parts[idx];
-            // Try parse numeric
-            var sizeMatch = Regex.Match(parts[idx], @"~?(\d+\.?\d*)\s*(MiB|GiB|KiB)?");
-            if (sizeMatch.Success)
-            {
-                if (double.TryParse(sizeMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+                else if (resMatch.Groups[3].Success)
                 {
-                    double multiplier = sizeMatch.Groups[2].Value switch
-                    {
-                        "GiB" => 1024 * 1024 * 1024,
-                        "MiB" => 1024 * 1024,
-                        "KiB" => 1024,
-                        _ => 1
-                    };
-                    format.ApproxFileSizeBytes = (long)(val * multiplier);
+                    format.Height = int.TryParse(resMatch.Groups[3].Value, out int h) ? h : null;
                 }
             }
             idx++;
         }
 
-        // TBR (total bitrate)
-        if (idx < parts.Length && parts[idx].EndsWith("k"))
+        // FPS (usually integer or -)
+        if (idx < tokens.Count && double.TryParse(tokens[idx], NumberStyles.Any, CultureInfo.InvariantCulture, out double fpsVal) && fpsVal > 0)
         {
-            format.TotalBitrate = parts[idx];
+            format.Fps = fpsVal;
             idx++;
         }
 
-        // Protocol
-        if (idx < parts.Length && (parts[idx].StartsWith("http") || parts[idx] == "m3u8_native" || parts[idx] == "mhtml"))
+        // Channels (2, stereo, etc. — mostly for audio)
+        if (idx < tokens.Count && Regex.IsMatch(tokens[idx], @"^\d+$"))
         {
-            format.Protocol = parts[idx];
+            format.Channels = tokens[idx];
             idx++;
         }
 
-        // VCODEC
-        if (idx < parts.Length)
+        // File size (~5.52MiB, 14.66MiB, etc.)
+        if (idx < tokens.Count && (tokens[idx].Contains("MiB") || tokens[idx].Contains("GiB") || tokens[idx].StartsWith("~")))
         {
-            format.VideoCodec = parts[idx];
-            if (format.VideoCodec == "audio" && idx + 1 < parts.Length && parts[idx + 1] == "only")
+            format.FileSizeApprox = tokens[idx];
+
+            var sizeMatch = Regex.Match(tokens[idx], @"~?([\d\.]+)\s*([KMG]?i?B)");
+            if (sizeMatch.Success && double.TryParse(sizeMatch.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double sizeVal))
+            {
+                string unit = sizeMatch.Groups[2].Value.ToLowerInvariant();
+                long multiplier = unit switch
+                {
+                    "gib" => 1073741824L,
+                    "mib" => 1048576L,
+                    "kib" => 1024L,
+                    _ => 1L
+                };
+                format.FileSizeApprox = (sizeVal * multiplier).ToString();
+            }
+            idx++;
+        }
+
+        // Total Bitrate (49k, 128k, etc.)
+        if (idx < tokens.Count && tokens[idx].EndsWith("k"))
+        {
+            format.TotalBitrate = tokens[idx];
+            idx++;
+        }
+
+        // Protocol (https, m3u8, mhtml...)
+        if (idx < tokens.Count && (tokens[idx].StartsWith("http") || tokens[idx].Contains("m3u8") || tokens[idx] == "mhtml"))
+        {
+            format.Protocol = tokens[idx];
+            idx++;
+        }
+
+        // Video codec (avc1..., vp9, av01..., images, none)
+        if (idx < tokens.Count)
+        {
+            string vc = tokens[idx];
+            if (vc == "audio" && idx + 1 < tokens.Count && tokens[idx + 1] == "only")
             {
                 format.VideoCodec = "none";
                 idx += 2;
             }
-            else if (format.VideoCodec == "images")
+            else if (vc == "images" || vc.StartsWith("avc1") || vc.StartsWith("vp") || vc.StartsWith("av01"))
             {
+                format.VideoCodec = vc;
                 idx++;
             }
-            else idx++;
         }
 
-        // ACODEC / remaining
-        if (idx < parts.Length)
+        // Audio codec (opus, mp4a..., none)
+        if (idx < tokens.Count)
         {
-            format.AudioCodec = parts[idx] == "video" ? "none" : parts[idx];
-            idx++;
+            string ac = tokens[idx];
+            if (ac == "video" && idx + 1 < tokens.Count && tokens[idx + 1] == "only")
+            {
+                format.AudioCodec = "none";
+                idx += 2;
+            }
+            else if (ac == "audio" && idx + 1 < tokens.Count && tokens[idx + 1] == "only")
+            {
+                format.AudioCodec = "none";
+                idx += 2;
+            }
+            else if (ac.Contains(".") || ac == "opus")
+            {
+                format.AudioCodec = ac;
+                idx++;
+            }
         }
 
-        // Remaining parts → MoreInfo
-        if (idx < parts.Length)
+        // All remaining → MoreInfo
+        if (idx < tokens.Count)
         {
-            format.MoreInfo = string.Join(" ", parts[idx..]).Trim();
-            // Clean up pipes or redundant
-            format.MoreInfo = Regex.Replace(format.MoreInfo, @"^\|\s*", "").Trim();
+            format.MoreInfo = string.Join(" ", tokens.GetRange(idx, tokens.Count - idx));
         }
 
         return format;
