@@ -6,9 +6,9 @@
     <Project Path="archives/Ytdlp.Wrapper.Console/Ytdlp.Wrapper.Console.csproj" />
     <Project Path="archives/Ytdlp.Wrapper/Ytdlp.Wrapper.csproj" />
   </Folder>
-  <Folder Name="/features/">
-    <Project Path="src/Ytdlp.NET.vNext.Console/Ytdlp.NET.vNext.Console.csproj" />
-    <Project Path="src/Ytdlp.NET.vNext/Ytdlp.NET.vNext.csproj" />
+  <Folder Name="/feature/">
+    <Project Path="feature/Ytdlp.NET.vNext.Console/Ytdlp.NET.vNext.Console.csproj" />
+    <Project Path="feature/Ytdlp.NET.vNext/Ytdlp.NET.vNext.csproj" />
   </Folder>
   <Folder Name="/stable/">
     <Project Path="src/Ytdlp.NET.Console/Ytdlp.NET.Console.csproj" />
