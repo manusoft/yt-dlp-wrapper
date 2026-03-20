@@ -304,13 +304,13 @@ ytdlp.OnCommandCompleted += (s, e) => Console.WriteLine($"Command finished: {e.C
 * Immutable: no shared state; safe for parallel usage.
 * Always `await using` for proper disposal.
 * Deprecated old methods removed.
-* Probe methods remain the same (`GetMetadataAsync`, `GetAvailableFormatsAsync`, `GetBestVideoFormatIdAsync`, etc.).
+* Probe methods remain the same (`GetMetadataAsync`, `GetFormatsAsync`, `GetBestVideoFormatIdAsync`, etc.).
 
 ---
 
 ### License
 
-MIT License — see [LICENSE](https://github.com/manusoft/yt-dlp-wrapper/blob/master/LICENSE.md)
+MIT License — see [LICENSE](https://github.com/manusoft/Ytdlp.NET/blob/master/LICENSE.md)
 
-**Author:** Manojbabu (ManuHub)
-**Repository:** [Ytdlp.NET](https://github.com/manusoft/yt-dlp-wrapper)
+**Author:** Manojbabu (ManuHub)   
+**Repository:** [Ytdlp.NET](https://github.com/manusoft/Ytdlp.NET)

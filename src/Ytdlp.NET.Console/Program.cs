@@ -11,7 +11,7 @@ internal class Program
         Console.InputEncoding = Encoding.UTF8;
 
         Console.Clear();
-        Console.WriteLine("yt-dlp .NET Wrapper v2.0 Demo Console App");
+        Console.WriteLine("Ytdlp.NET Wrapper v3.0 Demo Console App");
         Console.WriteLine("----------------------------------------");
 
         // Initialize the wrapper (assuming yt-dlp is in PATH or specify path)
@@ -20,20 +20,19 @@ internal class Program
 
         // Run all demos/tests sequentially
         //await TestGetVersionAsync(baseYtdlp);
-        //await TestUpdateVersionAsync(baseYtdlp);
+        //await TestUpdateAsync(baseYtdlp);
 
         //await TestGetFormatsAsync(baseYtdlp);
-        //await TestGetFormatsDetailedAsync(baseYtdlp);
-        //await TestGetMetadataAsync(baseYtdlp);
+        await TestGetMetadataAsync(baseYtdlp);
         //await TestGetLiteMetadataAsync(baseYtdlp);
         //await TestGetTitleAsync(baseYtdlp);
 
         await TestDownloadVideoAsync(baseYtdlp);
-        //await TestDownloadAudioAsync(ytdlp);
+        //await TestDownloadAudioAsync(baseYtdlp);
         //await TestBatchDownloadAsync(baseYtdlp);
-        //await TestSponsorBlockAsync(ytdlp);
-        //await TestConcurrentFragmentsAsync(ytdlp);
-        //await TestCancellationAsync(ytdlp);
+        //await TestSponsorBlockAsync(baseYtdlp);
+        //await TestConcurrentFragmentsAsync(baseYtdlp);
+        //await TestCancellationAsync(baseYtdlp);
 
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");
@@ -57,8 +56,6 @@ internal class Program
         }
     }
 
-
-    // Test 1: Get yt-dlp version
     private static async Task TestGetVersionAsync(Ytdlp ytdlp)
     {
         Console.WriteLine("\nTest 1: Getting yt-dlp version...");
@@ -66,19 +63,18 @@ internal class Program
         Console.WriteLine($"Version: {version}");
     }
 
-    private static async Task TestUpdateVersionAsync(Ytdlp ytdlp)
+    private static async Task TestUpdateAsync(Ytdlp ytdlp)
     {
-        Console.WriteLine("\nTest 1: Getting yt-dlp version...");
+        Console.WriteLine("\nTest 2: Checking yt-dlp update...");
         var version = await ytdlp.UpdateAsync(UpdateChannel.Stable);
-        Console.WriteLine($"Version: {version}");
+        Console.WriteLine($"Status: {version}");
     }
 
-    // Test 2: Get detailed formats
     private static async Task TestGetFormatsAsync(Ytdlp ytdlp)
     {
         var stopwatch = Stopwatch.StartNew();
 
-        Console.WriteLine("\nTest 2: Fetching available formats...");
+        Console.WriteLine("\nTest 3: Fetching available formats...");
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
         var formats = await ytdlp.GetFormatsAsync(url);
 
@@ -102,36 +98,6 @@ internal class Program
             Console.WriteLine($"\nBest 1080p: ID {best1080p.Id}, {best1080p.VideoCodec}, ~{best1080p.ApproxFileSizeBytes / 1024 / 1024} MiB");
     }
 
-    // Test 3: Get detailed formats
-    private static async Task TestGetFormatsDetailedAsync(Ytdlp ytdlp)
-    {
-        var stopwatch = Stopwatch.StartNew();
-
-        Console.WriteLine("\nTest 3: Fetching detailed formats...");
-        var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
-        var formats = await ytdlp.GetFormatsAsync(url);
-
-        stopwatch.Stop(); // stop timer
-        Console.WriteLine($"Detailed formats took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
-
-        Console.WriteLine($"Found {formats.Count} formats:");
-
-        foreach (var f in formats)
-        {
-            Console.WriteLine(f.ToString());  // Uses Format's ToString override
-        }
-
-        // Example: Find best 1080p
-        var best1080p = formats
-            .Where(f => f.IsVideo && (f.Height ?? 0) == 1080)
-            .OrderByDescending(f => f.Fps ?? 0)
-            .FirstOrDefault();
-
-        if (best1080p != null)
-            Console.WriteLine($"\nBest 1080p: ID {best1080p.Id}, {best1080p.VideoCodec}, ~{best1080p.ApproxFileSizeBytes / 1024 / 1024} MiB");
-    }
-
-    // Test 4: Get metedata 
     private static async Task TestGetMetadataAsync(Ytdlp ytdlp)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -140,8 +106,7 @@ internal class Program
 
         var url1 = "https://www.youtube.com/watch?v=983bBbJx0Mk&list=RD983bBbJx0Mk&start_radio=1&pp=ygUFc29uZ3OgBwE%3D"; //playlist
         var url2 = "https://www.youtube.com/watch?v=ZGnQH0LN_98"; // video
-        var url3 = "https://www.youtube.com/watch?v=983bBbJx0Mk&list=RD983bBbJx0Mk&start_radio=1&pp=ygUFc29uZ3OgBwE%3D";
-        var metadata = await ytdlp.GetMetadataAsync(url3);
+        var metadata = await ytdlp.GetMetadataAsync(url2);
         stopwatch.Stop(); // stop timer
 
         Console.WriteLine($"Detailed metedata took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
@@ -167,11 +132,10 @@ internal class Program
         }
     }
 
-    // Test 5: Get lite metedata 
     private static async Task TestGetLiteMetadataAsync(Ytdlp ytdlp)
     {
         var stopwatch = Stopwatch.StartNew();
-        Console.WriteLine("\nTest 5: Fetching simple metedata...");
+        Console.WriteLine("\nTest 5: Fetching lite metedata...");
 
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
 
@@ -218,7 +182,6 @@ internal class Program
         // await ytdlp.ExecuteAsync(url);
     }
 
-    // Test 7 Extract audio only
     private static async Task TestDownloadAudioAsync(Ytdlp ytdlp)
     {
         Console.WriteLine("\nTest 7: Extracting audio...");
@@ -257,7 +220,7 @@ internal class Program
 
         await ytdlp
             .WithFormat("best")
-            //.WithRemoveSponsorBlock("all")  // Removes sponsor, intro, etc.
+            .WithSponsorblockRemove("all")  // Removes sponsor, intro, etc.
             .WithOutputFolder("./downloads/sponsorblock")
             .ExecuteAsync(url);
     }
@@ -312,8 +275,7 @@ internal class Program
         try
         {
             var downloadTask = ytdlp
-                //.Simulate()
-                //.NoWarning()
+                .WithSimulate()
                 .WithOutputTemplate("%(title)s.%(ext)s")
                 .WithOutputFolder("./downloads/cancel")
                 .AddFlag("--get-title")
