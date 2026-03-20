@@ -7,7 +7,7 @@
 		<PackageId>Ytdlp.NET</PackageId>
 		<AssemblyName>Ytdlp.NET</AssemblyName>
 		<RootNamespace>ManuHub.Ytdlp.NET</RootNamespace>
-		<Version>2.2.0</Version>
+		<Version>3.0.0</Version>
 		<Authors>ManuHub Manojbabu</Authors>
 		<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
 		<Copyright>© 2025-2026 ManuHub. Allrights researved</Copyright>
@@ -20,18 +20,36 @@
 		<PackageIcon>icon.png</PackageIcon>
 		<Icon>icon.png</Icon>
 		<PackageReleaseNotes>
-			⚠️ BREAKING CHANGE:
-			- 🏗️ Namespace migrated to 'ManuHub.Ytdlp.NET' (Update your using directives).
-			- 🛑 Several legacy probe methods are now [Obsolete] and scheduled for removal in the next major version.
+			Ytdlp.NET v3.0
 
-			✨ NEW FEATURES:
-			- 🔍 Added high-performance probe methods for metadata extraction.
-			- ⚡ Implemented custom buffer size support (bufferKb) across all probe methods for optimized memory usage.
+			✨ Major Updates:
+			- Complete v3.0 redesign with immutable, fluent API (`WithXxx()` methods).
+			- Added IAsyncDisposable support for proper async cleanup of child processes.
+			- Thread-safe usage: safe for parallel downloads using multiple instances.
+			- Events fully supported: OnProgressDownload, OnProgressMessage, OnCompleteDownload, OnPostProcessingComplete, OnErrorMessage, OnCommandCompleted.
+			- All old command methods removed; only `WithXxx()` methods remain.
+			- Improved cancellation handling for downloads and metadata fetching.
+			- Enhanced metadata probe methods: GetMetadataAsync, GetAvailableFormatsAsync, GetBestVideoFormatIdAsync, GetBestAudioFormatIdAsync.
+			- Flexible output templates and FFmpeg/Deno integration.
+			- Custom command injection (`AddCustomCommand`) validated safely.
 
-			⚙️ IMPROVEMENTS:
-			- 🛠️ Internal refactoring of the probe library to ensure significantly faster fetching speeds.
-			- 🛡️ Enhanced input sanitization for yt-dlp process execution.
-			- 🛑 Metadata refactored, Major fixes inbug .
+			🚀 Features:
+			- Fluent, chainable API for downloads, audio extraction, subtitles, and post-processing.
+			- Supports batch downloads with sequential or parallel execution.
+			- Real-time progress tracking with events.
+			- Automatic cleanup of resources when disposed asynchronously.
+			- Cross-platform: Windows, macOS, Linux (yt-dlp supported).
+
+			⚠️ Breaking Changes:
+			- Old SetFormat/SetOutputFolder methods removed; replace with `WithFormat()`, `WithOutputFolder()`, etc.
+			- Deprecated events/methods removed.
+			- Always use a new instance per download for parallel execution.
+			- Use `await using` with Ytdlp for async disposal.
+
+			🛠 Notes:
+			- Namespace migrated to `ManuHub.Ytdlp.NET`.
+			- Recommended: Use companion NuGet packages for yt-dlp, FFmpeg, FFprobe, and Deno.
+			- All examples updated for fluent v3.0 API.
 		</PackageReleaseNotes>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 		<IsPackable>true</IsPackable>

@@ -15,25 +15,28 @@ internal class Program
         Console.WriteLine("----------------------------------------");
 
         // Initialize the wrapper (assuming yt-dlp is in PATH or specify path)
-        var ytdlp = new Ytdlp(ytdlpPath: $"tools\\yt-dlp.exe", logger: new ConsoleLogger());
-        ytdlp.SetFFmpegLocation($"tools");
+        await using var baseYtdlp = new Ytdlp(ytdlpPath: $"tools\\yt-dlp.exe", logger: new ConsoleLogger())
+            .WithFFmpegLocation("tools")
+            .WithTempFolder(@"c:\Downloads\YouTube\temp")
+            .WithOutputTemplate("%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s")
+            .WithAria2(16);
 
         // Run all demos/tests sequentially
-        //await TestGetVersionAsync(ytdlp);
-        //await TestUpdateVersionAsync(ytdlp);
+        //await TestGetVersionAsync(baseYtdlp);
+        //await TestUpdateVersionAsync(baseYtdlp);
 
-        //await TestGetFormatsAsync(ytdlp);
-        //await TestGetFormatsDetailedAsync(ytdlp);
-        //await TestGetMetadataAsync(ytdlp);
-        //await TestGetSimpleMetadataAsync(ytdlp);
-        //await TestGetTitleAsync(ytdlp);
+        //await TestGetFormatsAsync(baseYtdlp);
+        //await TestGetFormatsDetailedAsync(baseYtdlp);
+        //await TestGetMetadataAsync(baseYtdlp);
+        //await TestGetLiteMetadataAsync(baseYtdlp);
+        //await TestGetTitleAsync(baseYtdlp);
 
-        await TestDownloadVideoAsync(ytdlp);
-        await TestDownloadAudioAsync(ytdlp);
-        await TestBatchDownloadAsync(ytdlp);
+        await TestDownloadVideoAsync(baseYtdlp);
+        //await TestDownloadAudioAsync(ytdlp);
+        //await TestBatchDownloadAsync(ytdlp);
         //await TestSponsorBlockAsync(ytdlp);
-        await TestConcurrentFragmentsAsync(ytdlp);
-        await TestCancellationAsync(ytdlp);
+        //await TestConcurrentFragmentsAsync(ytdlp);
+        //await TestCancellationAsync(ytdlp);
 
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");
@@ -167,8 +170,8 @@ internal class Program
         }
     }
 
-    // Test 5: Get simple metedata 
-    private static async Task TestGetSimpleMetadataAsync(Ytdlp ytdlp)
+    // Test 5: Get lite metedata 
+    private static async Task TestGetLiteMetadataAsync(Ytdlp ytdlp)
     {
         var stopwatch = Stopwatch.StartNew();
         Console.WriteLine("\nTest 5: Fetching simple metedata...");
@@ -186,24 +189,18 @@ internal class Program
             Console.WriteLine($"Id: {data["id"]}");
             Console.WriteLine($"Thumbnail: {data["thumbnail"]}");
         }
-
-
-
-        // Basic info
-        //Console.WriteLine($"ID          : {metadata.Id}");
-        //Console.WriteLine($"Title       : {metadata.Title}");
-        //Console.WriteLine($"Duration    : {metadata.Duration}");
-        //Console.WriteLine($"Thumbnail   : {metadata.Thumbnail}");
-        //Console.WriteLine($"View Count  : {metadata.ViewCount}");
-        //Console.WriteLine($"FileSize    : {metadata.FileSize.ToString() ?? "NA"}");
-        //Console.WriteLine($"Description : {(metadata.Description?.Length > 120 ? metadata.Description.Substring(0, 120) + "..." : metadata.Description)}");
     }
 
     // Test 6: Download a video with progress events
-    private static async Task TestDownloadVideoAsync(Ytdlp ytdlp)
+    private static async Task TestDownloadVideoAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 6: Downloading a video...");
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
+
+        var ytdlp = ytdlpBase
+            .With720pOrBest()
+            .WithOutputFolder("./downloads")
+            .WithOutputTemplate("%(title)s.%(ext)s");
 
         // Subscribe to events
         ytdlp.OnProgressDownload += (sender, args) =>
@@ -215,11 +212,7 @@ internal class Program
         ytdlp.OnPostProcessingComplete += (sender, message) =>
             Console.WriteLine($"Post-processing done: {message}");
 
-        await ytdlp
-            .SetFormat("bv[height<=720]+ba/b")  // 720p max
-            .SetOutputFolder("./downloads")
-            .SetOutputTemplate("%(title)s.%(ext)s")
-            .ExecuteAsync(url);
+        await ytdlp.ExecuteAsync(url);
     }
 
     // Test 7 Extract audio only
@@ -229,9 +222,9 @@ internal class Program
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
 
         await ytdlp
-            .ExtractAudio("mp3")
-            .SetFormat("ba")
-            .SetOutputFolder("./downloads/audio")
+            .WithExtractAudio("mp3")
+            .WithFormat("ba")
+            .WithOutputFolder("./downloads/audio")
             .ExecuteAsync(url);
     }
 
@@ -247,8 +240,8 @@ internal class Program
             };
 
         await ytdlp
-            .SetFormat("best[height<=480]")  // Lower quality for speed
-            .SetOutputFolder("./downloads/batch")
+            .WithFormat("best[height<=480]")  // Lower quality for speed
+            .WithOutputFolder("./downloads/batch")
             .ExecuteBatchAsync(urls, maxConcurrency: 3);
     }
 
@@ -259,9 +252,9 @@ internal class Program
         var url = "https://www.youtube.com/watch?v=oDSEGkT6J-0";
 
         await ytdlp
-            .SetFormat("best")
-            .RemoveSponsorBlock("all")  // Removes sponsor, intro, etc.
-            .SetOutputFolder("./downloads/sponsorblock")
+            .WithFormat("best")
+            //.WithRemoveSponsorBlock("all")  // Removes sponsor, intro, etc.
+            .WithOutputFolder("./downloads/sponsorblock")
             .ExecuteAsync(url);
     }
 
@@ -273,9 +266,9 @@ internal class Program
 
         await ytdlp
             .WithConcurrentFragments(8)  // 8 parallel fragments
-            .SetFormat("b")
-            .SetOutputTemplate("%(title)s.%(ext)s")
-            .SetOutputFolder("./downloads/concurrent")
+            .WithFormat("b")
+            .WithOutputTemplate("%(title)s.%(ext)s")
+            .WithOutputFolder("./downloads/concurrent")
             .ExecuteAsync(url);
     }
 
@@ -287,9 +280,9 @@ internal class Program
 
         var cts = new CancellationTokenSource();
         var downloadTask = ytdlp
-            .SetFormat("b")
-            .SetOutputTemplate("%(title)s.%(ext)s")
-            .SetOutputFolder("./downloads/cancel")
+            .WithFormat("b")
+            .WithOutputTemplate("%(title)s.%(ext)s")
+            .WithOutputFolder("./downloads/cancel")
             .ExecuteAsync(url, cts.Token);
 
         // Simulate cancel after 20 seconds
@@ -314,12 +307,12 @@ internal class Program
 
         try
         {
-            var downloadTask = ytdlp                
-                .Simulate()
-                .NoWarning()
-                .SetOutputTemplate("%(title)s.%(ext)s")
-                .SetOutputFolder("./downloads/cancel")
-                .AddCustomCommand("--get-title")
+            var downloadTask = ytdlp
+                //.Simulate()
+                //.NoWarning()
+                .WithOutputTemplate("%(title)s.%(ext)s")
+                .WithOutputFolder("./downloads/cancel")
+                .AddFlag("--get-title")
                 .ExecuteAsync(url);
 
             await downloadTask;
