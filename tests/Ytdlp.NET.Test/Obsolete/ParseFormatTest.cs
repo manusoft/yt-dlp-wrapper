@@ -1,5 +1,5 @@
-﻿using System.Text.RegularExpressions;
-using YtdlpDotNet;
+﻿using ManuHub.Ytdlp.NET;
+using System.Text.RegularExpressions;
 
 namespace Ytdlp.NET.Test.Obsolete;
 
@@ -26,10 +26,10 @@ public class ParseFormatTest
         var output = TestConstants.GetAvailableFormats();        
         var formats = ParseFormats(output);
         Assert.Equal(40, formats.Count);
-        Assert.Contains(formats, f => f.ID == "233" && f.VCodec == "audio only" && f.ACodec == "unknown");
-        Assert.Contains(formats, f => f.ID == "sb3" && f.VCodec == "images" && f.ACodec == null && f.MoreInfo == "storyboard");
-        Assert.Contains(formats, f => f.ID == "249-drc" && f.Resolution == "audio only" && f.Channels == "2" && f.FileSize == "1.64MiB" && f.ACodec == "opus");
-        Assert.Contains(formats, f => f.ID == "18" && f.Resolution == "640x360" && f.Channels == "2" && f.VCodec == "avc1.42001E" && f.ACodec == "mp4a.40.2");
+        Assert.Contains(formats, f => f.Id == "233" && f.VideoCodec == "audio only" && f.AudioCodec == "unknown");
+        Assert.Contains(formats, f => f.Id == "sb3" && f.VideoCodec == "images" && f.AudioCodec == null && f.MoreInfo == "storyboard");
+        Assert.Contains(formats, f => f.Id == "249-drc" && f.Resolution == "audio only" && f.Channels == "2" && f.FileSizeApprox == "1.64MiB" && f.AudioCodec == "opus");
+        Assert.Contains(formats, f => f.Id == "18" && f.Resolution == "640x360" && f.Channels == "2" && f.VideoCodec == "avc1.42001E" && f.AudioCodec == "mp4a.40.2");
     }
 
     public List<Format> ParseFormats(string result)
@@ -77,10 +77,10 @@ public class ParseFormatTest
             try
             {
                 // Parse ID
-                format.ID = parts[index++];
+                format.Id = parts[index++];
 
                 // Check for duplicate ID
-                if (formats.Any(f => f.ID == format.ID))
+                if (formats.Any(f => f.Id == format.Id))
                 {
                     continue;
                 }
@@ -106,7 +106,7 @@ public class ParseFormatTest
                 // Parse FPS (empty for audio-only formats)
                 if (format.Resolution != "audio only" && index < parts.Length && Regex.IsMatch(parts[index], @"^\d+$"))
                 {
-                    format.FPS = parts[index++];
+                    //format.Fps = parts[index++];
                 }
 
                 // Parse Channels (marked by '|' or number)
@@ -125,14 +125,14 @@ public class ParseFormatTest
                 // Parse FileSize
                 if (index < parts.Length && (Regex.IsMatch(parts[index], @"^~?\d+\.\d+MiB$") || parts[index] == ""))
                 {
-                    format.FileSize = parts[index] == "" ? null : parts[index];
+                    format.FileSizeApprox = parts[index] == "" ? null : parts[index];
                     index++;
                 }
 
                 // Parse TBR
                 if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
                 {
-                    format.TBR = parts[index];
+                    format.TotalBitrate = parts[index];
                     index++;
                 }
 
@@ -154,17 +154,17 @@ public class ParseFormatTest
                 {
                     if (parts[index] == "audio" && index + 1 < parts.Length && parts[index + 1] == "only")
                     {
-                        format.VCodec = "audio only";
+                        format.VideoCodec = "audio only";
                         index += 2;
                     }
                     else if (parts[index] == "images")
                     {
-                        format.VCodec = "images";
+                        format.VideoCodec = "images";
                         index++;
                     }
                     else if (Regex.IsMatch(parts[index], @"^[a-zA-Z0-9\.]+$"))
                     {
-                        format.VCodec = parts[index];
+                        format.VideoCodec = parts[index];
                         index++;
                     }
                 }
@@ -172,28 +172,28 @@ public class ParseFormatTest
                 // Parse VBR
                 if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
                 {
-                    format.VBR = parts[index];
+                    format.VideoBitrate = parts[index];
                     index++;
                 }
 
                 // Parse ACodec
                 if (index < parts.Length && (Regex.IsMatch(parts[index], @"^[a-zA-Z0-9\.]+$") || parts[index] == "unknown"))
                 {
-                    format.ACodec = parts[index];
+                    format.AudioCodec = parts[index];
                     index++;
                 }
 
                 // Parse ABR
                 if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
                 {
-                    format.ABR = parts[index];
+                    format.AudioBitrate = parts[index];
                     index++;
                 }
 
                 // Parse ASR
                 if (index < parts.Length && Regex.IsMatch(parts[index], @"^\d+k$"))
                 {
-                    format.ASR = parts[index];
+                    //format.AudioSampleRate = parts[index];
                     index++;
                 }
 
@@ -207,9 +207,9 @@ public class ParseFormatTest
                         format.MoreInfo = format.MoreInfo.Substring(1).Trim();
                     }
                     // For storyboards, ensure MoreInfo is 'storyboard' and ACodec is null
-                    if (format.VCodec == "images" && format.MoreInfo != "storyboard")
+                    if (format.VideoCodec == "images" && format.MoreInfo != "storyboard")
                     {
-                        format.ACodec = null;
+                        format.AudioCodec = null;
                         format.MoreInfo = "storyboard";
                     }
                 }

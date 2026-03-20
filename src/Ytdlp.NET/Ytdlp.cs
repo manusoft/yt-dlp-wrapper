@@ -1,6 +1,5 @@
 ﻿using ManuHub.Ytdlp.NET.Core;
 using System.Collections.Immutable;
-using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -58,7 +57,7 @@ public sealed class Ytdlp : IAsyncDisposable
     private readonly int? _concurrentFragments;
 
     private readonly ImmutableArray<string> _flags;
-    private readonly ImmutableArray<(string Key, string? Value)> _options;
+    private readonly ImmutableArray<(string Key, string Value)> _options;
     #endregion
 
     #region Events
@@ -101,7 +100,7 @@ public sealed class Ytdlp : IAsyncDisposable
         _format = "b";
         _concurrentFragments = null;
         _flags = ImmutableArray<string>.Empty;
-        _options = ImmutableArray<(string, string?)>.Empty;
+        _options = ImmutableArray<(string, string)>.Empty;
         _cookiesFile = null;
         _cookiesFromBrowser = null;
         _proxy = null;
@@ -123,7 +122,7 @@ public sealed class Ytdlp : IAsyncDisposable
         string? ffmpegLocation = null,
         string? sponsorblockRemove = null,
         IEnumerable<string>? extraFlags = null,
-        IEnumerable<(string, string?)>? extraOptions = null)
+        IEnumerable<(string, string)>? extraOptions = null)
     {
         _ytdlpPath = other._ytdlpPath;
         _logger = other._logger;
@@ -198,7 +197,7 @@ public sealed class Ytdlp : IAsyncDisposable
             opts.Add(("--wait-for-video", maxWait.Value.TotalSeconds.ToString("F0")));
         }
 
-        return new Ytdlp(this, extraOptions: opts);
+        return new Ytdlp(this, extraOptions: opts!);
     }
 
     /// <summary>
@@ -483,33 +482,35 @@ public sealed class Ytdlp : IAsyncDisposable
     /// Sets the home folder for yt-dlp (used for config or as base directory).
     /// Path is automatically normalized and quoted.
     /// </summary>
+    /// <param name="path"></param>
     /// <exception cref="ArgumentException"></exception>
-    public Ytdlp WithHomeFolder(string? homeFolder)
+    public Ytdlp WithHomeFolder(string? path)
     {
-        if (string.IsNullOrWhiteSpace(homeFolder)) throw new ArgumentException("Home folder path cannot be empty");
-        return new Ytdlp(this, homeFolder: Path.GetFullPath(homeFolder));
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Home folder path required");
+        return new Ytdlp(this, homeFolder: Path.GetFullPath(path));
     }
 
     /// <summary>
     /// Sets the temporary folder for yt-dlp intermediate files (fragments, etc.).
     /// Path is automatically normalized and quoted.
     /// </summary>
+    /// <param name="path"></param>
     /// <exception cref="ArgumentException"></exception>
-    public Ytdlp WithTempFolder(string? tempFolder)
+    public Ytdlp WithTempFolder(string? path)
     {
-        if (string.IsNullOrWhiteSpace(tempFolder)) throw new ArgumentException("Temp folder path cannot be empty");
-        return new Ytdlp(this, tempFolder: Path.GetFullPath(tempFolder));
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Temp folder path required");
+        return new Ytdlp(this, tempFolder: Path.GetFullPath(path));
     }
 
     /// <summary>
     /// Sets the output folder
     /// </summary>
-    /// <param name="folder"></param>
+    /// <param name="path"></param>
     /// <exception cref="ArgumentException"></exception>
-    public Ytdlp WithOutputFolder(string folder)
+    public Ytdlp WithOutputFolder(string path)
     {
-        if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("Output folder required");
-        return new Ytdlp(this, outputFolder: Path.GetFullPath(folder));
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Output folder path required");
+        return new Ytdlp(this, outputFolder: Path.GetFullPath(path));
     }
 
     /// <summary>
@@ -604,12 +605,12 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <summary>
     /// JSON file containing the video information (created with the WriteVideoMetadata() option)
     /// </summary>
-    /// <param name="filePath">*.json</param>
-    public Ytdlp WithLoadInfoJson(string filePath)
+    /// <param name="path">*.json</param>
+    public Ytdlp WithLoadInfoJson(string path)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-            throw new ArgumentException("Json file path cannot be empty.", nameof(filePath));
-        return AddOption("--load-info-json", filePath);
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Json file path cannot be empty.", nameof(path));
+        return AddOption("--load-info-json", path);
     }
 
     /// <summary>
@@ -731,7 +732,7 @@ public sealed class Ytdlp : IAsyncDisposable
         {
             opts.Add(("--max-sleep-requests", maxSeconds.Value.ToString("F2", CultureInfo.InvariantCulture)));
         }
-        return new Ytdlp(this, extraOptions: opts);
+        return new Ytdlp(this, extraOptions: opts!);
     }
 
     /// <summary>
@@ -986,7 +987,7 @@ public sealed class Ytdlp : IAsyncDisposable
     #region Core
     public Ytdlp AddFlag(string flag) => new Ytdlp(this, extraFlags: new[] { flag.Trim() });
 
-    public Ytdlp AddOption(string key, string? value = null) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
+    public Ytdlp AddOption(string key, string value) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
     #endregion
 
 
@@ -1002,7 +1003,7 @@ public sealed class Ytdlp : IAsyncDisposable
             opts.Add(("--downloader-args", downloaderArgs.Trim()));
         }
 
-        return new Ytdlp(this, extraOptions: opts);
+        return new Ytdlp(this, extraOptions: opts!);
     }
 
     public Ytdlp WithAria2(int connections = 16)
@@ -1194,81 +1195,7 @@ public sealed class Ytdlp : IAsyncDisposable
     #region Execution & Utility Methods
 
     /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="url"></param>
-    /// <param name="ct"></param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentException"></exception>
-    /// <exception cref="YtdlpException"></exception>
-    public async Task ExecuteAsync(string url, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        if (string.IsNullOrWhiteSpace(url))
-            throw new ArgumentException("URL required", nameof(url));
-
-        // Ensure directories exist if needed
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(_outputFolder))
-                Directory.CreateDirectory(_outputFolder);
-
-            if (!string.IsNullOrWhiteSpace(_homeFolder))
-                Directory.CreateDirectory(_homeFolder);
-
-            if (!string.IsNullOrWhiteSpace(_tempFolder))
-                Directory.CreateDirectory(_tempFolder);
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Failed to create necessary folders: {ex.Message}");
-            throw new YtdlpException("Failed to create required folders", ex);
-        }
-
-        var argsList = BuildArguments(url);
-        var arguments = string.Join(" ", argsList.Select(Quote));
-
-        _logger.Log(LogType.Info, $"Executing: {_ytdlpPath} {arguments}");
-
-        // Create isolated execution components
-        var factory = new ProcessFactory(_ytdlpPath);
-        var progressParser = new ProgressParser(_logger);
-        var download = new DownloadRunner(factory, progressParser, _logger);
-
-        // Forward progress events locally inside this method
-        void OnProgressDownloadHandler(object? s, DownloadProgressEventArgs e)
-            => OnProgressDownload?.Invoke(this, e);
-
-        void OnProgressMessageHandler(object? s, string msg)
-            => OnProgressMessage?.Invoke(this, msg);
-
-        // Attach progress handlers
-        progressParser.OnProgressDownload += OnProgressDownloadHandler;
-        progressParser.OnProgressMessage += OnProgressMessageHandler;
-
-        // Forward other events
-        progressParser.OnOutputMessage += (_, e) => OnOutputMessage?.Invoke(this, e);
-        progressParser.OnCompleteDownload += (_, e) => OnCompleteDownload?.Invoke(this, e);
-        progressParser.OnErrorMessage += (_, e) => OnErrorMessage?.Invoke(this, e);
-        progressParser.OnPostProcessingComplete += (_, e) => OnPostProcessingComplete?.Invoke(this, e);
-
-        download.OnCommandCompleted += (_, e) => OnCommandCompleted?.Invoke(this, e);
-
-        try
-        {
-            await download.RunAsync(arguments, ct);
-        }
-        finally
-        {
-            // Unsubscribe immediately after execution to prevent memory leaks
-            progressParser.OnProgressDownload -= OnProgressDownloadHandler;
-            progressParser.OnProgressMessage -= OnProgressMessageHandler;
-        }
-    }
-
-    /// <summary>
-    /// 
+    /// Command preview ofr debug operatons
     /// </summary>
     /// <param name="url"></param>
     /// <returns></returns>
@@ -1286,7 +1213,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// A <see cref="string"/> representing the yt-dlp version (e.g., "2023.03.04"); 
     /// returns an empty string or throws if the binary cannot be found.
     /// </returns>
-    public async Task<string> GetVersionAsync(CancellationToken ct = default)
+    public async Task<string> VersionAsync(CancellationToken ct = default)
     {
         var output = await Probe().RunAsync("--version", ct);
         string version = output is null ? string.Empty : output.Trim();
@@ -1298,14 +1225,14 @@ public sealed class Ytdlp : IAsyncDisposable
     /// Updates the underlying yt-dlp binary to the latest version on the specified release channel.
     /// </summary>
     /// <param name="channel">The release channel to pull updates from (Master, Nightly, Stable.).</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to abort the download and installation process.</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> to abort the download and installation process.</param>
     /// <returns>
     /// A <see cref="string"/> containing the update log or the new version number; 
     /// returns an empty string or throws if the update process fails.
     /// </returns>
-    public async Task<string> UpdateAsync(UpdateChannel channel = UpdateChannel.Stable, CancellationToken cancellationToken = default)
+    public async Task<string> UpdateAsync(UpdateChannel channel = UpdateChannel.Stable, CancellationToken ct = default)
     {
-        var output = await Probe().RunAsync($"--update-to {channel.ToString().ToLowerInvariant()}", cancellationToken);
+        var output = await Probe().RunAsync($"--update-to {channel.ToString().ToLowerInvariant()}", ct);
         if (output is null)
             return string.Empty;
 
@@ -1439,7 +1366,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// returns an empty list or <see langword="null"/> if the probe fails or is cancelled.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<List<Format>> GetAvailableFormatsAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<List<Format>> GetFormatsAsync(string url, CancellationToken ct = default, int bufferKb = 128)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("Video URL cannot be empty.", nameof(url));
@@ -1633,6 +1560,79 @@ public sealed class Ytdlp : IAsyncDisposable
         return best?.FormatId ?? "bestvideo";
     }
 
+    /// <summary>
+    /// Executes download processing for a URL.
+    /// </summary>
+    /// <param name="url">The source URL to download.</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> to stop the execution.</param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="YtdlpException"></exception>
+    public async Task ExecuteAsync(string url, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(url))
+            throw new ArgumentException("URL required", nameof(url));
+
+        // Ensure directories exist if needed
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_outputFolder))
+                Directory.CreateDirectory(_outputFolder);
+
+            if (!string.IsNullOrWhiteSpace(_homeFolder))
+                Directory.CreateDirectory(_homeFolder);
+
+            if (!string.IsNullOrWhiteSpace(_tempFolder))
+                Directory.CreateDirectory(_tempFolder);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Error, $"Failed to create necessary folders: {ex.Message}");
+            throw new YtdlpException("Failed to create required folders", ex);
+        }
+
+        var argsList = BuildArguments(url);
+        var arguments = string.Join(" ", argsList.Select(Quote));
+
+        _logger.Log(LogType.Info, $"Executing: {_ytdlpPath} {arguments}");
+
+        // Create isolated execution components
+        var factory = new ProcessFactory(_ytdlpPath);
+        var progressParser = new ProgressParser(_logger);
+        var download = new DownloadRunner(factory, progressParser, _logger);
+
+        // Forward progress events locally inside this method
+        void OnProgressDownloadHandler(object? s, DownloadProgressEventArgs e)
+            => OnProgressDownload?.Invoke(this, e);
+
+        void OnProgressMessageHandler(object? s, string msg)
+            => OnProgressMessage?.Invoke(this, msg);
+
+        // Attach progress handlers
+        progressParser.OnProgressDownload += OnProgressDownloadHandler;
+        progressParser.OnProgressMessage += OnProgressMessageHandler;
+
+        // Forward other events
+        progressParser.OnOutputMessage += (_, e) => OnOutputMessage?.Invoke(this, e);
+        progressParser.OnCompleteDownload += (_, e) => OnCompleteDownload?.Invoke(this, e);
+        progressParser.OnErrorMessage += (_, e) => OnErrorMessage?.Invoke(this, e);
+        progressParser.OnPostProcessingComplete += (_, e) => OnPostProcessingComplete?.Invoke(this, e);
+
+        download.OnCommandCompleted += (_, e) => OnCommandCompleted?.Invoke(this, e);
+
+        try
+        {
+            await download.RunAsync(arguments, ct);
+        }
+        finally
+        {
+            // Unsubscribe immediately after execution to prevent memory leaks
+            progressParser.OnProgressDownload -= OnProgressDownloadHandler;
+            progressParser.OnProgressMessage -= OnProgressMessageHandler;
+        }
+    }
 
     /// <summary>
     /// Executes batch download processing for a collection of URLs with a specified concurrency limit.

@@ -63,12 +63,27 @@ var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "tools");
 
 ---
 
+## 🛠 Methods
+* `VersionAsync(CancellationToken ct)`
+* `UpdateAsync(UpdateChannel channel, CancellationToken ct)`
+* `GetMetadataAsync(string url, CancellationToken ct, int bufferKb)`
+* `GetMetadataRawAsync(string url, CancellationToken ct, int bufferKb)`
+* `GetFormatsAsync(string url, CancellationToken ct, int bufferKb)`
+* `GetMetadataLiteAsync(string url, CancellationToken ct, int bufferKb)`
+* `GetMetadataLiteAsync(string url, IEnumerable<string> fields, CancellationToken ct, int bufferKb)`
+* `GetBestAudioFormatIdAsync(string url, CancellationToken ct, int bufferKb)`
+* `GetBestVideoFormatIdAsync(string url, int maxHeight, CancellationToken ct, int bufferKb)`
+* `ExecuteAsync(string url, CancellationToken ct)`
+* `ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency, CancellationToken ct)`
+
+
+
 ## 🔧 Thread Safety & Disposal
 
 * **Immutable & thread-safe**: Each `WithXxx()` call returns a new instance.
 * **Async disposal**: `Ytdlp` implements `IAsyncDisposable`.
 
-**Sequential download example**:
+### **Sequential download example**:
 
 ```csharp
 await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe", new ConsoleLogger())
@@ -81,7 +96,7 @@ ytdlp.OnCompleteDownload += (s, msg) => Console.WriteLine($"Download complete: {
 await ytdlp.ExecuteAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
 ```
 
-**Parallel download example**:
+### **Parallel download example**:
 
 ```csharp
 var urls = new[] { "https://youtu.be/video1", "https://youtu.be/video2" };
@@ -101,7 +116,7 @@ var tasks = urls.Select(async url =>
 await Task.WhenAll(tasks);
 ```
 
-**Key points**:
+### **Key points**:
 
 1. Always create a **new instance per download** for parallel operations.
 2. Always use `await using` for proper resource cleanup.
@@ -151,6 +166,19 @@ Console.WriteLine($"Title: {metadata?.Title}, Duration: {metadata?.Duration}");
 
 ---
 
+### Fetch Formats
+
+```csharp
+await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe");
+
+var formats = await ytdlp.GetFormatsAsync("https://www.youtube.com/watch?v=abc123");
+
+foreach(var format in formats)
+    Console.WriteLine($"Id: {metadata?.Id}, Extension: {metadata?.Extension}");
+```
+
+---
+
 ### Best Format Selection
 
 ```csharp
@@ -188,16 +216,52 @@ await Task.WhenAll(tasks);
 
 ### Fluent Methods (v3.0)
 
-#### Output & Paths
+#### General Options
+* `.WithJsRuntime(Runtime runtime, string runtimePath)`
+* `.WithNoJsRuntime()`
+* `.WithFlatPlaylist()`
+* ` WithLiveFromStart()`
+* `.WithWaitForVideo(TimeSpan? maxWait = null)`
+* `.WithMarkWatched()`
 
-* `.WithOutputFolder(string path)`
-* `.WithTempFolder(string path)`
+#### Network Options
+* `.WithProxy(string? proxy)`
+* `.WithSocketTimeout(TimeSpan timeout)`
+* `.WithForceIpv4()`
+* `.WithForceIpv6()`
+* `.WithEnableFileUrl()`
+
+#### Geo-restriction Options
+* `.WithGeoVerificationProxy(string url)`
+* `.WithGeoBypassCountry(string countryCode)`
+
+#### Filesystem Options
 * `.WithHomeFolder(string path)`
+* `.WithTempFolder(string path)`
+* `.WithOutputFolder(string path)`
 * `.WithFFmpegLocation(string path)`
 * `.WithOutputTemplate(string template)`
+* `.WithRestrictFilenames()`
+* `.WithWindowsFilenames()`
+* `.WithTrimFilenames(int length)`
+* `.WithNoOverwrites()`
+* `.WithForceOverwrites()`
+* `.WithNoContinue()`
+* `.WithNoPart()`
+* `.WithMtime()`
+* `.WithWriteDescription()`
+* `.WithWriteInfoJson()`
+* `.WithNoWritePlaylistMetafiles()`
+* `.WithNoCleanInfoJson()`
+* `.WriteComments()`
+* `.WithNoWriteComments()`
+* `.WithLoadInfoJson(string path)`
+* `.WithCookiesFile(string path)`
+* `.WithCookiesFromBrowser(string browser)`
+* `.WithNoCacheDir()`
+* `.WithRemoveCacheDir()`
 
 #### Format & Extraction
-
 * `.WithFormat(string format)`
 * `.WithExtractAudio(string format = "mp3", int quality = 5)`
 * `.With720pOrBest()`
@@ -206,26 +270,17 @@ await Task.WhenAll(tasks);
 * `.WithEmbedChapters()`
 
 #### Subtitles & Thumbnails
-
 * `.WithSubtitles(string langs = "all", bool auto = false)`
 * `.WithEmbedSubtitles(string langs = "all", string? convertTo = null)`
 * `.WithThumbnails(bool all = false)`
 
-#### Network & Auth
-
-* `.WithProxy(string proxy)`
-* `.WithCookiesFile(string path)`
-* `.WithCookiesFromBrowser(string browser)`
-
 #### Download Control
-
 * `.WithConcurrentFragments(int count)`
 * `.WithSponsorblockRemove(string categories = "all")`
 
-#### Advanced
-
+#### Advanced Options
 * `.AddFlag(string flag)`
-* `.AddOption(string key, string? value = null)`
+* `.AddOption(string key, string value)`
 
 ---
 

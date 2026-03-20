@@ -62,7 +62,7 @@ internal class Program
     private static async Task TestGetVersionAsync(Ytdlp ytdlp)
     {
         Console.WriteLine("\nTest 1: Getting yt-dlp version...");
-        var version = await ytdlp.GetVersionAsync();
+        var version = await ytdlp.VersionAsync();
         Console.WriteLine($"Version: {version}");
     }
 
@@ -80,7 +80,7 @@ internal class Program
 
         Console.WriteLine("\nTest 2: Fetching available formats...");
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
-        var formats = await ytdlp.GetAvailableFormatsAsync(url);
+        var formats = await ytdlp.GetFormatsAsync(url);
 
         stopwatch.Stop(); // stop timer
         Console.WriteLine($"Available formats took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
@@ -109,7 +109,7 @@ internal class Program
 
         Console.WriteLine("\nTest 3: Fetching detailed formats...");
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
-        var formats = await ytdlp.GetAvailableFormatsAsync(url);
+        var formats = await ytdlp.GetFormatsAsync(url);
 
         stopwatch.Stop(); // stop timer
         Console.WriteLine($"Detailed formats took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
@@ -225,7 +225,7 @@ internal class Program
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
 
         await ytdlp
-            .WithExtractAudio("mp3")
+            .WithExtractAudio(AudioFormat.Mp3)
             .WithFormat("ba")
             .WithOutputFolder("./downloads/audio")
             .ExecuteAsync(url);
