@@ -28,9 +28,9 @@ internal class Program
         //await TestGetLiteMetadataAsync(baseYtdlp);
         //await TestGetTitleAsync(baseYtdlp);
 
-        //await TestDownloadVideoAsync(baseYtdlp);
+        await TestDownloadVideoAsync(baseYtdlp);
         //await TestDownloadAudioAsync(ytdlp);
-        await TestBatchDownloadAsync(baseYtdlp);
+        //await TestBatchDownloadAsync(baseYtdlp);
         //await TestSponsorBlockAsync(ytdlp);
         //await TestConcurrentFragmentsAsync(ytdlp);
         //await TestCancellationAsync(ytdlp);
