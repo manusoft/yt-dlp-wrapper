@@ -1,5 +1,6 @@
 ﻿using ManuHub.Ytdlp.NET.Core;
 using System.Collections.Immutable;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -146,103 +147,149 @@ public sealed class Ytdlp : IAsyncDisposable
 
     #endregion
 
-    #region Fluent configuration methods
+    // ==================================================================================================================
+    // Fluent configuration methods
+    // ==================================================================================================================
 
-    public Ytdlp WithOutputFolder(string folder)
+    #region General Options
+
+    /// <summary>
+    /// Additional JavaScript runtime to enable, with an optional location for the runtime (either the path to the binary or its containing directory).
+    /// This option can be used multiple times to enable multiple runtimes. Supported runtimes are (in order of priority, from highest to lowest): deno, node, quickjs, bun.
+    /// Only "deno" is enabled by default. The highest priority runtime that is both enabled and available will be used. 
+    /// In order to use a lower priority runtime when "deno" is available, NoJsRuntime() needs to be passed before enabling other runtimes
+    /// </summary>
+    /// <param name="runtime">Supported runtimes are deno, node, quickjs, bun</param>
+    /// <param name="runtimePath"></param>
+    public Ytdlp WithJsRuntime(Runtime runtime, string runtimePath)
     {
-        if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("Output folder required");
-        return new Ytdlp(this, outputFolder: Path.GetFullPath(folder));
+        var builder = $"{runtime}:{runtimePath}";
+        return AddOption("--js-runtime", builder);
     }
 
-    public Ytdlp WithHomeFolder(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, homeFolder: Path.GetFullPath(path));
+    /// <summary>
+    /// Clear JavaScript runtimes to enable, including defaults and those provided by WithJsRuntime()
+    /// </summary>
+    public Ytdlp WithNoJsRuntime() => AddFlag("--no-js-runtime");
 
-    public Ytdlp WithTempFolder(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, tempFolder: Path.GetFullPath(path));
+    /// <summary>
+    /// Do not extract a playlist's URL result entries; some entry metadata may be missing and downloading may be bypassed
+    /// </summary>
+    public Ytdlp WithFlatPlaylist() => AddFlag("--flat-playlist");
 
-    public Ytdlp WithFFmpegLocation(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, ffmpegLocation: path);
+    /// <summary>
+    /// Download livestreams from the start. Currently experimental and only supported for YouTube, Twitch, and TVer.
+    /// </summary>
+    public Ytdlp WithLiveFromStart() => AddFlag("--live-from-start");
 
-    public Ytdlp WithOutputTemplate(string template)
+    /// <summary>
+    /// Wait for scheduled streams to become available.Pass the minimum number of seconds(or range) to wait between retries
+    /// </summary>
+    /// <param name="maxWait"></param>
+    /// <returns></returns>
+    public Ytdlp WithWaitForVideo(TimeSpan? maxWait = null)
     {
-        if (string.IsNullOrWhiteSpace(template)) throw new ArgumentException("Template required");
-        return new Ytdlp(this, outputTemplate: template.Trim());
+        var opts = new List<(string Key, string? Value)>();
+
+        opts.Add(("--wait-for-video", "any"));   // "any" = wait indefinitely or until timeout
+
+        if (maxWait.HasValue && maxWait.Value.TotalSeconds > 0)
+        {
+            opts.Add(("--wait-for-video", maxWait.Value.TotalSeconds.ToString("F0")));
+        }
+
+        return new Ytdlp(this, extraOptions: opts);
     }
 
-    public Ytdlp WithFormat(string format) => new Ytdlp(this, format: format.Trim());
+    /// <summary>
+    /// Mark videos watched (even with Simulate())
+    /// </summary>
+    public Ytdlp WithMarkWatched() => AddFlag("--mark-watched");
 
-    public Ytdlp WithConcurrentFragments(int count = 8) => count > 0 ? new Ytdlp(this, concurrentFragments: count) : this;
+    #endregion
 
+    #region Network Options
+
+    /// <summary>
+    /// Use the specified HTTP/HTTPS/SOCKS proxy. To enable SOCKS proxy, specify a proper scheme, e.g. socks5://user:pass@127.0.0.1:1080/.
+    /// </summary>
+    /// <param name="url">Pass in an empty string for direct connection</param>
     public Ytdlp WithProxy(string? proxy) => string.IsNullOrWhiteSpace(proxy) ? this : new Ytdlp(this, proxy: proxy);
 
-    public Ytdlp WithCookiesFile(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, cookiesFile: Path.GetFullPath(path));
-
-    public Ytdlp WithCookiesFromBrowser(string browser) => new Ytdlp(this, cookiesFromBrowser: browser);
-
-    public Ytdlp WithSponsorblockRemove(string? categories = "all") => string.IsNullOrWhiteSpace(categories) ? this : new Ytdlp(this, sponsorblockRemove: categories);
-
-    public Ytdlp WithExtractAudio(string format = "mp3", int quality = 5)
-        => new Ytdlp(this, extraFlags: new[] { "--extract-audio" },
-            extraOptions: new[]
-            {
-                ("--audio-format",   format),
-                ("--audio-quality",  quality.ToString(CultureInfo.InvariantCulture))
-            });
-
-    public Ytdlp WithSubtitles(string langs = "all", bool auto = false)
+    /// <summary>
+    /// Time to wait before giving up, in seconds
+    /// </summary>
+    /// <param name="timeout"></param>
+    public Ytdlp WithSocketTimeout(TimeSpan timeout)
     {
-        var flags = new List<string> { "--write-subs" };
-        if (auto) flags.Add("--write-auto-subs");
-
-        return new Ytdlp(this, extraFlags: flags, extraOptions: new[] { ("--sub-langs", langs) });
+        if (timeout <= TimeSpan.Zero) return this;
+        double seconds = timeout.TotalSeconds;
+        return AddOption("--socket-timeout", seconds.ToString("F0"));
     }
 
-    public Ytdlp WithEmbedSubtitles(string langs = "all", string? convertTo = null)
+    /// <summary>
+    /// Make all connections via IPv4
+    /// </summary>
+    public Ytdlp WithForceIpv4() => AddFlag("--force-ipv4");
+
+    /// <summary>
+    /// Make all connections via IPv6
+    /// </summary>
+    public Ytdlp WithForceIpv6() => AddFlag("--force-ipv6");
+
+    /// <summary>
+    /// Enable file:// URLs. This is disabled by default for security reasons.
+    /// </summary>
+    public Ytdlp WithEnableFileUrl() => AddFlag("--enable-file-url");
+
+    #endregion
+
+    #region Geo-restriction
+
+    /// <summary>
+    /// Use this proxy to verify the IP address for some geo-restricted sites. 
+    /// The default proxy specified by WithProxy() (or none, if the option is not present) is used for the actual downloading
+    /// </summary>
+    /// <param name="url"></param>
+    /// <returns></returns>
+    public Ytdlp WithGeoVerificationProxy(string url) => AddOption("--geo-verification-proxy", url);
+
+    /// <summary>
+    /// How to fake X-Forwarded-For HTTP header to try bypassing geographic restriction. One of "default" (only when known to be useful),
+    /// "never", an IP block in CIDR notation, or a two-letter ISO 3166-2 country code
+    /// </summary>
+    /// <param name="countryCode"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithGeoBypassCountry(string countryCode)
     {
-        var flags = new List<string> { "--embed-subs", "--write-subs" };
-        var options = new List<(string, string?)> { ("--sub-langs", langs) };
-
-        if (!string.IsNullOrWhiteSpace(convertTo))
-            options.Add(("--convert-subs", convertTo));
-
-        return new Ytdlp(this, extraFlags: flags, extraOptions: options);
+        if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length != 2) throw new ArgumentException("Country code must be 2 letters.");
+        return AddOption("--xff", countryCode.ToUpper());
     }
 
-    public Ytdlp WithThumbnails(bool all = false) => new Ytdlp(this, extraFlags: new[] { all ? "--write-all-thumbnails" : "--write-thumbnail" });
+    #endregion
 
-    public Ytdlp WithEmbedThumbnail() => AddFlag("--embed-thumbnail");
-    public Ytdlp WithEmbedMetadata() => AddFlag("--embed-metadata");
-    public Ytdlp WithEmbedChapters() => AddFlag("--embed-chapters");
+    #region Video Selection
 
-    public Ytdlp WithAria2(int connections = 16)
-    {
-        return new Ytdlp(this, extraOptions: new[]
-            {
-            ("--downloader", "aria2c"),
-            ("--downloader-args", $"aria2c:-x{connections} -k1M")
-            });
-    }
-
-    // 1. Playlist selection (items to download)
+    /// <summary>
+    /// Comma-separated playlist_index of the items to download. You can specify a range using "[START]:[STOP][:STEP]".
+    /// For backward compatibility, START-STOP is also supported. Use negative indices to count from the right and negative STEP to download in reverse order.
+    /// E.g. "1:3,7,-5::2" used on a playlist of size 15 will download the items at index 1,2,3,7,11,13,15
+    /// </summary>
+    /// <param name="items"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
     public Ytdlp WithPlaylistItems(string items)
     {
         if (string.IsNullOrWhiteSpace(items))
-            throw new ArgumentException("Playlist items string cannot be empty", nameof(items));
+            throw new ArgumentException("Playlist items string cannot be empty.", nameof(items));
         return AddOption("--playlist-items", items.Trim());
     }
 
-    // 2. Playlist start index
-    public Ytdlp WithPlaylistStart(int index)
-    {
-        if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
-        return AddOption("--playlist-start", index.ToString());
-    }
-
-    // 3. Playlist end index
-    public Ytdlp WithPlaylistEnd(int index)
-    {
-        if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
-        return AddOption("--playlist-end", index.ToString());
-    }
-
-    // 4. Minimum filesize
+    /// <summary>
+    /// Abort download if filesize is smaller than SIZE
+    /// </summary>
+    /// <param name="size">e.g. 50k or 44.6M</param>
     public Ytdlp WithMinFileSize(string size)
     {
         // size examples: 50k, 4.2M, 1G
@@ -251,7 +298,10 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--min-filesize", size.Trim());
     }
 
-    // 5. Maximum filesize
+    /// <summary>
+    /// Abort download if filesize is larger than SIZE
+    /// </summary>
+    /// <param name="size">e.g. 50k or 44.6M</param>
     public Ytdlp WithMaxFileSize(string size)
     {
         if (string.IsNullOrWhiteSpace(size))
@@ -259,8 +309,13 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--max-filesize", size.Trim());
     }
 
-    // 6. Date filter (upload date)
-    public Ytdlp WithUploadDate(string date)
+    /// <summary>
+    /// Download only videos uploaded on this date.
+    /// The date can be "YYYYMMDD" or in the format [now|today|yesterday][-N[day|week|month|year]].
+    /// E.g. "--date today-2weeks" downloads only videos uploaded on the same day two weeks ago
+    /// </summary>
+    /// <param name="date">"today-2weeks" or "YYYYMMDD"</param>
+    public Ytdlp WithDate(string date)
     {
         // formats: YYYYMMDD, today, yesterday, now-2weeks, etc.
         if (string.IsNullOrWhiteSpace(date))
@@ -268,30 +323,406 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--date", date.Trim());
     }
 
-    // 7. Age limit / restriction
+    /// <summary>
+    /// Generic video filter. Any "OUTPUT TEMPLATE" field can be compared with a number or a string using the operators defined in "Filtering Formats".
+    /// </summary>
+    /// <param name="filterExpression"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithMatchFilter(string filterExpression)
+    {
+        if (string.IsNullOrWhiteSpace(filterExpression))
+            throw new ArgumentException("Match filter expression cannot be empty", nameof(filterExpression));
+
+        return AddOption("--match-filter", filterExpression.Trim());
+    }
+
+    /// <summary>
+    /// Download only the video, if the URL refers to a video and a playlist
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoPlaylist() => AddFlag("--no-playlist");
+
+    /// <summary>
+    /// Download the playlist, if the URL refers to a video and a playlist
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithYesPlaylist() => AddFlag("--yes-playlist");
+
+    /// <summary>
+    /// Download only videos suitable for the given age
+    /// </summary>
+    /// <param name="years"></param>
     public Ytdlp WithAgeLimit(int years)
     {
         if (years < 0) throw new ArgumentOutOfRangeException(nameof(years));
         return AddOption("--age-limit", years.ToString());
     }
 
-    // 8. User-Agent override
-    public Ytdlp WithUserAgent(string userAgent)
+    /// <summary>
+    /// Download only videos not listed in the archive file. Record the IDs of all downloaded videos in it
+    /// </summary>
+    /// <param name="archivePath"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithDownloadArchive(string archivePath = "archive.txt")
     {
-        if (string.IsNullOrWhiteSpace(userAgent))
-            throw new ArgumentException("User-Agent cannot be empty", nameof(userAgent));
-        return AddOption("--user-agent", userAgent.Trim());
+        if (string.IsNullOrWhiteSpace(archivePath))
+            throw new ArgumentException("Archive path cannot be empty", nameof(archivePath));
+        return AddOption("--download-archive", Path.GetFullPath(archivePath));
     }
 
-    // 9. Referer override
-    public Ytdlp WithReferer(string referer)
+    /// <summary>
+    /// Abort after downloading number files
+    /// </summary>
+    /// <param name="count"></param>
+    public Ytdlp WithMaxDownloads(int count)
     {
-        if (string.IsNullOrWhiteSpace(referer))
-            throw new ArgumentException("Referer cannot be empty", nameof(referer));
-        return AddOption("--referer", referer.Trim());
+        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
+        return AddOption("--max-downloads", count.ToString());
     }
 
-    // 10. Sleep interval between requests (anti-rate-limit)
+    /// <summary>
+    /// Stop the download process when encountering a file that is in the archive supplied with the <see cref="WithDownloadArchive" /> option
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithBreakOnExisting() => AddFlag("--break-on-existing");
+
+    #endregion
+
+    #region Download Options
+
+    /// <summary>
+    /// Number of fragments of a dash/hlsnative video that should be downloaded concurrently (default is 1)
+    /// </summary>
+    /// <param name="count"></param>
+    public Ytdlp WithConcurrentFragments(int count = 8) => count > 0 ? new Ytdlp(this, concurrentFragments: count) : this;
+
+    /// <summary>
+    /// Maximum download rate in bytes per second
+    /// </summary>
+    /// <param name="rate">e.g. 50K or 4.2M</param>
+    public Ytdlp WithLimitRate(string rate) => AddOption("--limit-rate", rate);
+
+    /// <summary>
+    /// Minimum download rate in bytes per second below which throttling is assumed and the video data is re-extracted
+    /// </summary>
+    /// <param name="rate">e.g. 100K</param>
+    public Ytdlp WithThrottledRate(string rate) => AddOption("--throttled-rate", rate);
+
+    /// <summary>
+    /// Number of retries (default is 10), or -1 for "infinite"
+    /// </summary>
+    /// <param name="maxRetries"></param>
+    public Ytdlp WithRetries(int maxRetries) => AddOption("--retries", maxRetries < 0 ? "infinite" : maxRetries.ToString());
+
+    /// <summary>
+    /// Number of times to retry on file access error (default is 3), or -1 for "infinite"
+    /// </summary>
+    /// <param name="maxRetries"></param>
+    public Ytdlp WithFileAccessRetries(int maxRetries) => AddOption("--file-access-retries", maxRetries < 0 ? "infinite" : maxRetries.ToString());
+
+    /// <summary>
+    /// Number of retries for a fragment (default is 10), or -1 for "infinite" (DASH, hlsnative and ISM)
+    /// </summary>
+    /// <param name="maxRetries"></param>
+    public Ytdlp WithFragmentRetries(int retries)
+    {
+        // -1 = infinite
+        string value = retries < 0 ? "infinite" : retries.ToString();
+        return AddOption("--fragment-retries", value);
+    }
+
+    /// <summary>
+    /// Keep downloaded fragments on disk after downloading is finished
+    /// </summary>
+    public Ytdlp WithKeepFragments() => AddFlag("--keep-fragments");
+
+    /// <summary>
+    /// Size of download buffer, (default is 1024) 
+    /// </summary>
+    /// <param name="size">e.g. 1024 or 16K</param>
+    public Ytdlp WithBufferSize(string size) => AddOption("--buffer-size", size);
+
+    /// <summary>
+    /// Download playlist videos in random order
+    /// </summary>
+    public Ytdlp WithPlaylistRandom() => AddFlag("--playlist-random");
+
+    /// <summary>
+    /// Process entries in the playlist as they are received. This disables n_entries, PlaylistRandom() and --playlist-reverse
+    /// </summary>
+    public Ytdlp WithLazyPlaylist() => AddFlag("--lazy-playlist");
+
+    /// <summary>
+    /// Use the mpegts container for HLS videos; allowing some players to play the video while downloading, 
+    /// and reducing the chance of file corruption if download is interrupted. This is enabled by default for live streams
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithHlsUseMpegts() => AddFlag("--hls-use-mpegts");
+
+    /// <summary>
+    /// Download only chapters that match the regular expression. A "*" prefix denotes time-range instead of chapter.
+    /// Negative timestamps are calculated from the end. "*from-url" can be used to download between the "start_time" and "end_time" extracted from the URL.
+    /// Needs ffmpeg. This option can be used multiple times to download multiple sections
+    /// </summary>
+    /// <param name="regex">e.g. "*10:15-inf", "intro"</param>
+    /// <returns></returns>
+    public Ytdlp WithDownloadSections(string regex)
+    {
+        if (string.IsNullOrWhiteSpace(regex)) return this;
+        return AddOption("--download-sections", regex);
+    }
+
+
+    #endregion
+
+    #region Filesystem Options
+
+    /// <summary>
+    /// Sets the home folder for yt-dlp (used for config or as base directory).
+    /// Path is automatically normalized and quoted.
+    /// </summary>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithHomeFolder(string? homeFolder)
+    {
+        if (string.IsNullOrWhiteSpace(homeFolder)) throw new ArgumentException("Home folder path cannot be empty");
+        return new Ytdlp(this, homeFolder: Path.GetFullPath(homeFolder));
+    }
+
+    /// <summary>
+    /// Sets the temporary folder for yt-dlp intermediate files (fragments, etc.).
+    /// Path is automatically normalized and quoted.
+    /// </summary>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithTempFolder(string? tempFolder)
+    {
+        if (string.IsNullOrWhiteSpace(tempFolder)) throw new ArgumentException("Temp folder path cannot be empty");
+        return new Ytdlp(this, tempFolder: Path.GetFullPath(tempFolder));
+    }
+
+    /// <summary>
+    /// Sets the output folder
+    /// </summary>
+    /// <param name="folder"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithOutputFolder(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder)) throw new ArgumentException("Output folder required");
+        return new Ytdlp(this, outputFolder: Path.GetFullPath(folder));
+    }
+
+    /// <summary>
+    /// Output filename template
+    /// </summary>
+    /// <param name="template"></param>
+    public Ytdlp WithOutputTemplate(string template)
+    {
+        if (string.IsNullOrWhiteSpace(template)) throw new ArgumentException("Template required");
+        return new Ytdlp(this, outputTemplate: template.Trim());
+    }
+
+    /// <summary>
+    /// Restrict filenames to only ASCII characters, and avoid "&" and spaces in filenames
+    /// </summary>
+    public Ytdlp WithRestrictFilenames() => AddFlag("--restrict-filenames");
+
+    /// <summary>
+    /// Force filenames to be Windows-compatible
+    /// </summary>
+    public Ytdlp WithWindowsFilenames() => AddFlag("--windows-filenames");
+
+    /// <summary>
+    /// Limit the filename length (excluding extension) to the specified number of characters
+    /// </summary>
+    /// <param name="length"></param>
+    public Ytdlp WithTrimFilenames(int length)
+    {
+        if (length < 10)
+            throw new ArgumentOutOfRangeException(nameof(length), "Length should be at least 10 characters");
+
+        return AddOption("--trim-filenames", length.ToString());
+    }
+
+    /// <summary>
+    /// Do not overwrite any files
+    /// </summary>
+    public Ytdlp WithNoOverwrites() => AddFlag("--no-overwrites");
+
+    /// <summary>
+    /// Overwrite all video and metadata files. This option includes <see cref="WithNoContinue" />
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithForceOverwrites() => AddFlag("--force-overwrites");
+
+    /// <summary>
+    /// Do not resume partially downloaded fragments. If the file is not fragmented, restart download of the entire file
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoContinue() => AddFlag("--no-continue");
+
+    /// <summary>
+    /// Do not use .part files - write directly into output file
+    /// </summary>
+    public Ytdlp WithNoPart() => AddFlag("--no-part");
+
+    /// <summary>
+    /// Use the Last-modified header to set the file modification time
+    /// </summary>
+    public Ytdlp WithMtime() => AddFlag("--mtime");
+
+    /// <summary>
+    /// Write video description to a .description file
+    /// </summary>
+    public Ytdlp WithWriteDescription() => AddFlag("--write-description");
+
+    /// <summary>
+    /// Write video metadata to a .info.json file (this may contain personal information)
+    /// </summary>
+    public Ytdlp WithWriteInfoJson() => AddFlag("--write-info-json");
+
+    /// <summary>
+    /// Do not write playlist metadata when using WriteVideoMetadata(), WriteVideoDescription()
+    /// </summary>
+    public Ytdlp WithNoWritePlaylistMetafiles() => AddFlag("--no-write-playlist-metafiles");
+
+    /// <summary>
+    /// Write all fields to the infojson
+    /// </summary>
+    public Ytdlp WithNoCleanInfoJson() => AddFlag("--no-clean-info-json");
+
+    /// <summary>
+    /// Retrieve video comments to be placed in the infojson. The comments are fetched even without this option if the extraction is known to be quick
+    /// </summary>
+    public Ytdlp WriteComments() => AddFlag("--write-comments");
+
+    /// <summary>
+    /// Do not retrieve video comments unless the extraction is known to be quick
+    /// </summary>
+    public Ytdlp WithNoWriteComments() => AddFlag("--no-write-comments");
+
+    /// <summary>
+    /// JSON file containing the video information (created with the WriteVideoMetadata() option)
+    /// </summary>
+    /// <param name="filePath">*.json</param>
+    public Ytdlp WithLoadInfoJson(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("Json file path cannot be empty.", nameof(filePath));
+        return AddOption("--load-info-json", filePath);
+    }
+
+    /// <summary>
+    /// Netscape formatted file to read cookies from and dump cookie jar in
+    /// </summary>
+    /// <param name="path"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithCookiesFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Cookie file path cannot be empty.", nameof(path));
+        return new Ytdlp(this, cookiesFile: Path.GetFullPath(path));
+    }
+
+    /// <summary>
+    /// The name of the browser to load cookies from. Currently supported browsers are: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale.
+    /// Optionally, the KEYRING used for decrypting Chromium cookies on Linux, the name/path of the PROFILE to load cookies from, and the CONTAINER name (if Firefox) 
+    /// ("none" for no container) can be given with their respective separators. By default, all containers of the most recently accessed profile are used.
+    /// keyrings are: basictext, gnomekeyring, kwallet, kwallet5, kwallet6
+    /// </summary>
+    /// <param name="browser"></param>
+    public Ytdlp WithCookiesFromBrowser(string browser) => new Ytdlp(this, cookiesFromBrowser: browser);
+
+    /// <summary>
+    /// Disable filesystem caching
+    /// </summary>
+    public Ytdlp WithNoCacheDir() => AddFlag("--no-cache-dir");
+
+    /// <summary>
+    /// Delete all filesystem cache files
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithRemoveCacheDir() => AddFlag("--rm-cache-dir");
+
+    #endregion
+
+    #region Thumbnail Options
+
+    /// <summary>
+    /// Write thumbnail image to disk / Write all thumbnail image formats to disk
+    /// </summary>
+    /// <param name="allSizes"></param>
+    /// <returns></returns>
+    public Ytdlp WithThumbnails(bool allSizes = false)
+    {
+        if (allSizes)
+            return AddFlag("--write-all-thumbnails");
+
+        return AddFlag("--write-thumbnail");
+    }
+
+
+    #endregion
+
+    #region Verbosity and Simulation Options
+
+    /// <summary>
+    /// Activate quiet mode. If used with --verbose, print the log to stderr
+    /// </summary>
+    public Ytdlp WithQuiet() => AddFlag("--quiet");
+
+    /// <summary>
+    /// Ignore warnings
+    /// </summary>
+    public Ytdlp WithNoWarnings() => AddFlag("--no-warnings");
+
+    /// <summary>
+    /// Do not download the video and do not write anything to disk
+    /// </summary>
+    public Ytdlp WithSimulate() => AddFlag("--simulate");
+
+    /// <summary>
+    /// Download the video even if printing/listing options are used
+    /// </summary>
+    public Ytdlp WithNoSimulate() => AddFlag("--no-simulate");
+
+    /// <summary>
+    /// Do not download the video but write all related files (Alias: --no-download)
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithSkipDownload() => AddFlag("--skip-download");
+
+    /// <summary>
+    /// Print various debugging information
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithVerbose() => AddFlag("--verbose");
+
+    #endregion
+
+    #region Workgrounds
+
+    /// <summary>
+    /// Specify a custom HTTP header and its value. You can use this option multiple times
+    /// </summary>
+    /// <param name="header">"Referer" "User-Agent"</param>
+    /// <param name="value">"URL", "UA"</param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithAddHeader(string header, string value)
+    {
+        if (string.IsNullOrWhiteSpace(header) || string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Header and value cannot be empty.");
+        return AddOption("--add-headers", $"{header}:{value}");
+    }
+
+    /// <summary>
+    ///  Number of seconds to sleep between requests during data extraction, Maximum number of seconds to sleep. 
+    ///  Can only be used along with --min-sleep-interval
+    /// </summary>
+    /// <param name="seconds"></param>
+    /// <param name="maxSeconds"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
     public Ytdlp WithSleepInterval(double seconds, double? maxSeconds = null)
     {
         if (seconds <= 0) throw new ArgumentOutOfRangeException(nameof(seconds));
@@ -303,22 +734,330 @@ public sealed class Ytdlp : IAsyncDisposable
         return new Ytdlp(this, extraOptions: opts);
     }
 
-    // 11. Sleep between subtitle downloads
+    /// <summary>
+    /// Number of seconds to sleep before each subtitle download
+    /// </summary>
+    /// <param name="seconds"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
     public Ytdlp WithSleepSubtitles(double seconds)
     {
         if (seconds <= 0) throw new ArgumentOutOfRangeException(nameof(seconds));
         return AddOption("--sleep-subtitles", seconds.ToString("F2", CultureInfo.InvariantCulture));
     }
 
-    // 12. Download archive file (skip already downloaded)
-    public Ytdlp WithDownloadArchive(string archivePath = "archive.txt")
+    #endregion
+
+    #region Video Format Options
+
+    /// <summary>
+    /// Video format code
+    /// </summary>
+    /// <param name="format"></param>
+    public Ytdlp WithFormat(string format) => new Ytdlp(this, format: format.Trim());
+
+    #endregion
+
+    #region Subtitle Options 
+
+    /// <summary>
+    /// Write subtitle file
+    /// </summary>
+    /// <param name="languages">Languages of the subtitles to download (can be regex) or "all" separated by commas, e.g."en.*,ja"
+    /// (where "en.*" is a regex pattern that matches "en" followed by 0 or more of any character).
+    /// </param>
+    /// <param name="auto">Write automatically generated subtitle file</param>
+    public Ytdlp WithSubtitles(string languages = "all", bool auto = false)
     {
-        if (string.IsNullOrWhiteSpace(archivePath))
-            throw new ArgumentException("Archive path cannot be empty", nameof(archivePath));
-        return AddOption("--download-archive", Path.GetFullPath(archivePath));
+        var flags = new List<string> { "--write-subs" };
+        if (auto) flags.Add("--write-auto-subs");
+
+        return new Ytdlp(this, extraFlags: flags, extraOptions: new[] { ("--sub-langs", languages) });
     }
 
-    // 13. Match title (regex include)
+    #endregion
+
+    #region Authentication Options
+
+    /// <summary>
+    /// Login with this account ID and account password.
+    /// </summary>
+    /// <param name="username">Account ID</param>
+    /// <param name="password">Account password</param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithAuthentication(string username, string password)
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            throw new ArgumentException("Username and password cannot be empty.");
+        return this
+            .AddOption("--username", username)
+            .AddOption("--password", password);
+    }
+
+    /// <summary>
+    /// Two-factor authentication code
+    /// </summary>
+    /// <param name="code">Two-factor Code</param>
+    /// <returns></returns>
+    public Ytdlp WithTwoFactor(string code) => AddOption("--twofactor", code);
+
+    #endregion
+
+    #region Post-Processing Options
+
+    /// <summary>
+    /// Convert video files to audio-only files (requires ffmpeg and ffprobe).        
+    /// </summary>
+    /// <param name="format">Formats currently supported: best (default),aac, alac, flac, m4a, mp3, opus, vorbis, wav).</param>
+    /// <param name="quality">Audio quality (0–10, lower = better). Default: 5 (medium)</param>
+    public Ytdlp WithExtractAudio(AudioFormat format = AudioFormat.Best, int quality = 5)
+    {
+        return this
+            .AddFlag("--extract-audio")
+            .AddOption("--audio-format", format.ToString().ToLowerInvariant())
+            .AddOption("--audio-quality", quality.ToString());
+    }
+
+    /// <summary>
+    /// Remux the video into another container if necessary (requires ffmpeg and ffprobe)
+    /// If the target container does not support the video/audio codec, remuxing will fail. You can specify multiple rules; 
+    /// e.g. "aac>m4a/mov>mp4/mkv" will remux aac to m4a, mov to mp4 and anything else to mkv
+    /// </summary>
+    /// <param name="format">(currently supported: avi, flv, gif, mkv, mov, mp4, webm, aac, aiff, alac, flac, m4a, mka, mp3, ogg, opus, vorbis, wav).</param>
+    public Ytdlp WithRemuxVideo(MediaFormat format = MediaFormat.Mp4) => AddOption("--remux-video", format.ToString().ToLowerInvariant());
+
+
+    /// <summary>
+    /// Re-encode the video into another format if necessary. The syntax and supported formats are the same as WithRemuxVideo()
+    /// </summary>
+    /// <param name="format">(currently supported: avi, flv, gif, mkv, mov, mp4, webm, aac, aiff, alac, flac, m4a, mka, mp3, ogg, opus, vorbis, wav).</param>
+    /// <param name="videoCodec"></param>
+    /// <param name="audioCodec"></param>
+    public Ytdlp WithRecodeVideo(MediaFormat format = MediaFormat.Mp4, string? videoCodec = null, string? audioCodec = null)
+    {
+        var builder = AddOption("--recode-video", format.ToString().ToLowerInvariant());
+        if (!string.IsNullOrWhiteSpace(videoCodec))
+            builder = builder.AddOption("--video-codec", videoCodec);
+        if (!string.IsNullOrWhiteSpace(audioCodec))
+            builder = builder.AddOption("--audio-codec", audioCodec);
+        return builder;
+    }
+
+    /// <summary>
+    /// Give these arguments to the postprocessors. Specify the postprocessor/executable name and to give the argument to the specified
+    /// </summary>
+    /// <param name="postprocessor">Supported PP are: Merger, ModifyChapters, SplitChapters, ExtractAudio, 
+    /// VideoRemuxer, VideoConvertor, Metadata, EmbedSubtitle, EmbedThumbnail, SubtitlesConvertor, ThumbnailsConvertor, 
+    /// FixupStretched, FixupM4a, FixupM3u8, FixupTimestamp and FixupDuration.</param>
+    /// <param name="args"></param>
+    public Ytdlp WithPostprocessorArgs(PostProcessors postprocessor, string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            throw new ArgumentException("Both postprocessor name and arguments are required");
+
+        string combined = $"{postprocessor.ToString().Trim()}:{args.Trim()}";
+        return AddOption("--postprocessor-args", combined);
+    }
+
+    /// <summary>
+    /// Keep the intermediate video file on disk after post-processing
+    /// </summary>
+    public Ytdlp WithKeepVideo() => AddFlag("-k");
+
+    /// <summary>
+    /// Do not overwrite post-processed files
+    /// </summary>
+    public Ytdlp WithNoPostOverwrites() => AddFlag("--no-post-overwrites");
+
+    /// <summary>
+    /// Embed subtitles in the video (only for mp4, webm and mkv videos)
+    /// </summary>
+    /// <param name="languages"></param>
+    /// <param name="convertTo"></param>
+    public Ytdlp WithEmbedSubtitles(string languages = "all", string? convertTo = null)
+    {
+        var builder = AddFlag("--sub-langs")
+            .AddOption("--write-sub", languages);
+        if (!string.IsNullOrWhiteSpace(convertTo))
+            builder = builder.AddOption("--convert-subs", convertTo);
+        if (convertTo?.Equals("embed", StringComparison.OrdinalIgnoreCase) == true)
+            builder = builder.AddFlag("--embed-subs");
+        return builder;
+    }
+
+    /// <summary>
+    /// Embed thumbnail in the video as cover art
+    /// </summary>
+    public Ytdlp WithEmbedThumbnail() => AddFlag("--embed-thumbnail");
+
+    /// <summary>
+    /// Embed metadata to the video file
+    /// </summary>
+    public Ytdlp WithEmbedMetadata() => AddFlag("--embed-metadata");
+
+    /// <summary>
+    /// Add chapter markers to the video file
+    /// </summary>
+    public Ytdlp WithEmbedChapters() => AddFlag("--embed-chapters");
+
+    /// <summary>
+    /// Embed the infojson as an attachment to mkv/mka video files
+    /// </summary>
+    public Ytdlp WithEmbedInfoJson() => AddFlag("--embed-info-json");
+
+    /// <summary>
+    /// Do not embed the infojson as an attachment to the video file
+    /// </summary>
+    public Ytdlp WithNoEmbedInfoJson() => AddFlag("--no-embed-info-json");
+
+    /// <summary>
+    /// Replace text in a metadata field using the given regex. This option can be used multiple times.
+    /// </summary>
+    /// <param name="field"></param>
+    /// <param name="regex"></param>
+    /// <param name="replacement"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithReplaceInMetadata(string field, string regex, string replacement)
+    {
+        if (string.IsNullOrWhiteSpace(field) || string.IsNullOrWhiteSpace(regex) || replacement == null)
+            throw new ArgumentException("Metadata field, regex, and replacement cannot be empty.");
+        return AddFlag($"--replace-in-metadata {field} {regex} {replacement}");
+    }
+
+    /// <summary>
+    /// Concatenate videos in a playlist. All the video files must have the same codecs and number of streams to be concatenable
+    /// </summary>
+    /// <param name="policy">never, always, multi_video (default; only when the videos form a single show)</param>
+    public Ytdlp WithConcatPlaylist(string policy = "always") => AddOption("--concat-playlist", policy);
+
+    /// <summary>
+    /// Location of the ffmpeg binary
+    /// </summary>
+    /// <param name="ffmpegPath">Either the path to the binary or its containing directory</param>
+    public Ytdlp WithFFmpegLocation(string? ffmpegPath)
+    {
+        if (string.IsNullOrWhiteSpace(ffmpegPath)) return this;
+        return new Ytdlp(this, ffmpegLocation: ffmpegPath);
+    }
+
+    /// <summary>
+    /// Convert the thumbnails to another format. You can specify multiple rules using similar WithRemuxVideo().
+    /// </summary>
+    /// <param name="format">(currently supported: jpg, png, webp)</param>
+    /// <returns></returns>
+    public Ytdlp WithConvertthumbnails(string format = "none") => AddOption("--convert-thumbnails", format);
+
+    /// <summary>
+    /// Force keyframes at cuts when downloading/splitting/removing sections. 
+    /// This is slow due to needing a re-encode, but the resulting video may have fewer artifacts around the cuts
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithForceKeyframesAtCuts() => AddFlag("--force-keyframes-at-cuts");
+
+    #endregion
+
+    #region SponsorBlock Options
+
+    /// <summary>
+    /// SponsorBlock categories to create chapters for, separated by commas. 
+    /// Available categories are sponsor, intro, outro, selfpromo, preview, filler, interaction, music_offtopic, hook, poi_highlight, chapter, all and default (=all).
+    /// You can prefix the category with a "-" to exclude it. E.g. SponsorBlockMark("all,-preview)
+    /// </summary>
+    /// <param name="categories"></param>
+    /// <returns></returns>
+    public Ytdlp WithSponsorblockMark(string categories = "all") => AddOption("--sponsorblock-mark", categories);
+
+    /// <summary>
+    /// SponsorBlock categories to be removed from the video file, separated by commas. 
+    /// If a category is present in both mark and remove, remove takes precedence. Working and available categories are the same as for WithSponsorblockMark()
+    /// </summary>
+    /// <param name="categories"></param>
+    /// <returns></returns>
+    public Ytdlp WithSponsorblockRemove(string categories = "all") => new Ytdlp(this, sponsorblockRemove: categories);
+
+    /// <summary>
+    /// Disable both WithSponsorblockMark() and WithSponsorblockRemove() options and do not use any sponsorblock features
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoSponsorblock() => AddFlag("--no-sponsorblock");
+
+    #endregion
+
+    #region Core
+    public Ytdlp AddFlag(string flag) => new Ytdlp(this, extraFlags: new[] { flag.Trim() });
+
+    public Ytdlp AddOption(string key, string? value = null) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
+    #endregion
+
+
+    public Ytdlp WithExternalDownloader(string downloaderName, string? downloaderArgs = null)
+    {
+        if (string.IsNullOrWhiteSpace(downloaderName))
+            throw new ArgumentException("Downloader name cannot be empty", nameof(downloaderName));
+
+        var opts = new List<(string, string?)> { ("--downloader", downloaderName.Trim()) };
+
+        if (!string.IsNullOrWhiteSpace(downloaderArgs))
+        {
+            opts.Add(("--downloader-args", downloaderArgs.Trim()));
+        }
+
+        return new Ytdlp(this, extraOptions: opts);
+    }
+
+    public Ytdlp WithAria2(int connections = 16)
+    {
+        return new Ytdlp(this, extraOptions: new[]
+            {
+            ("--downloader", "aria2c"),
+            ("--downloader-args", $"aria2c:-x{connections} -k1M")
+            });
+    }
+
+    public Ytdlp WithHlsNative() => AddOption("--downloader", "hlsnative");
+
+    public Ytdlp WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null) => WithExternalDownloader("ffmpeg", extraFfmpegArgs);
+
+    #region Redundant options
+
+    /// <summary>
+    /// Playlist start index
+    /// </summary>
+    /// <param name="index"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public Ytdlp WithPlaylistStart(int index)
+    {
+        if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
+        return AddOption("--playlist-start", index.ToString());
+    }
+
+    /// <summary>
+    /// Playlist end index
+    /// </summary>
+    /// <param name="index"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public Ytdlp WithPlaylistEnd(int index)
+    {
+        if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
+        return AddOption("--playlist-end", index.ToString());
+    }
+
+    public Ytdlp WithUserAgent(string userAgent)
+    {
+        if (string.IsNullOrWhiteSpace(userAgent))
+            throw new ArgumentException("User-Agent cannot be empty", nameof(userAgent));
+        return AddOption("--user-agent", userAgent.Trim());
+    }
+
+    public Ytdlp WithReferer(string referer)
+    {
+        if (string.IsNullOrWhiteSpace(referer))
+            throw new ArgumentException("Referer cannot be empty", nameof(referer));
+        return AddOption("--referer", referer.Trim());
+    }
+
     public Ytdlp WithMatchTitle(string regex)
     {
         if (string.IsNullOrWhiteSpace(regex))
@@ -326,7 +1065,6 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--match-title", regex.Trim());
     }
 
-    // 14. Reject title (regex exclude)
     public Ytdlp WithRejectTitle(string regex)
     {
         if (string.IsNullOrWhiteSpace(regex))
@@ -334,71 +1072,18 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--reject-title", regex.Trim());
     }
 
-    // 15. Max downloads (stop after N videos)
-    public Ytdlp WithMaxDownloads(int count)
-    {
-        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
-        return AddOption("--max-downloads", count.ToString());
-    }
+    public Ytdlp WithBreakOnReject() => AddFlag("--break-on-reject");
+    #endregion
 
-    // Nice-to-have #16
-    public Ytdlp WithNoMtime() => AddFlag("--no-mtime");
 
-    // Nice-to-have #17
-    public Ytdlp WithNoCacheDir() => AddFlag("--no-cache-dir");
+
 
     // Nice-to-have #18 – very popular for high-quality + fallback
     public Ytdlp With1080pOrBest() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
 
-    // Nice-to-have #19
-    public Ytdlp WithNoPlaylist() => AddFlag("--no-playlist");
-
-    // Nice-to-have #20
-    public Ytdlp WithYesPlaylist() => AddFlag("--yes-playlist");
 
 
-    // 21. Geo-bypass country (two-letter ISO code)
-    public Ytdlp WithGeoBypassCountry(string countryCode)
-    {
-        if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length != 2)
-            throw new ArgumentException("Geo-bypass country must be a 2-letter ISO code", nameof(countryCode));
 
-        return AddOption("--geo-bypass-country", countryCode.Trim().ToUpperInvariant());
-    }
-
-    // 22. No geo-bypass (disable automatic country bypass)
-    public Ytdlp WithNoGeoBypass() => AddFlag("--no-geo-bypass");
-
-    // 23. Match-filter (advanced filter expression)
-    public Ytdlp WithMatchFilter(string filterExpression)
-    {
-        if (string.IsNullOrWhiteSpace(filterExpression))
-            throw new ArgumentException("Match filter expression cannot be empty", nameof(filterExpression));
-
-        return AddOption("--match-filter", filterExpression.Trim());
-    }
-
-    // 24. Break on existing (stop when file already in archive)
-    public Ytdlp WithBreakOnExisting() => AddFlag("--break-on-existing");
-
-    // 25. Break on reject (stop when a video is filtered out by --match-filter)
-    public Ytdlp WithBreakOnReject() => AddFlag("--break-on-reject");
-
-    // 26. Postprocessor args (ppa) - most common use-cases
-    public Ytdlp WithPostprocessorArgs(string postprocessorName, string arguments)
-    {
-        if (string.IsNullOrWhiteSpace(postprocessorName) || string.IsNullOrWhiteSpace(arguments))
-            throw new ArgumentException("Both postprocessor name and arguments are required");
-
-        string combined = $"{postprocessorName.Trim()}:{arguments.Trim()}";
-        return AddOption("--postprocessor-args", combined);
-    }
-
-    // 27. Force key frames at cuts (useful when cutting with --download-sections)
-    public Ytdlp WithForceKeyframesAtCuts() => AddFlag("--force-keyframes-at-cuts");
-
-    // 28. Prefer free formats (when multiple formats have similar quality)
-    public Ytdlp WithPreferFreeFormats() => AddFlag("--prefer-free-formats");
 
     // 29. No prefer free formats (default behavior - explicit)
     public Ytdlp WithNoPreferFreeFormats() => AddFlag("--no-prefer-free-formats");
@@ -416,61 +1101,6 @@ public sealed class Ytdlp : IAsyncDisposable
     // Bonus 31 – very popular shortcut
     public Ytdlp WithBestUpTo1080p() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
 
-    // Bonus 32
-    public Ytdlp WithKeepFragments() => AddFlag("--keep-fragments");
-
-    // Bonus 33 – useful for debugging
-    public Ytdlp WithVerbose() => AddFlag("--verbose");
-
-
-    // 31. Reverse playlist order
-    public Ytdlp WithPlaylistReverse() => AddFlag("--playlist-reverse");
-
-    // 32. Random playlist order
-    public Ytdlp WithPlaylistRandom() => AddFlag("--playlist-random");
-
-    // 33. Lazy playlist (process entries as received – good for very large playlists)
-    public Ytdlp WithLazyPlaylist() => AddFlag("--lazy-playlist");
-
-    // 34. Flat playlist (do not extract individual video URLs – faster for listing)
-    public Ytdlp WithFlatPlaylist() => AddFlag("--flat-playlist");
-
-    // 35. Write info.json metadata file
-    public Ytdlp WithWriteInfoJson() => AddFlag("--write-info-json");
-
-    // 36. Clean info.json (remove private/empty fields)
-    public Ytdlp WithCleanInfoJson() => AddFlag("--clean-info-json");
-
-    // 37. No clean info.json (keep all fields)
-    public Ytdlp WithNoCleanInfoJson() => AddFlag("--no-clean-info-json");
-
-    // 38. Simulate only (do not download anything – useful for testing/format listing)
-    public Ytdlp WithSimulate() => AddFlag("--simulate");
-
-    // 39. Skip actual download (but do post-processing if applicable)
-    public Ytdlp WithSkipDownload() => AddFlag("--skip-download");
-
-    // 40. Write description to .description file
-    public Ytdlp WithWriteDescription() => AddFlag("--write-description");
-
-    // 41. Keep intermediate video file after post-processing
-    public Ytdlp WithKeepVideo() => new Ytdlp(this, extraFlags: new[] { "-k", "--keep-video" });
-
-    // 42. Do not overwrite post-processed files
-    public Ytdlp WithNoPostOverwrites() => AddFlag("--no-post-overwrites");
-
-    // 43. Force keyframes at cuts (important when using --download-sections)
-
-
-    // 44. Remux video into specified container format
-    public Ytdlp WithRemuxVideo(string format = "mp4")
-    {
-        // Supported: mp4, mkv, avi, webm, flv, mov, ...
-        if (string.IsNullOrWhiteSpace(format))
-            throw new ArgumentException("Remux format cannot be empty", nameof(format));
-
-        return AddOption("--remux-video", format.Trim().ToLowerInvariant());
-    }
 
     // 45. Recode / re-encode video into specified format
     public Ytdlp WithRecodeVideo(string format = "mp4")
@@ -492,19 +1122,10 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--convert-thumbnails", format.Trim().ToLowerInvariant());
     }
 
-    // 48. Postprocessor arguments for Merger (most common use-case)
-    public Ytdlp WithMergerArgs(string args) => WithPostprocessorArgs("Merger", args);
-
-    // 49. Postprocessor arguments for ModifyChapters
-    public Ytdlp WithModifyChaptersArgs(string args) => WithPostprocessorArgs("ModifyChapters", args);
-
-    // 50. Postprocessor arguments for ExtractAudio
-    public Ytdlp WithExtractAudioArgs(string args) => WithPostprocessorArgs("ExtractAudio", args);
-
     // Bonus – common combo: remux to mp4 + embed metadata + chapters + thumbnail
     public Ytdlp WithMp4PostProcessingPreset()
         => this
-            .WithRemuxVideo("mp4")
+            .WithRemuxVideo(MediaFormat.Mp4)
             .WithEmbedMetadata()
             .WithEmbedChapters()
             .WithEmbedThumbnail();
@@ -518,65 +1139,18 @@ public sealed class Ytdlp : IAsyncDisposable
             ("--merge-output-format", "mkv")
             });
 
-    // 51. Download livestream from the start (when possible)
-    public Ytdlp WithLiveFromStart() => AddFlag("--live-from-start");
 
-    // 52. Explicitly disable downloading from the beginning of a live stream
-    public Ytdlp WithNoLiveFromStart() => AddFlag("--no-live-from-start");
 
-    // 53. Wait for a scheduled live stream to start
-    public Ytdlp WithWaitForVideo(TimeSpan? maxWait = null)
-    {
-        var opts = new List<(string Key, string? Value)>();
 
-        opts.Add(("--wait-for-video", "any"));   // "any" = wait indefinitely or until timeout
-
-        if (maxWait.HasValue && maxWait.Value.TotalSeconds > 0)
-        {
-            opts.Add(("--wait-for-video", maxWait.Value.TotalSeconds.ToString("F0")));
-        }
-
-        return new Ytdlp(this, extraOptions: opts);
-    }
-
-    // 54. Wait until the live stream actually ends before finishing
-    public Ytdlp WithWaitUntilLiveEnds() => AddFlag("--wait-for-video-to-end");
-
-    // 55. Use mpegts container/format for HLS live streams (better compatibility in some players)
-    public Ytdlp WithHlsUseMpegts() => AddFlag("--hls-use-mpegts");
 
     // 56. Do not use mpegts for HLS (use default fragmented mp4)
     public Ytdlp WithNoHlsUseMpegts() => AddFlag("--no-hls-use-mpegts");
 
     // 57. External downloader for live streams (e.g. ffmpeg, aria2c, ...)
-    public Ytdlp WithExternalDownloader(string downloaderName, string? downloaderArgs = null)
-    {
-        if (string.IsNullOrWhiteSpace(downloaderName))
-            throw new ArgumentException("Downloader name cannot be empty", nameof(downloaderName));
 
-        var opts = new List<(string, string?)> { ("--downloader", downloaderName.Trim()) };
-
-        if (!string.IsNullOrWhiteSpace(downloaderArgs))
-        {
-            opts.Add(("--downloader-args", downloaderArgs.Trim()));
-        }
-
-        return new Ytdlp(this, extraOptions: opts);
-    }
 
     // 58. Use ffmpeg as external downloader for live streams (most common choice)
-    public Ytdlp WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null) => WithExternalDownloader("ffmpeg", extraFfmpegArgs);
 
-    // 59. Set fragment retries specifically useful for unstable live streams
-    public Ytdlp WithFragmentRetries(int retries)
-    {
-        // -1 = infinite
-        string value = retries < 0 ? "infinite" : retries.ToString();
-        return AddOption("--fragment-retries", value);
-    }
-
-    // 60. Prefer native HLS downloader (instead of ffmpeg) – sometimes more stable
-    public Ytdlp WithHlsNative() => AddOption("--downloader", "hlsnative");
 
 
     // 63. Maximum video height / resolution limit
@@ -603,16 +1177,8 @@ public sealed class Ytdlp : IAsyncDisposable
     // 67. Best video up to 720p + best audio
     public Ytdlp With720pOrBest() => new Ytdlp(this, format: "bv*[height<=?720]+ba/best/best");
 
-
     // 68. Audio-only – best quality audio
     public Ytdlp WithBestAudioOnly() => new Ytdlp(this, format: "bestaudio");
-
-    // 69. Prefer video formats with higher bitrate (when resolution is similar)
-    public Ytdlp WithFormatSortBitrate() => AddOption("-S", "br");
-
-    // 70. Prefer formats with higher resolution first, then bitrate
-    public Ytdlp WithFormatSortResolutionThenBitrate() => AddOption("-S", "res,br");
-
 
     // Bonus A – very popular preset
     public Ytdlp WithBestUpTo1440p() => new Ytdlp(this, format: "bestvideo[height<=?1440]+bestaudio/best");
@@ -623,49 +1189,8 @@ public sealed class Ytdlp : IAsyncDisposable
     // Bonus C – audio-only with specific codec preference
     public Ytdlp WithBestM4aAudio() => new Ytdlp(this, format: "bestaudio[ext=m4a]/bestaudio/best");
 
-    // 71. Restrict filenames to ASCII-only + avoid problematic characters
-    public Ytdlp WithRestrictFilenames() => AddFlag("--restrict-filenames");
-
-    // 72. Force Windows-compatible filenames (avoid reserved names, invalid chars)
-    public Ytdlp WithWindowsFilenames() => AddFlag("--windows-filenames");
-
-    // 73. Limit filename length (excluding extension)
-    public Ytdlp WithTrimFilenames(int maxLength)
-    {
-        if (maxLength < 10)
-            throw new ArgumentOutOfRangeException(nameof(maxLength), "Length should be at least 10 characters");
-
-        return AddOption("--trim-filenames", maxLength.ToString());
-    }
-
-    // 74. No overwrite existing files
-    public Ytdlp WithNoOverwrites() => AddFlag("--no-overwrites");
-
-    // 75. Force overwrite existing files
-    public Ytdlp WithForceOverwrites() => AddFlag("--force-overwrites");
-
-    // 76. Continue partially downloaded files
-    public Ytdlp WithContinue() => AddFlag("--continue");
-
-    // 77. Do not continue partially downloaded files (start from beginning)
-    public Ytdlp WithNoContinue() => AddFlag("--no-continue");
-
-    // 78. Use .part files during download
-    public Ytdlp WithPartFiles() => AddFlag("--part");
-
-    // 79. Do not use .part files (write directly to final filename)
-    public Ytdlp WithNoPartFiles() => AddFlag("--no-part");
-
-    // 80. Use server mtime (Last-Modified header) for file timestamp
-    public Ytdlp WithMtime() => AddFlag("--mtime");
 
 
-    public Ytdlp AddFlag(string flag) => new Ytdlp(this, extraFlags: new[] { flag.Trim() });
-
-    public Ytdlp AddOption(string key, string? value = null) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
-
-    #endregion
-         
     #region Execution & Utility Methods
 
     /// <summary>
@@ -1107,7 +1632,7 @@ public sealed class Ytdlp : IAsyncDisposable
 
         return best?.FormatId ?? "bestvideo";
     }
-     
+
 
     /// <summary>
     /// Executes batch download processing for a collection of URLs with a specified concurrency limit.
@@ -1152,7 +1677,7 @@ public sealed class Ytdlp : IAsyncDisposable
     #endregion
 
     #region Helpers
-    
+
     // Get probe runner
     private ProbeRunner Probe()
     {
