@@ -16,10 +16,7 @@ internal class Program
 
         // Initialize the wrapper (assuming yt-dlp is in PATH or specify path)
         await using var baseYtdlp = new Ytdlp(ytdlpPath: $"tools\\yt-dlp.exe", logger: new ConsoleLogger())
-            .WithFFmpegLocation("tools")
-            .WithTempFolder(@"c:\Downloads\YouTube\temp")
-            .WithOutputTemplate("%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s")
-            .WithAria2(16);
+            .WithFFmpegLocation("tools");
 
         // Run all demos/tests sequentially
         //await TestGetVersionAsync(baseYtdlp);
@@ -31,9 +28,9 @@ internal class Program
         //await TestGetLiteMetadataAsync(baseYtdlp);
         //await TestGetTitleAsync(baseYtdlp);
 
-        await TestDownloadVideoAsync(baseYtdlp);
+        //await TestDownloadVideoAsync(baseYtdlp);
         //await TestDownloadAudioAsync(ytdlp);
-        //await TestBatchDownloadAsync(ytdlp);
+        await TestBatchDownloadAsync(baseYtdlp);
         //await TestSponsorBlockAsync(ytdlp);
         //await TestConcurrentFragmentsAsync(ytdlp);
         //await TestCancellationAsync(ytdlp);
@@ -195,12 +192,16 @@ internal class Program
     private static async Task TestDownloadVideoAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 6: Downloading a video...");
-        var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
+        var url = "https://www.youtube.com/watch?v=3pecPwPIFIc&pp=ugUEEgJtbA%3D%3D";
 
         var ytdlp = ytdlpBase
             .With720pOrBest()
-            .WithOutputFolder("./downloads")
-            .WithOutputTemplate("%(title)s.%(ext)s");
+            .WithConcurrentFragments(8)
+            .WithHomeFolder("./downloads")
+            .WithTempFolder("./downloads/temp")
+            .WithOutputTemplate("%(title)s.%(ext)s")
+            .WithMtime()
+            .WithTrimFilenames(100);
 
         // Subscribe to events
         ytdlp.OnProgressDownload += (sender, args) =>
@@ -212,7 +213,9 @@ internal class Program
         ytdlp.OnPostProcessingComplete += (sender, message) =>
             Console.WriteLine($"Post-processing done: {message}");
 
-        await ytdlp.ExecuteAsync(url);
+        Console.WriteLine(ytdlp.Preview(url));
+
+        // await ytdlp.ExecuteAsync(url);
     }
 
     // Test 7 Extract audio only
@@ -229,7 +232,7 @@ internal class Program
     }
 
     // Test 8: Batch download (concurrent)
-    private static async Task TestBatchDownloadAsync(Ytdlp ytdlp)
+    private static async Task TestBatchDownloadAsync(Ytdlp baseYtdlp)
     {
         Console.WriteLine("\nTest 8: Batch download (3 concurrent)...");
         var urls = new List<string>
@@ -239,10 +242,11 @@ internal class Program
                 "https://www.youtube.com/watch?v=oDSEGkT6J-0"
             };
 
-        await ytdlp
-            .WithFormat("best[height<=480]")  // Lower quality for speed
-            .WithOutputFolder("./downloads/batch")
-            .ExecuteBatchAsync(urls, maxConcurrency: 3);
+        var ytdlp = baseYtdlp
+             .WithFormat("best[height<=480]")  // Lower quality for speed
+             .WithOutputFolder("./downloads/batch");
+
+        await ytdlp.ExecuteBatchAsync(urls, maxConcurrency: 3);
     }
 
     // Test 9: SponsorBlock removal

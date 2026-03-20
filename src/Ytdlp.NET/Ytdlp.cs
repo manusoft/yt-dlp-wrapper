@@ -40,7 +40,7 @@ namespace ManuHub.Ytdlp.NET;
 /// </remarks>
 public sealed class Ytdlp : IAsyncDisposable
 {
-    // ────────────────────────────────────────────── Frozen configuration
+    #region Frozen configuration
     private readonly string _ytdlpPath;
     private readonly ILogger _logger;
 
@@ -58,9 +58,9 @@ public sealed class Ytdlp : IAsyncDisposable
 
     private readonly ImmutableArray<string> _flags;
     private readonly ImmutableArray<(string Key, string? Value)> _options;
+    #endregion
 
-
-    // Events 
+    #region Events
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
     public event EventHandler<string>? OnProgressMessage;
     public event EventHandler<string>? OnOutputMessage;
@@ -68,8 +68,9 @@ public sealed class Ytdlp : IAsyncDisposable
     public event EventHandler<string>? OnPostProcessingComplete;
     public event EventHandler<CommandCompletedEventArgs>? OnCommandCompleted;
     public event EventHandler<string>? OnErrorMessage;
+    #endregion
 
-    // Flag to prevent double disposal
+    #region Flag to prevent double disposal
     private bool _disposed = false;
 
     public async ValueTask DisposeAsync()
@@ -82,8 +83,9 @@ public sealed class Ytdlp : IAsyncDisposable
 
         await Task.CompletedTask;
     }
+    #endregion
 
-    // ────────────────────────────────────────────── Constructors
+    #region Constructors
 
     public Ytdlp(string ytdlpPath = "yt-dlp", ILogger? logger = null)
     {
@@ -91,7 +93,7 @@ public sealed class Ytdlp : IAsyncDisposable
         _logger = logger ?? new DefaultLogger();
 
         // defaults
-        _outputFolder = Directory.GetCurrentDirectory();
+        _outputFolder = null;
         _tempFolder = null;
         _homeFolder = null;
         _outputTemplate = "%(title)s [%(id)s].%(ext)s";
@@ -103,12 +105,14 @@ public sealed class Ytdlp : IAsyncDisposable
         _cookiesFromBrowser = null;
         _proxy = null;
         _ffmpegLocation = null;
-        _sponsorblockRemove = null;        
+        _sponsorblockRemove = null;
     }
 
     // Private copy constructor – every WithXxx() uses this
     private Ytdlp(Ytdlp other,
         string? outputFolder = null,
+        string? homeFolder = null,
+        string? tempFolder = null,
         string? outputTemplate = null,
         string? format = null,
         int? concurrentFragments = null,
@@ -117,17 +121,17 @@ public sealed class Ytdlp : IAsyncDisposable
         string? proxy = null,
         string? ffmpegLocation = null,
         string? sponsorblockRemove = null,
-        string? homeFolder = null,
-        string? tempFolder = null,
         IEnumerable<string>? extraFlags = null,
         IEnumerable<(string, string?)>? extraOptions = null)
     {
         _ytdlpPath = other._ytdlpPath;
         _logger = other._logger;
+
         _outputFolder = outputFolder ?? other._outputFolder;
         _homeFolder = homeFolder ?? other._homeFolder;
         _tempFolder = tempFolder ?? other._tempFolder;
         _outputTemplate = outputTemplate ?? other._outputTemplate;
+
         _format = format ?? other._format;
         _concurrentFragments = concurrentFragments ?? other._concurrentFragments;
         _cookiesFile = cookiesFile ?? other._cookiesFile;
@@ -135,13 +139,14 @@ public sealed class Ytdlp : IAsyncDisposable
         _proxy = proxy ?? other._proxy;
         _ffmpegLocation = ffmpegLocation ?? other._ffmpegLocation;
         _sponsorblockRemove = sponsorblockRemove ?? other._sponsorblockRemove;
-       
 
         _flags = extraFlags is null ? other._flags : other._flags.AddRange(extraFlags);
         _options = extraOptions is null ? other._options : other._options.AddRange(extraOptions);
     }
 
-    // ────────────────────────────────────────────── Fluent configuration methods
+    #endregion
+
+    #region Fluent configuration methods
 
     public Ytdlp WithOutputFolder(string folder)
     {
@@ -149,20 +154,11 @@ public sealed class Ytdlp : IAsyncDisposable
         return new Ytdlp(this, outputFolder: Path.GetFullPath(folder));
     }
 
-    public Ytdlp WithHomeFolder(string? path)
-        => string.IsNullOrWhiteSpace(path)
-            ? this
-            : new Ytdlp(this, homeFolder: Path.GetFullPath(path));
+    public Ytdlp WithHomeFolder(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, homeFolder: Path.GetFullPath(path));
 
-    public Ytdlp WithTempFolder(string? path)
-        => string.IsNullOrWhiteSpace(path)
-            ? this
-            : new Ytdlp(this, tempFolder: Path.GetFullPath(path));
+    public Ytdlp WithTempFolder(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, tempFolder: Path.GetFullPath(path));
 
-    public Ytdlp WithFFmpegLocation(string? path)
-        => string.IsNullOrWhiteSpace(path)
-            ? this
-            : new Ytdlp(this, ffmpegLocation: path);
+    public Ytdlp WithFFmpegLocation(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, ffmpegLocation: path);
 
     public Ytdlp WithOutputTemplate(string template)
     {
@@ -170,37 +166,20 @@ public sealed class Ytdlp : IAsyncDisposable
         return new Ytdlp(this, outputTemplate: template.Trim());
     }
 
-    public Ytdlp WithFormat(string format)
-        => new Ytdlp(this, format: format.Trim());
+    public Ytdlp WithFormat(string format) => new Ytdlp(this, format: format.Trim());
 
-    public Ytdlp WithConcurrentFragments(int count = 8)
-        => count > 0
-            ? new Ytdlp(this, concurrentFragments: count)
-            : this;
+    public Ytdlp WithConcurrentFragments(int count = 8) => count > 0 ? new Ytdlp(this, concurrentFragments: count) : this;
 
+    public Ytdlp WithProxy(string? proxy) => string.IsNullOrWhiteSpace(proxy) ? this : new Ytdlp(this, proxy: proxy);
 
+    public Ytdlp WithCookiesFile(string? path) => string.IsNullOrWhiteSpace(path) ? this : new Ytdlp(this, cookiesFile: Path.GetFullPath(path));
 
-    public Ytdlp WithProxy(string? proxy)
-        => string.IsNullOrWhiteSpace(proxy)
-            ? this
-            : new Ytdlp(this, proxy: proxy);
+    public Ytdlp WithCookiesFromBrowser(string browser) => new Ytdlp(this, cookiesFromBrowser: browser);
 
-    public Ytdlp WithCookiesFile(string? path)
-        => string.IsNullOrWhiteSpace(path)
-            ? this
-            : new Ytdlp(this, cookiesFile: Path.GetFullPath(path));
-
-    public Ytdlp WithCookiesFromBrowser(string browser)
-        => new Ytdlp(this, cookiesFromBrowser: browser);
-
-    public Ytdlp WithSponsorblockRemove(string? categories = "all")
-        => string.IsNullOrWhiteSpace(categories)
-            ? this
-            : new Ytdlp(this, sponsorblockRemove: categories);
+    public Ytdlp WithSponsorblockRemove(string? categories = "all") => string.IsNullOrWhiteSpace(categories) ? this : new Ytdlp(this, sponsorblockRemove: categories);
 
     public Ytdlp WithExtractAudio(string format = "mp3", int quality = 5)
-        => new Ytdlp(this,
-            extraFlags: new[] { "--extract-audio" },
+        => new Ytdlp(this, extraFlags: new[] { "--extract-audio" },
             extraOptions: new[]
             {
                 ("--audio-format",   format),
@@ -212,9 +191,7 @@ public sealed class Ytdlp : IAsyncDisposable
         var flags = new List<string> { "--write-subs" };
         if (auto) flags.Add("--write-auto-subs");
 
-        return new Ytdlp(this,
-            extraFlags: flags,
-            extraOptions: new[] { ("--sub-langs", langs) });
+        return new Ytdlp(this, extraFlags: flags, extraOptions: new[] { ("--sub-langs", langs) });
     }
 
     public Ytdlp WithEmbedSubtitles(string langs = "all", string? convertTo = null)
@@ -228,17 +205,15 @@ public sealed class Ytdlp : IAsyncDisposable
         return new Ytdlp(this, extraFlags: flags, extraOptions: options);
     }
 
-    public Ytdlp WithThumbnails(bool all = false)
-        => new Ytdlp(this, extraFlags: new[] { all ? "--write-all-thumbnails" : "--write-thumbnail" });
+    public Ytdlp WithThumbnails(bool all = false) => new Ytdlp(this, extraFlags: new[] { all ? "--write-all-thumbnails" : "--write-thumbnail" });
 
-    public Ytdlp WithEmbedThumbnail() => new Ytdlp(this, extraFlags: new[] { "--embed-thumbnail" });
-    public Ytdlp WithEmbedMetadata() => new Ytdlp(this, extraFlags: new[] { "--embed-metadata" });
-    public Ytdlp WithEmbedChapters() => new Ytdlp(this, extraFlags: new[] { "--embed-chapters" });
+    public Ytdlp WithEmbedThumbnail() => AddFlag("--embed-thumbnail");
+    public Ytdlp WithEmbedMetadata() => AddFlag("--embed-metadata");
+    public Ytdlp WithEmbedChapters() => AddFlag("--embed-chapters");
 
     public Ytdlp WithAria2(int connections = 16)
     {
-        return new Ytdlp(this,
-            extraOptions: new[]
+        return new Ytdlp(this, extraOptions: new[]
             {
             ("--downloader", "aria2c"),
             ("--downloader-args", $"aria2c:-x{connections} -k1M")
@@ -250,21 +225,21 @@ public sealed class Ytdlp : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(items))
             throw new ArgumentException("Playlist items string cannot be empty", nameof(items));
-        return new Ytdlp(this, extraOptions: new[] { ("--playlist-items", items.Trim()) });
+        return AddOption("--playlist-items", items.Trim());
     }
 
     // 2. Playlist start index
     public Ytdlp WithPlaylistStart(int index)
     {
         if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
-        return new Ytdlp(this, extraOptions: new[] { ("--playlist-start", index.ToString()) });
+        return AddOption("--playlist-start", index.ToString());
     }
 
     // 3. Playlist end index
     public Ytdlp WithPlaylistEnd(int index)
     {
         if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
-        return new Ytdlp(this, extraOptions: new[] { ("--playlist-end", index.ToString()) });
+        return AddOption("--playlist-end", index.ToString());
     }
 
     // 4. Minimum filesize
@@ -273,7 +248,7 @@ public sealed class Ytdlp : IAsyncDisposable
         // size examples: 50k, 4.2M, 1G
         if (string.IsNullOrWhiteSpace(size))
             throw new ArgumentException("Size cannot be empty", nameof(size));
-        return new Ytdlp(this, extraOptions: new[] { ("--min-filesize", size.Trim()) });
+        return AddOption("--min-filesize", size.Trim());
     }
 
     // 5. Maximum filesize
@@ -281,7 +256,7 @@ public sealed class Ytdlp : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(size))
             throw new ArgumentException("Size cannot be empty", nameof(size));
-        return new Ytdlp(this, extraOptions: new[] { ("--max-filesize", size.Trim()) });
+        return AddOption("--max-filesize", size.Trim());
     }
 
     // 6. Date filter (upload date)
@@ -290,14 +265,14 @@ public sealed class Ytdlp : IAsyncDisposable
         // formats: YYYYMMDD, today, yesterday, now-2weeks, etc.
         if (string.IsNullOrWhiteSpace(date))
             throw new ArgumentException("Date cannot be empty", nameof(date));
-        return new Ytdlp(this, extraOptions: new[] { ("--date", date.Trim()) });
+        return AddOption("--date", date.Trim());
     }
 
     // 7. Age limit / restriction
     public Ytdlp WithAgeLimit(int years)
     {
         if (years < 0) throw new ArgumentOutOfRangeException(nameof(years));
-        return new Ytdlp(this, extraOptions: new[] { ("--age-limit", years.ToString()) });
+        return AddOption("--age-limit", years.ToString());
     }
 
     // 8. User-Agent override
@@ -305,7 +280,7 @@ public sealed class Ytdlp : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(userAgent))
             throw new ArgumentException("User-Agent cannot be empty", nameof(userAgent));
-        return new Ytdlp(this, extraOptions: new[] { ("--user-agent", userAgent.Trim()) });
+        return AddOption("--user-agent", userAgent.Trim());
     }
 
     // 9. Referer override
@@ -313,7 +288,7 @@ public sealed class Ytdlp : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(referer))
             throw new ArgumentException("Referer cannot be empty", nameof(referer));
-        return new Ytdlp(this, extraOptions: new[] { ("--referer", referer.Trim()) });
+        return AddOption("--referer", referer.Trim());
     }
 
     // 10. Sleep interval between requests (anti-rate-limit)
@@ -332,7 +307,7 @@ public sealed class Ytdlp : IAsyncDisposable
     public Ytdlp WithSleepSubtitles(double seconds)
     {
         if (seconds <= 0) throw new ArgumentOutOfRangeException(nameof(seconds));
-        return new Ytdlp(this, extraOptions: new[] { ("--sleep-subtitles", seconds.ToString("F2", CultureInfo.InvariantCulture)) });
+        return AddOption("--sleep-subtitles", seconds.ToString("F2", CultureInfo.InvariantCulture));
     }
 
     // 12. Download archive file (skip already downloaded)
@@ -340,7 +315,7 @@ public sealed class Ytdlp : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(archivePath))
             throw new ArgumentException("Archive path cannot be empty", nameof(archivePath));
-        return new Ytdlp(this, extraOptions: new[] { ("--download-archive", Path.GetFullPath(archivePath)) });
+        return AddOption("--download-archive", Path.GetFullPath(archivePath));
     }
 
     // 13. Match title (regex include)
@@ -348,7 +323,7 @@ public sealed class Ytdlp : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(regex))
             throw new ArgumentException("Regex cannot be empty", nameof(regex));
-        return new Ytdlp(this, extraOptions: new[] { ("--match-title", regex.Trim()) });
+        return AddOption("--match-title", regex.Trim());
     }
 
     // 14. Reject title (regex exclude)
@@ -356,31 +331,30 @@ public sealed class Ytdlp : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(regex))
             throw new ArgumentException("Regex cannot be empty", nameof(regex));
-        return new Ytdlp(this, extraOptions: new[] { ("--reject-title", regex.Trim()) });
+        return AddOption("--reject-title", regex.Trim());
     }
 
     // 15. Max downloads (stop after N videos)
     public Ytdlp WithMaxDownloads(int count)
     {
         if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
-        return new Ytdlp(this, extraOptions: new[] { ("--max-downloads", count.ToString()) });
+        return AddOption("--max-downloads", count.ToString());
     }
 
     // Nice-to-have #16
-    public Ytdlp WithNoMtime() => new Ytdlp(this, extraFlags: new[] { "--no-mtime" });
+    public Ytdlp WithNoMtime() => AddFlag("--no-mtime");
 
     // Nice-to-have #17
-    public Ytdlp WithNoCacheDir() => new Ytdlp(this, extraFlags: new[] { "--no-cache-dir" });
+    public Ytdlp WithNoCacheDir() => AddFlag("--no-cache-dir");
 
     // Nice-to-have #18 – very popular for high-quality + fallback
-    public Ytdlp With1080pOrBest()
-        => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
+    public Ytdlp With1080pOrBest() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
 
     // Nice-to-have #19
-    public Ytdlp WithNoPlaylist() => new Ytdlp(this, extraFlags: new[] { "--no-playlist" });
+    public Ytdlp WithNoPlaylist() => AddFlag("--no-playlist");
 
     // Nice-to-have #20
-    public Ytdlp WithYesPlaylist() => new Ytdlp(this, extraFlags: new[] { "--yes-playlist" });
+    public Ytdlp WithYesPlaylist() => AddFlag("--yes-playlist");
 
 
     // 21. Geo-bypass country (two-letter ISO code)
@@ -389,13 +363,11 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length != 2)
             throw new ArgumentException("Geo-bypass country must be a 2-letter ISO code", nameof(countryCode));
 
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--geo-bypass-country", countryCode.Trim().ToUpperInvariant()) });
+        return AddOption("--geo-bypass-country", countryCode.Trim().ToUpperInvariant());
     }
 
     // 22. No geo-bypass (disable automatic country bypass)
-    public Ytdlp WithNoGeoBypass()
-        => new Ytdlp(this, extraFlags: new[] { "--no-geo-bypass" });
+    public Ytdlp WithNoGeoBypass() => AddFlag("--no-geo-bypass");
 
     // 23. Match-filter (advanced filter expression)
     public Ytdlp WithMatchFilter(string filterExpression)
@@ -403,17 +375,14 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(filterExpression))
             throw new ArgumentException("Match filter expression cannot be empty", nameof(filterExpression));
 
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--match-filter", filterExpression.Trim()) });
+        return AddOption("--match-filter", filterExpression.Trim());
     }
 
     // 24. Break on existing (stop when file already in archive)
-    public Ytdlp WithBreakOnExisting()
-        => new Ytdlp(this, extraFlags: new[] { "--break-on-existing" });
+    public Ytdlp WithBreakOnExisting() => AddFlag("--break-on-existing");
 
     // 25. Break on reject (stop when a video is filtered out by --match-filter)
-    public Ytdlp WithBreakOnReject()
-        => new Ytdlp(this, extraFlags: new[] { "--break-on-reject" });
+    public Ytdlp WithBreakOnReject() => AddFlag("--break-on-reject");
 
     // 26. Postprocessor args (ppa) - most common use-cases
     public Ytdlp WithPostprocessorArgs(string postprocessorName, string arguments)
@@ -422,21 +391,17 @@ public sealed class Ytdlp : IAsyncDisposable
             throw new ArgumentException("Both postprocessor name and arguments are required");
 
         string combined = $"{postprocessorName.Trim()}:{arguments.Trim()}";
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--postprocessor-args", combined) });
+        return AddOption("--postprocessor-args", combined);
     }
 
     // 27. Force key frames at cuts (useful when cutting with --download-sections)
-    public Ytdlp WithForceKeyframesAtCuts()
-        => new Ytdlp(this, extraFlags: new[] { "--force-keyframes-at-cuts" });
+    public Ytdlp WithForceKeyframesAtCuts() => AddFlag("--force-keyframes-at-cuts");
 
     // 28. Prefer free formats (when multiple formats have similar quality)
-    public Ytdlp WithPreferFreeFormats()
-        => new Ytdlp(this, extraFlags: new[] { "--prefer-free-formats" });
+    public Ytdlp WithPreferFreeFormats() => AddFlag("--prefer-free-formats");
 
     // 29. No prefer free formats (default behavior - explicit)
-    public Ytdlp WithNoPreferFreeFormats()
-        => new Ytdlp(this, extraFlags: new[] { "--no-prefer-free-formats" });
+    public Ytdlp WithNoPreferFreeFormats() => AddFlag("--no-prefer-free-formats");
 
     // 30. Merge output format (force container after download & post-processing)
     public Ytdlp WithMergeOutputFormat(string format)
@@ -445,70 +410,54 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(format))
             throw new ArgumentException("Merge output format cannot be empty", nameof(format));
 
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--merge-output-format", format.Trim().ToLowerInvariant()) });
+        return AddOption("--merge-output-format", format.Trim().ToLowerInvariant());
     }
 
     // Bonus 31 – very popular shortcut
-    public Ytdlp WithBestUpTo1080p()
-        => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
+    public Ytdlp WithBestUpTo1080p() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
 
     // Bonus 32
-    public Ytdlp WithKeepFragments()
-        => new Ytdlp(this, extraFlags: new[] { "--keep-fragments" });
+    public Ytdlp WithKeepFragments() => AddFlag("--keep-fragments");
 
     // Bonus 33 – useful for debugging
-    public Ytdlp WithVerbose()
-        => new Ytdlp(this, extraFlags: new[] { "--verbose" });
+    public Ytdlp WithVerbose() => AddFlag("--verbose");
 
 
     // 31. Reverse playlist order
-    public Ytdlp WithPlaylistReverse()
-        => new Ytdlp(this, extraFlags: new[] { "--playlist-reverse" });
+    public Ytdlp WithPlaylistReverse() => AddFlag("--playlist-reverse");
 
     // 32. Random playlist order
-    public Ytdlp WithPlaylistRandom()
-        => new Ytdlp(this, extraFlags: new[] { "--playlist-random" });
+    public Ytdlp WithPlaylistRandom() => AddFlag("--playlist-random");
 
     // 33. Lazy playlist (process entries as received – good for very large playlists)
-    public Ytdlp WithLazyPlaylist()
-        => new Ytdlp(this, extraFlags: new[] { "--lazy-playlist" });
+    public Ytdlp WithLazyPlaylist() => AddFlag("--lazy-playlist");
 
     // 34. Flat playlist (do not extract individual video URLs – faster for listing)
-    public Ytdlp WithFlatPlaylist()
-        => new Ytdlp(this, extraFlags: new[] { "--flat-playlist" });
+    public Ytdlp WithFlatPlaylist() => AddFlag("--flat-playlist");
 
     // 35. Write info.json metadata file
-    public Ytdlp WithWriteInfoJson()
-        => new Ytdlp(this, extraFlags: new[] { "--write-info-json" });
+    public Ytdlp WithWriteInfoJson() => AddFlag("--write-info-json");
 
     // 36. Clean info.json (remove private/empty fields)
-    public Ytdlp WithCleanInfoJson()
-        => new Ytdlp(this, extraFlags: new[] { "--clean-info-json" });
+    public Ytdlp WithCleanInfoJson() => AddFlag("--clean-info-json");
 
     // 37. No clean info.json (keep all fields)
-    public Ytdlp WithNoCleanInfoJson()
-        => new Ytdlp(this, extraFlags: new[] { "--no-clean-info-json" });
+    public Ytdlp WithNoCleanInfoJson() => AddFlag("--no-clean-info-json");
 
     // 38. Simulate only (do not download anything – useful for testing/format listing)
-    public Ytdlp WithSimulate()
-        => new Ytdlp(this, extraFlags: new[] { "--simulate" });
+    public Ytdlp WithSimulate() => AddFlag("--simulate");
 
     // 39. Skip actual download (but do post-processing if applicable)
-    public Ytdlp WithSkipDownload()
-        => new Ytdlp(this, extraFlags: new[] { "--skip-download" });
+    public Ytdlp WithSkipDownload() => AddFlag("--skip-download");
 
     // 40. Write description to .description file
-    public Ytdlp WithWriteDescription()
-        => new Ytdlp(this, extraFlags: new[] { "--write-description" });
+    public Ytdlp WithWriteDescription() => AddFlag("--write-description");
 
     // 41. Keep intermediate video file after post-processing
-    public Ytdlp WithKeepVideo()
-        => new Ytdlp(this, extraFlags: new[] { "-k", "--keep-video" });
+    public Ytdlp WithKeepVideo() => new Ytdlp(this, extraFlags: new[] { "-k", "--keep-video" });
 
     // 42. Do not overwrite post-processed files
-    public Ytdlp WithNoPostOverwrites()
-        => new Ytdlp(this, extraFlags: new[] { "--no-post-overwrites" });
+    public Ytdlp WithNoPostOverwrites() => AddFlag("--no-post-overwrites");
 
     // 43. Force keyframes at cuts (important when using --download-sections)
 
@@ -520,8 +469,7 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(format))
             throw new ArgumentException("Remux format cannot be empty", nameof(format));
 
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--remux-video", format.Trim().ToLowerInvariant()) });
+        return AddOption("--remux-video", format.Trim().ToLowerInvariant());
     }
 
     // 45. Recode / re-encode video into specified format
@@ -531,8 +479,7 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(format))
             throw new ArgumentException("Recode format cannot be empty", nameof(format));
 
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--recode-video", format.Trim().ToLowerInvariant()) });
+        return AddOption("--recode-video", format.Trim().ToLowerInvariant());
     }
 
     // 46. Convert thumbnails to specified format
@@ -542,21 +489,17 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(format))
             throw new ArgumentException("Thumbnail format cannot be empty", nameof(format));
 
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--convert-thumbnails", format.Trim().ToLowerInvariant()) });
+        return AddOption("--convert-thumbnails", format.Trim().ToLowerInvariant());
     }
 
     // 48. Postprocessor arguments for Merger (most common use-case)
-    public Ytdlp WithMergerArgs(string args)
-        => WithPostprocessorArgs("Merger", args);
+    public Ytdlp WithMergerArgs(string args) => WithPostprocessorArgs("Merger", args);
 
     // 49. Postprocessor arguments for ModifyChapters
-    public Ytdlp WithModifyChaptersArgs(string args)
-        => WithPostprocessorArgs("ModifyChapters", args);
+    public Ytdlp WithModifyChaptersArgs(string args) => WithPostprocessorArgs("ModifyChapters", args);
 
     // 50. Postprocessor arguments for ExtractAudio
-    public Ytdlp WithExtractAudioArgs(string args)
-        => WithPostprocessorArgs("ExtractAudio", args);
+    public Ytdlp WithExtractAudioArgs(string args) => WithPostprocessorArgs("ExtractAudio", args);
 
     // Bonus – common combo: remux to mp4 + embed metadata + chapters + thumbnail
     public Ytdlp WithMp4PostProcessingPreset()
@@ -576,12 +519,10 @@ public sealed class Ytdlp : IAsyncDisposable
             });
 
     // 51. Download livestream from the start (when possible)
-    public Ytdlp WithLiveFromStart()
-        => new Ytdlp(this, extraFlags: new[] { "--live-from-start" });
+    public Ytdlp WithLiveFromStart() => AddFlag("--live-from-start");
 
     // 52. Explicitly disable downloading from the beginning of a live stream
-    public Ytdlp WithNoLiveFromStart()
-        => new Ytdlp(this, extraFlags: new[] { "--no-live-from-start" });
+    public Ytdlp WithNoLiveFromStart() => AddFlag("--no-live-from-start");
 
     // 53. Wait for a scheduled live stream to start
     public Ytdlp WithWaitForVideo(TimeSpan? maxWait = null)
@@ -599,16 +540,13 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     // 54. Wait until the live stream actually ends before finishing
-    public Ytdlp WithWaitUntilLiveEnds()
-        => new Ytdlp(this, extraFlags: new[] { "--wait-for-video-to-end" });
+    public Ytdlp WithWaitUntilLiveEnds() => AddFlag("--wait-for-video-to-end");
 
     // 55. Use mpegts container/format for HLS live streams (better compatibility in some players)
-    public Ytdlp WithHlsUseMpegts()
-        => new Ytdlp(this, extraFlags: new[] { "--hls-use-mpegts" });
+    public Ytdlp WithHlsUseMpegts() => AddFlag("--hls-use-mpegts");
 
     // 56. Do not use mpegts for HLS (use default fragmented mp4)
-    public Ytdlp WithNoHlsUseMpegts()
-        => new Ytdlp(this, extraFlags: new[] { "--no-hls-use-mpegts" });
+    public Ytdlp WithNoHlsUseMpegts() => AddFlag("--no-hls-use-mpegts");
 
     // 57. External downloader for live streams (e.g. ffmpeg, aria2c, ...)
     public Ytdlp WithExternalDownloader(string downloaderName, string? downloaderArgs = null)
@@ -627,21 +565,18 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     // 58. Use ffmpeg as external downloader for live streams (most common choice)
-    public Ytdlp WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null)
-        => WithExternalDownloader("ffmpeg", extraFfmpegArgs);
+    public Ytdlp WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null) => WithExternalDownloader("ffmpeg", extraFfmpegArgs);
 
     // 59. Set fragment retries specifically useful for unstable live streams
     public Ytdlp WithFragmentRetries(int retries)
     {
         // -1 = infinite
         string value = retries < 0 ? "infinite" : retries.ToString();
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--fragment-retries", value) });
+        return AddOption("--fragment-retries", value);
     }
 
     // 60. Prefer native HLS downloader (instead of ffmpeg) – sometimes more stable
-    public Ytdlp WithHlsNative()
-        => new Ytdlp(this, extraOptions: new[] { ("--downloader", "hlsnative") });
+    public Ytdlp WithHlsNative() => AddOption("--downloader", "hlsnative");
 
 
     // 63. Maximum video height / resolution limit
@@ -663,46 +598,36 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     // 65. Best video + best audio (classic high-quality merge)
-    public Ytdlp WithBestVideoPlusBestAudio()
-        => new Ytdlp(this, format: "bestvideo+bestaudio/best");
+    public Ytdlp WithBestVideoPlusBestAudio() => new Ytdlp(this, format: "bestvideo+bestaudio/best");
 
     // 67. Best video up to 720p + best audio
-    public Ytdlp With720pOrBest()
-        => new Ytdlp(this, format: "bv*[height<=?720]+ba/best/best");
-    
+    public Ytdlp With720pOrBest() => new Ytdlp(this, format: "bv*[height<=?720]+ba/best/best");
+
 
     // 68. Audio-only – best quality audio
-    public Ytdlp WithBestAudioOnly()
-        => new Ytdlp(this, format: "bestaudio");
+    public Ytdlp WithBestAudioOnly() => new Ytdlp(this, format: "bestaudio");
 
     // 69. Prefer video formats with higher bitrate (when resolution is similar)
-    public Ytdlp WithFormatSortBitrate()
-        => new Ytdlp(this, extraOptions: new[] { ("-S", "br") });
+    public Ytdlp WithFormatSortBitrate() => AddOption("-S", "br");
 
     // 70. Prefer formats with higher resolution first, then bitrate
-    public Ytdlp WithFormatSortResolutionThenBitrate()
-        => new Ytdlp(this, extraOptions: new[] { ("-S", "res,br") });
+    public Ytdlp WithFormatSortResolutionThenBitrate() => AddOption("-S", "res,br");
 
 
     // Bonus A – very popular preset
-    public Ytdlp WithBestUpTo1440p()
-        => new Ytdlp(this, format: "bestvideo[height<=?1440]+bestaudio/best");
+    public Ytdlp WithBestUpTo1440p() => new Ytdlp(this, format: "bestvideo[height<=?1440]+bestaudio/best");
 
     // Bonus B – avoid very high resolutions (4K+)
-    public Ytdlp WithNo4k()
-        => new Ytdlp(this, format: "bestvideo[height<=?2160]+bestaudio/best");
+    public Ytdlp WithNo4k() => new Ytdlp(this, format: "bestvideo[height<=?2160]+bestaudio/best");
 
     // Bonus C – audio-only with specific codec preference
-    public Ytdlp WithBestM4aAudio()
-        => new Ytdlp(this, format: "bestaudio[ext=m4a]/bestaudio/best");
+    public Ytdlp WithBestM4aAudio() => new Ytdlp(this, format: "bestaudio[ext=m4a]/bestaudio/best");
 
     // 71. Restrict filenames to ASCII-only + avoid problematic characters
-    public Ytdlp WithRestrictFilenames()
-        => new Ytdlp(this, extraFlags: new[] { "--restrict-filenames" });
+    public Ytdlp WithRestrictFilenames() => AddFlag("--restrict-filenames");
 
     // 72. Force Windows-compatible filenames (avoid reserved names, invalid chars)
-    public Ytdlp WithWindowsFilenames()
-        => new Ytdlp(this, extraFlags: new[] { "--windows-filenames" });
+    public Ytdlp WithWindowsFilenames() => AddFlag("--windows-filenames");
 
     // 73. Limit filename length (excluding extension)
     public Ytdlp WithTrimFilenames(int maxLength)
@@ -710,129 +635,47 @@ public sealed class Ytdlp : IAsyncDisposable
         if (maxLength < 10)
             throw new ArgumentOutOfRangeException(nameof(maxLength), "Length should be at least 10 characters");
 
-        return new Ytdlp(this,
-            extraOptions: new[] { ("--trim-filenames", maxLength.ToString()) });
+        return AddOption("--trim-filenames", maxLength.ToString());
     }
 
     // 74. No overwrite existing files
-    public Ytdlp WithNoOverwrites()
-        => new Ytdlp(this, extraFlags: new[] { "--no-overwrites" });
+    public Ytdlp WithNoOverwrites() => AddFlag("--no-overwrites");
 
     // 75. Force overwrite existing files
-    public Ytdlp WithForceOverwrites()
-        => new Ytdlp(this, extraFlags: new[] { "--force-overwrites" });
+    public Ytdlp WithForceOverwrites() => AddFlag("--force-overwrites");
 
     // 76. Continue partially downloaded files
-    public Ytdlp WithContinue()
-        => new Ytdlp(this, extraFlags: new[] { "--continue" });
+    public Ytdlp WithContinue() => AddFlag("--continue");
 
     // 77. Do not continue partially downloaded files (start from beginning)
-    public Ytdlp WithNoContinue()
-        => new Ytdlp(this, extraFlags: new[] { "--no-continue" });
+    public Ytdlp WithNoContinue() => AddFlag("--no-continue");
 
     // 78. Use .part files during download
-    public Ytdlp WithPartFiles()
-        => new Ytdlp(this, extraFlags: new[] { "--part" });
+    public Ytdlp WithPartFiles() => AddFlag("--part");
 
     // 79. Do not use .part files (write directly to final filename)
-    public Ytdlp WithNoPartFiles()
-        => new Ytdlp(this, extraFlags: new[] { "--no-part" });
+    public Ytdlp WithNoPartFiles() => AddFlag("--no-part");
 
     // 80. Use server mtime (Last-Modified header) for file timestamp
-    public Ytdlp WithMtime()
-        => new Ytdlp(this, extraFlags: new[] { "--mtime" });
+    public Ytdlp WithMtime() => AddFlag("--mtime");
 
 
-    public Ytdlp AddFlag(string flag)
-        => new Ytdlp(this, extraFlags: new[] { flag.Trim() });
+    public Ytdlp AddFlag(string flag) => new Ytdlp(this, extraFlags: new[] { flag.Trim() });
 
-    public Ytdlp AddOption(string key, string? value = null)
-        => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
+    public Ytdlp AddOption(string key, string? value = null) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
 
-    // ────────────────────────────────────────────── Command building (called only at execution time)
+    #endregion
+         
+    #region Execution & Utility Methods
 
-    private List<string> BuildArguments(string url)
-    {
-        var args = new List<string>();
-
-        // Paths — use home, temp, and outputFolder separately
-        if (!string.IsNullOrWhiteSpace(_homeFolder))
-        {
-            args.Add("--paths");
-            args.Add($"home:{_homeFolder}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(_tempFolder))
-        {
-            args.Add("--paths");
-            args.Add($"temp:{_tempFolder}");
-        }
-
-        // Output folder is only for -o template
-        if (!string.IsNullOrWhiteSpace(_outputFolder) && !string.IsNullOrWhiteSpace(_outputTemplate))
-        {
-            // Combine folder + template
-            string fullOutputPath = Path.Combine(_outputFolder, _outputTemplate)
-                                        .Replace('\\', '/'); // yt-dlp prefers forward slashes
-            args.Add("-o");
-            args.Add(fullOutputPath);
-        }
-        else if (!string.IsNullOrWhiteSpace(_outputTemplate))
-        {
-            args.Add("-o");
-            args.Add(_outputTemplate);
-        }
-
-        // Format
-        if (!string.IsNullOrWhiteSpace(_format))
-        {
-            args.Add("-f");
-            args.Add(_format);
-        }
-
-        // Concurrent fragments
-        if (_concurrentFragments > 1)
-        {
-            args.Add("--concurrent-fragments");
-            args.Add(_concurrentFragments.Value.ToString());
-        }
-
-        // Flags
-        if (_flags.Length > 0)
-            args.AddRange(_flags);
-
-        // Options
-        if (_options.Length > 0)
-        {
-            foreach (var kv in _options)
-            {
-                args.Add(kv.Key);
-                if (kv.Value != null)
-                    args.Add(kv.Value);
-            }
-        }
-
-        // Special single-value options
-        if (_cookiesFile is not null) { args.Add("--cookies"); args.Add(_cookiesFile); }
-        if (_cookiesFromBrowser is not null) { args.Add("--cookies-from-browser"); args.Add(Quote(_cookiesFromBrowser)); }
-        if (_proxy is not null) { args.Add("--proxy"); args.Add(_proxy); }
-        if (_ffmpegLocation is not null) { args.Add("--ffmpeg-location"); args.Add(_ffmpegLocation); }
-        if (_sponsorblockRemove is not null) { args.Add("--sponsorblock-remove"); args.Add(_sponsorblockRemove); }
-
-        // URL last
-        args.Add(url);
-
-        return args;
-    }
-
-    public string Preview(string url)
-    {
-        var argsList = BuildArguments(url);
-        return string.Join(" ", argsList.Select(Quote));
-    }
-
-    // ────────────────────────────────────────────── Execution
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="url"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="YtdlpException"></exception>
     public async Task ExecuteAsync(string url, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -840,16 +683,22 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL required", nameof(url));
 
-        // Ensure output folder exists
+        // Ensure directories exist if needed
         try
         {
-            Directory.CreateDirectory(_outputFolder);
-            _logger.Log(LogType.Info, $"Ensured output folder exists: {_outputFolder}");
+            if (!string.IsNullOrWhiteSpace(_outputFolder))
+                Directory.CreateDirectory(_outputFolder);
+
+            if (!string.IsNullOrWhiteSpace(_homeFolder))
+                Directory.CreateDirectory(_homeFolder);
+
+            if (!string.IsNullOrWhiteSpace(_tempFolder))
+                Directory.CreateDirectory(_tempFolder);
         }
         catch (Exception ex)
         {
-            _logger.Log(LogType.Error, $"Failed to create output folder: {ex.Message}");
-            throw new YtdlpException("Failed to create output folder", ex);
+            _logger.Log(LogType.Error, $"Failed to create necessary folders: {ex.Message}");
+            throw new YtdlpException("Failed to create required folders", ex);
         }
 
         var argsList = BuildArguments(url);
@@ -893,36 +742,16 @@ public sealed class Ytdlp : IAsyncDisposable
         }
     }
 
-    // ────────────────────────────────────────────── Helpers
-
-    private static string ValidatePath(string path)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="url"></param>
+    /// <returns></returns>
+    public string Preview(string url)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("yt-dlp path cannot be empty");
-
-        if (!File.Exists(path) && !IsExecutableInPath(path))
-            throw new FileNotFoundException($"yt-dlp executable not found: {path}");
-
-        return path;
+        var argsList = BuildArguments(url);
+        return string.Join(" ", argsList.Select(Quote));
     }
-
-    private static bool IsExecutableInPath(string name)
-    {
-        return Environment.GetEnvironmentVariable("PATH")?
-            .Split(Path.PathSeparator)
-            .Any(p => File.Exists(Path.Combine(p, name))) ?? false;
-    }
-
-    private static string Quote(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return "\"\"";
-        // Escape " and \
-        string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
-        return $"\"{escaped}\"";
-    }
-
-    #region Execution & Utility Methods
-
 
     /// <summary>
     /// Retrieves the current version string of the underlying yt-dlp executable.
@@ -1278,15 +1107,7 @@ public sealed class Ytdlp : IAsyncDisposable
 
         return best?.FormatId ?? "bestvideo";
     }
-
-
-    private ProbeRunner Probe()
-    {
-        // Create isolated execution components
-        var factory = new ProcessFactory(_ytdlpPath);
-        return new ProbeRunner(factory, _logger);
-    }
-
+     
 
     /// <summary>
     /// Executes batch download processing for a collection of URLs with a specified concurrency limit.
@@ -1304,17 +1125,6 @@ public sealed class Ytdlp : IAsyncDisposable
         {
             _logger.Log(LogType.Error, "No URLs provided for batch download");
             throw new YtdlpException("No URLs provided for batch download");
-        }
-
-        try
-        {
-            Directory.CreateDirectory(_outputFolder);
-            _logger.Log(LogType.Info, $"Output folder for batch: {Path.GetFullPath(_outputFolder)}");
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Failed to create output folder {_outputFolder}: {ex.Message}");
-            throw new YtdlpException($"Failed to create output folder {_outputFolder}", ex);
         }
 
         using SemaphoreSlim throttler = new(maxConcurrency);
@@ -1341,7 +1151,128 @@ public sealed class Ytdlp : IAsyncDisposable
 
     #endregion
 
-    #region Private Helpers
+    #region Helpers
+    
+    // Get probe runner
+    private ProbeRunner Probe()
+    {
+        // Create isolated execution components
+        var factory = new ProcessFactory(_ytdlpPath);
+        return new ProbeRunner(factory, _logger);
+    }
+
+    // Command building (called only at execution time)
+    private List<string> BuildArguments(string url)
+    {
+        var args = new List<string>();
+
+        bool usingAbsoluteOutput = !string.IsNullOrWhiteSpace(_outputFolder);
+
+        if (usingAbsoluteOutput && !string.IsNullOrWhiteSpace(_tempFolder))
+        {
+            _logger.Log(LogType.Debug, "Temp folder ignored because absolute output template is used.");
+        }
+
+        // temp folder
+        if (!usingAbsoluteOutput && !string.IsNullOrWhiteSpace(_tempFolder))
+        {
+            args.Add("--paths");
+            args.Add($"temp:{_tempFolder.Replace("\\", "/")}");
+        }
+
+        // home folder only if NOT using absolute output
+        if (!usingAbsoluteOutput && !string.IsNullOrWhiteSpace(_homeFolder))
+        {
+            args.Add("--paths");
+            args.Add($"home:{_homeFolder.Replace("\\", "/")}");
+        }
+
+        // Output template
+        if (!string.IsNullOrWhiteSpace(_outputTemplate))
+        {
+            args.Add("-o");
+
+            if (usingAbsoluteOutput)
+            {
+                var full = Path.Combine(_outputFolder!, _outputTemplate)
+                    .Replace("\\", "/");
+
+                args.Add(full);
+            }
+            else
+            {
+                args.Add(_outputTemplate);
+            }
+        }
+
+        // Format
+        if (!string.IsNullOrWhiteSpace(_format))
+        {
+            args.Add("-f");
+            args.Add(_format);
+        }
+
+        // Concurrent fragments
+        if (_concurrentFragments > 1)
+        {
+            args.Add("--concurrent-fragments");
+            args.Add(_concurrentFragments.Value.ToString());
+        }
+
+        // Flags
+        if (_flags.Length > 0)
+            args.AddRange(_flags);
+
+        // Options
+        if (_options.Length > 0)
+        {
+            foreach (var kv in _options)
+            {
+                args.Add(kv.Key);
+                if (kv.Value != null)
+                    args.Add(kv.Value);
+            }
+        }
+
+        // Special single-value options
+        if (_cookiesFile is not null) { args.Add("--cookies"); args.Add(_cookiesFile); }
+        if (_cookiesFromBrowser is not null) { args.Add("--cookies-from-browser"); args.Add(Quote(_cookiesFromBrowser)); }
+        if (_proxy is not null) { args.Add("--proxy"); args.Add(_proxy); }
+        if (_ffmpegLocation is not null) { args.Add("--ffmpeg-location"); args.Add(_ffmpegLocation); }
+        if (_sponsorblockRemove is not null) { args.Add("--sponsorblock-remove"); args.Add(_sponsorblockRemove); }
+
+        // URL last
+        args.Add(url);
+
+        return args;
+    }
+
+    private static string ValidatePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("yt-dlp path cannot be empty");
+
+        if (!File.Exists(path) && !IsExecutableInPath(path))
+            throw new FileNotFoundException($"yt-dlp executable not found: {path}");
+
+        return path;
+    }
+
+    private static bool IsExecutableInPath(string name)
+    {
+        return Environment.GetEnvironmentVariable("PATH")?
+            .Split(Path.PathSeparator)
+            .Any(p => File.Exists(Path.Combine(p, name))) ?? false;
+    }
+
+    private static string Quote(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "\"\"";
+        // Escape " and \
+        string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        return $"\"{escaped}\"";
+    }
+
     private List<Format> ParseFormats(string result)
     {
         var formats = new List<Format>();

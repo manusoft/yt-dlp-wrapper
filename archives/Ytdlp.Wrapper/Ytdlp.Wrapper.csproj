@@ -7,18 +7,18 @@
 	<NoWarn>CS0649,CS8600,CS8601,CS8604,CS8618,CS8625</NoWarn>
 	<AssemblyName>YtDlpWrapper</AssemblyName>
 	<RootNamespace>YtDlpWrapper</RootNamespace>
-	<PackageId>YTDLP-Wrapper</PackageId>
-	<Description>YtDlpWrapper is a C# wrapper for yt-dlp, an audio and video downloader with support for thousands of sites. Easily download videos, audio, subtitles, and thumbnails, or fetch video/playlist information with a simple API.</Description>
-	<Copyright>Copyright © 2025 ManuHub</Copyright>
+	<PackageId>Ytdlp-Wrapper</PackageId>
+	<Description>Ytdlp Wrapper is a .NET wrapper for yt-dlp, an audio and video downloader with support for thousands of sites. Easily download videos, audio, subtitles, and thumbnails, or fetch video/playlist information with a simple API.</Description>
+	<Copyright>Copyright © 2026 ManuHub</Copyright>
 	<Authors>Manojbabu</Authors>
 	<PackageTags>youtube;download;yt-dlp;fast;audio;video</PackageTags>
-	<PackageProjectUrl>https://github.com/manusoft/yt-dlp-wrapper</PackageProjectUrl>
-	<RepositoryUrl>https://github.com/manusoft/yt-dlp-wrapper</RepositoryUrl>
+	<PackageProjectUrl>https://github.com/manusoft/Ytdlp.NET</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/manusoft/Ytdlp.NET</RepositoryUrl>
 	<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 	<Icon>icon.png</Icon>
 	<PackageIcon>icon.png</PackageIcon>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<Version>1.1.0</Version>
+	<Version>1.1.1</Version>
 	<IsPackable>true</IsPackable>
 	<AotAssemblies>true</AotAssemblies>
   </PropertyGroup>

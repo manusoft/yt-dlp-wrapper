@@ -5,18 +5,18 @@ namespace ManuHub.Ytdlp.NET.Core;
 
 public sealed class ProcessFactory
 {
-    private readonly string _ytDlpPath;
+    private readonly string _ytdlpPath;
 
-    public ProcessFactory(string ytDlpPath)
+    public ProcessFactory(string ytdlpPath)
     {
-        _ytDlpPath = ytDlpPath;
+        _ytdlpPath = ytdlpPath;
     }
 
     public Process Create(string arguments)
     {
         var psi = new ProcessStartInfo
         {
-            FileName = _ytDlpPath,
+            FileName = _ytdlpPath,
             Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
