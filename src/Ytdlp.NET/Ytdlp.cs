@@ -13,7 +13,7 @@ namespace ManuHub.Ytdlp.NET;
 /// </summary>
 /// <remarks>
 /// <strong>THREAD-SAFE:</strong> Multiple threads can safely use the same <see cref="Ytdlp"/> instance concurrently.
-/// Each call to <see cref="ExecuteAsync"/> creates isolated runners and parsers, preventing race conditions 
+/// Each call to <see cref="DownloadAsync"/> creates isolated runners and parsers, preventing race conditions 
 /// and shared state issues.
 ///
 /// Example of safe concurrent usage:
@@ -35,7 +35,7 @@ namespace ManuHub.Ytdlp.NET;
 /// immutability and thread-safety.
 ///
 /// <strong>Resource cleanup:</strong> Internal runners and parsers are disposed automatically after each 
-/// <see cref="ExecuteAsync"/> call. For advanced scenarios, future versions may implement <see cref="IAsyncDisposable"/> 
+/// <see cref="DownloadAsync"/> call. For advanced scenarios, future versions may implement <see cref="IAsyncDisposable"/> 
 /// for global disposal of resources and cancellation support.
 /// </remarks>
 public sealed class Ytdlp : IAsyncDisposable
@@ -153,21 +153,70 @@ public sealed class Ytdlp : IAsyncDisposable
     #region General Options
 
     /// <summary>
+    /// Ignore download and postprocessing errors. The download will be considered successful even if the postprocessing fails
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithIgnoreErrors() => AddFlag("--ignore-errors");
+
+    /// <summary>
+    /// IgAbort downloading of further videos if an error occurs 
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithAbortOnError() => AddFlag("--abort-on-error");
+
+    /// <summary>
+    /// Don't load any more configuration files except those given to <see cref="WithConfigLocations(string)"/>.
+    /// For backward compatibility, if this option is found inside the system configuration file, the user configuration is not loaded.
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithIgnoreConfig() => AddFlag("--ignore-config");
+
+    /// <summary>
+    /// Location of the main configuration file;either the path to the config or its containing directory ("-" for stdin). 
+    /// Can be used multiple times and inside other configuration files.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public Ytdlp WithConfigLocations(string path) 
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Config folder path required");
+         return AddOption("--config-locations", Path.GetFullPath(path)); 
+    }
+
+    /// <summary>
+    /// Path to an additional directory to search for plugins. This option can be used multiple times to add multiple directories.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public Ytdlp WithPluginDirs(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("plugin folder path required");
+        return AddOption("--plugin-dirs", path);
+    }
+
+    /// <summary>
+    /// Clear plugin directories to search, including defaults and those provided by previous <see cref="WithPluginDirs(string)"/>
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public Ytdlp WithNoPluginDirs(string path) => AddFlag("--no-plugin-dirs");
+
+    /// <summary>
     /// Additional JavaScript runtime to enable, with an optional location for the runtime (either the path to the binary or its containing directory).
     /// This option can be used multiple times to enable multiple runtimes. Supported runtimes are (in order of priority, from highest to lowest): deno, node, quickjs, bun.
     /// Only "deno" is enabled by default. The highest priority runtime that is both enabled and available will be used. 
-    /// In order to use a lower priority runtime when "deno" is available, NoJsRuntime() needs to be passed before enabling other runtimes
+    /// In order to use a lower priority runtime when "deno" is available, <see cref="WithNoJsRuntime"/> needs to be passed before enabling other runtimes
     /// </summary>
     /// <param name="runtime">Supported runtimes are deno, node, quickjs, bun</param>
     /// <param name="runtimePath"></param>
-    public Ytdlp WithJsRuntime(Runtime runtime, string runtimePath)
+    public Ytdlp WithJsRuntime(Runtime runtime, string path)
     {
-        var builder = $"{runtime}:{runtimePath}";
+        var builder = $"{runtime}:{path}";
         return AddOption("--js-runtime", builder);
     }
 
     /// <summary>
-    /// Clear JavaScript runtimes to enable, including defaults and those provided by WithJsRuntime()
+    /// Clear JavaScript runtimes to enable, including defaults and those provided by <see cref="WithJsRuntime(Runtime, string)"/>
     /// </summary>
     public Ytdlp WithNoJsRuntime() => AddFlag("--no-js-runtime");
 
@@ -239,7 +288,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <summary>
     /// Enable file:// URLs. This is disabled by default for security reasons.
     /// </summary>
-    public Ytdlp WithEnableFileUrl() => AddFlag("--enable-file-url");
+    public Ytdlp WithEnableFileUrls() => AddFlag("--enable-file-urls");
 
     #endregion
 
@@ -247,7 +296,7 @@ public sealed class Ytdlp : IAsyncDisposable
 
     /// <summary>
     /// Use this proxy to verify the IP address for some geo-restricted sites. 
-    /// The default proxy specified by WithProxy() (or none, if the option is not present) is used for the actual downloading
+    /// The default proxy specified by <see cref="WithProxy(string?)"/> (or none, if the option is not present) is used for the actual downloading
     /// </summary>
     /// <param name="url"></param>
     /// <returns></returns>
@@ -323,6 +372,30 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     /// <summary>
+    /// Download only videos uploaded on or before this date. The date formats accepted are the same as <see cref="WithDate(string)"/>
+    /// </summary>
+    /// <param name="date">"today-2weeks" or "YYYYMMDD"</param>
+    public Ytdlp WithDateBefore(string date)
+    {
+        // formats: YYYYMMDD, today, yesterday, now-2weeks, etc.
+        if (string.IsNullOrWhiteSpace(date))
+            throw new ArgumentException("Date cannot be empty", nameof(date));
+        return AddOption("--datebefore", date.Trim());
+    }
+
+    /// <summary>
+    /// Download only videos uploaded on or after this date. The date formats accepted are the same as <see cref="WithDate(string)"/>
+    /// </summary>
+    /// <param name="date">"today-2weeks" or "YYYYMMDD"</param>
+    public Ytdlp WithDateAfter(string date)
+    {
+        // formats: YYYYMMDD, today, yesterday, now-2weeks, etc.
+        if (string.IsNullOrWhiteSpace(date))
+            throw new ArgumentException("Date cannot be empty", nameof(date));
+        return AddOption("--dateafter", date.Trim());
+    }
+
+    /// <summary>
     /// Generic video filter. Any "OUTPUT TEMPLATE" field can be compared with a number or a string using the operators defined in "Filtering Formats".
     /// </summary>
     /// <param name="filterExpression"></param>
@@ -382,7 +455,7 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     /// <summary>
-    /// Stop the download process when encountering a file that is in the archive supplied with the <see cref="WithDownloadArchive" /> option
+    /// Stop the download process when encountering a file that is in the archive supplied with the <see cref="WithDownloadArchive(string)" /> option
     /// </summary>
     /// <returns></returns>
     public Ytdlp WithBreakOnExisting() => AddFlag("--break-on-existing");
@@ -433,6 +506,18 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     /// <summary>
+    /// Skip unavailable fragments for DASH, hlsnative and ISM downloads (default)
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithSkipUnavailableFragments() => AddFlag("--skip-unavailable-fragments");
+
+    /// <summary>
+    /// Abort download if a fragment is unavailable
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithAbortOnUnavailableFragments() => AddFlag("--abort-on-unavailable-fragments");
+
+    /// <summary>
     /// Keep downloaded fragments on disk after downloading is finished
     /// </summary>
     public Ytdlp WithKeepFragments() => AddFlag("--keep-fragments");
@@ -444,14 +529,15 @@ public sealed class Ytdlp : IAsyncDisposable
     public Ytdlp WithBufferSize(string size) => AddOption("--buffer-size", size);
 
     /// <summary>
+    /// Do not automatically adjust the buffer size
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoResizeBuffer() => AddFlag("--no-resize-buffer");
+
+    /// <summary>
     /// Download playlist videos in random order
     /// </summary>
     public Ytdlp WithPlaylistRandom() => AddFlag("--playlist-random");
-
-    /// <summary>
-    /// Process entries in the playlist as they are received. This disables n_entries, PlaylistRandom() and --playlist-reverse
-    /// </summary>
-    public Ytdlp WithLazyPlaylist() => AddFlag("--lazy-playlist");
 
     /// <summary>
     /// Use the mpegts container for HLS videos; allowing some players to play the video while downloading, 
@@ -459,6 +545,13 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <returns></returns>
     public Ytdlp WithHlsUseMpegts() => AddFlag("--hls-use-mpegts");
+
+    /// <summary>
+    /// Do not use the mpegts container for HLS videos. This is default when not downloading live streams
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoHlsUseMpegts() => AddFlag("--no-hls-use-mpegts");
+
 
     /// <summary>
     /// Download only chapters that match the regular expression. A "*" prefix denotes time-range instead of chapter.
@@ -583,7 +676,7 @@ public sealed class Ytdlp : IAsyncDisposable
     public Ytdlp WithWriteInfoJson() => AddFlag("--write-info-json");
 
     /// <summary>
-    /// Do not write playlist metadata when using WriteVideoMetadata(), WriteVideoDescription()
+    /// Do not write playlist metadata when using <see cref="WithWriteInfoJson"/>, <see cref="WithWriteDescription"/>
     /// </summary>
     public Ytdlp WithNoWritePlaylistMetafiles() => AddFlag("--no-write-playlist-metafiles");
 
@@ -756,6 +849,20 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="format"></param>
     public Ytdlp WithFormat(string format) => new Ytdlp(this, format: format.Trim());
+
+    /// <summary>
+    /// Containers that may be used when merging formats, separated by "/", e.g. "mp4/mkv" Ignored if no merge is required.
+    /// </summary>
+    /// <param name="format">(currently supported: avi, flv, mkv, mov, mp4, webm)</param>
+    /// <returns></returns>
+    public Ytdlp WithMergeOutputFormat(string format)
+    {
+        // Common values: mp4, mkv, webm, mov, avi, flv
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Merge output format cannot be empty", nameof(format));
+
+        return AddOption("--merge-output-format", format.Trim().ToLowerInvariant());
+    }
 
     #endregion
 
@@ -946,7 +1053,14 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="format">(currently supported: jpg, png, webp)</param>
     /// <returns></returns>
-    public Ytdlp WithConvertthumbnails(string format = "none") => AddOption("--convert-thumbnails", format);
+    public Ytdlp WithConvertThumbnails(string format = "jpg")
+    {
+        // Supported: jpg, png, webp
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Thumbnail format cannot be empty", nameof(format));
+
+        return AddOption("--convert-thumbnails", format.Trim().ToLowerInvariant());
+    }
 
     /// <summary>
     /// Force keyframes at cuts when downloading/splitting/removing sections. 
@@ -990,7 +1104,7 @@ public sealed class Ytdlp : IAsyncDisposable
     public Ytdlp AddOption(string key, string value) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
     #endregion
 
-
+    #region Downloaders
     public Ytdlp WithExternalDownloader(string downloaderName, string? downloaderArgs = null)
     {
         if (string.IsNullOrWhiteSpace(downloaderName))
@@ -1018,6 +1132,8 @@ public sealed class Ytdlp : IAsyncDisposable
     public Ytdlp WithHlsNative() => AddOption("--downloader", "hlsnative");
 
     public Ytdlp WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null) => WithExternalDownloader("ffmpeg", extraFfmpegArgs);
+
+    #endregion
 
     #region Redundant options
 
@@ -1076,54 +1192,15 @@ public sealed class Ytdlp : IAsyncDisposable
     public Ytdlp WithBreakOnReject() => AddFlag("--break-on-reject");
     #endregion
 
+    #region Bonus
 
-
-
-    // Nice-to-have #18 – very popular for high-quality + fallback
+    public Ytdlp WithBestUpTo1440p() => new Ytdlp(this, format: "bestvideo[height<=?1440]+bestaudio/best");
     public Ytdlp With1080pOrBest() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
 
-
-
-
-
-    // 29. No prefer free formats (default behavior - explicit)
-    public Ytdlp WithNoPreferFreeFormats() => AddFlag("--no-prefer-free-formats");
-
-    // 30. Merge output format (force container after download & post-processing)
-    public Ytdlp WithMergeOutputFormat(string format)
-    {
-        // Common values: mp4, mkv, webm, mov, avi, flv
-        if (string.IsNullOrWhiteSpace(format))
-            throw new ArgumentException("Merge output format cannot be empty", nameof(format));
-
-        return AddOption("--merge-output-format", format.Trim().ToLowerInvariant());
-    }
-
-    // Bonus 31 – very popular shortcut
     public Ytdlp WithBestUpTo1080p() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
 
+    public Ytdlp With720pOrBest() => new Ytdlp(this, format: "bv*[height<=?720]+ba/best/best");
 
-    // 45. Recode / re-encode video into specified format
-    public Ytdlp WithRecodeVideo(string format = "mp4")
-    {
-        // Supported: mp4, mkv, avi, webm, flv, mov, ...
-        if (string.IsNullOrWhiteSpace(format))
-            throw new ArgumentException("Recode format cannot be empty", nameof(format));
-
-        return AddOption("--recode-video", format.Trim().ToLowerInvariant());
-    }
-
-    // 46. Convert thumbnails to specified format
-    public Ytdlp WithConvertThumbnails(string format = "jpg")
-    {
-        // Supported: jpg, png, webp
-        if (string.IsNullOrWhiteSpace(format))
-            throw new ArgumentException("Thumbnail format cannot be empty", nameof(format));
-
-        return AddOption("--convert-thumbnails", format.Trim().ToLowerInvariant());
-    }
-
-    // Bonus – common combo: remux to mp4 + embed metadata + chapters + thumbnail
     public Ytdlp WithMp4PostProcessingPreset()
         => this
             .WithRemuxVideo(MediaFormat.Mp4)
@@ -1131,30 +1208,11 @@ public sealed class Ytdlp : IAsyncDisposable
             .WithEmbedChapters()
             .WithEmbedThumbnail();
 
-    // Bonus – force mkv container (popular for archiving)
     public Ytdlp WithMkvOutput()
-        => new Ytdlp(this,
-            extraOptions: new[]
-            {
-            ("--remux-video", "mkv"),
-            ("--merge-output-format", "mkv")
-            });
+        => this
+            .WithRemuxVideo(MediaFormat.Mkv)
+            .WithMergeOutputFormat("mkv");
 
-
-
-
-
-    // 56. Do not use mpegts for HLS (use default fragmented mp4)
-    public Ytdlp WithNoHlsUseMpegts() => AddFlag("--no-hls-use-mpegts");
-
-    // 57. External downloader for live streams (e.g. ffmpeg, aria2c, ...)
-
-
-    // 58. Use ffmpeg as external downloader for live streams (most common choice)
-
-
-
-    // 63. Maximum video height / resolution limit
     public Ytdlp WithMaxHeight(int height)
     {
         if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height), "Height must be positive");
@@ -1163,7 +1221,6 @@ public sealed class Ytdlp : IAsyncDisposable
         return new Ytdlp(this, format: formatSelector);
     }
 
-    // 64. Maximum video height with fallback to best available
     public Ytdlp WithMaxHeightOrBest(int height)
     {
         if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height), "Height must be positive");
@@ -1172,25 +1229,18 @@ public sealed class Ytdlp : IAsyncDisposable
         return new Ytdlp(this, format: formatSelector);
     }
 
-    // 65. Best video + best audio (classic high-quality merge)
     public Ytdlp WithBestVideoPlusBestAudio() => new Ytdlp(this, format: "bestvideo+bestaudio/best");
 
-    // 67. Best video up to 720p + best audio
-    public Ytdlp With720pOrBest() => new Ytdlp(this, format: "bv*[height<=?720]+ba/best/best");
-
-    // 68. Audio-only – best quality audio
     public Ytdlp WithBestAudioOnly() => new Ytdlp(this, format: "bestaudio");
 
-    // Bonus A – very popular preset
-    public Ytdlp WithBestUpTo1440p() => new Ytdlp(this, format: "bestvideo[height<=?1440]+bestaudio/best");
-
-    // Bonus B – avoid very high resolutions (4K+)
     public Ytdlp WithNo4k() => new Ytdlp(this, format: "bestvideo[height<=?2160]+bestaudio/best");
 
-    // Bonus C – audio-only with specific codec preference
     public Ytdlp WithBestM4aAudio() => new Ytdlp(this, format: "bestaudio[ext=m4a]/bestaudio/best");
+    #endregion
 
-
+    // ==================================================================================================================
+    // Probe and Download Functions
+    // ==================================================================================================================
 
     #region Execution & Utility Methods
 
@@ -1246,6 +1296,44 @@ public sealed class Ytdlp : IAsyncDisposable
         return "yt-dlp update check completed (no changes detected).";
 
 
+    }
+
+    /// <summary>
+    /// List all supported extractors and exit
+    /// </summary>
+    /// <param name="ct"></param>
+    /// <param name="bufferKb">Buffer size in KB.</param>
+    /// <returns>List of extractor names</returns>
+    public async Task<List<string>> ExtractorsAsync(CancellationToken ct = default, int bufferKb = 128)
+    {
+        try
+        {
+            List<string> list = new();
+            var result = await Probe().RunAsync("--list-extractors", ct, bufferKb);
+
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                _logger.Log(LogType.Warning, "Empty extractor list.");
+                return list;
+            }
+
+            var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            foreach (var line in lines)
+                list.Add(line);
+
+            return list;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Extractors fetch cancelled.");
+            return new List<string>();
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Extrators fetch failed: {ex.Message}");
+            return new List<string>();
+        }
     }
 
     /// <summary>
@@ -1568,7 +1656,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="YtdlpException"></exception>
-    public async Task ExecuteAsync(string url, CancellationToken ct = default)
+    public async Task DownloadAsync(string url, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -1644,7 +1732,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// A <see cref="Task"/> representing the asynchronous execution of the process.
     /// </returns>
     /// <exception cref="YtdlpException"></exception>
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default)
+    public async Task DownloadBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default)
     {
         if (urls == null || !urls.Any())
         {
@@ -1659,7 +1747,7 @@ public sealed class Ytdlp : IAsyncDisposable
             await throttler.WaitAsync();
             try
             {
-                await ExecuteAsync(url, ct);
+                await DownloadAsync(url, ct);
             }
             catch (YtdlpException ex)
             {
@@ -1686,7 +1774,6 @@ public sealed class Ytdlp : IAsyncDisposable
         return new ProbeRunner(factory, _logger);
     }
 
-    // Command building (called only at execution time)
     private List<string> BuildArguments(string url)
     {
         var args = new List<string>();

@@ -16,7 +16,7 @@
 
 ![Screenshot 2025-01-23 153252](https://github.com/user-attachments/assets/1b977927-ea26-4220-bd41-9f64d6716058)
 
-[Download the latest App](https://github.com/manusoft/yt-dlp-wrapper/releases/download/v1.0.0/gui-app.zip)
+[Download the latest App](https://github.com/manusoft/Ytdlp.NET/releases/download/v1.0.0/gui-app.zip)
 
 ---
 
@@ -94,7 +94,7 @@ await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe")
 ytdlp.OnProgressDownload += (s, e) =>
     Console.WriteLine($"{e.Percent:F1}% {e.Speed} ETA {e.ETA}");
 
-await ytdlp.ExecuteAsync("https://www.youtube.com/watch?v=VIDEO_ID");
+await ytdlp.DownloadAsync("https://www.youtube.com/watch?v=VIDEO_ID");
 ```
 
 ---
@@ -106,7 +106,7 @@ await using var ytdlp = new Ytdlp()
     .WithExtractAudio("mp3")
     .WithOutputFolder("./audio");
 
-await ytdlp.ExecuteAsync(url);
+await ytdlp.DownloadAsync(url);
 ```
 
 ---
@@ -150,7 +150,7 @@ string bestAudio = await ytdlp.GetBestAudioFormatIdAsync(url);
 
 await ytdlp
     .WithFormat($"{bestVideo}+{bestAudio}/best")
-    .ExecuteAsync(url);
+    .DownloadAsync(url);
 ```
 
 ---
@@ -170,10 +170,22 @@ var tasks = urls.Select(async url =>
         .WithFormat("best")
         .WithOutputFolder("./batch");
 
-    await ytdlp.ExecuteAsync(url);
+    await ytdlp.DownloadAsync(url);
 });
 
 await Task.WhenAll(tasks);
+```
+
+**OR**
+
+```csharp
+var urls = new[] { "https://youtu.be/vid1", "https://youtu.be/vid2" };
+
+ await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe")
+        .WithFormat("best")
+        .WithOutputFolder("./batch");
+
+await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 ```
 
 ---
@@ -278,7 +290,7 @@ await using var ytdlp = new Ytdlp()
     .WithFormat("best")
     .WithOutputFolder("./downloads");
 
-await ytdlp.ExecuteAsync(url);
+await ytdlp.DownloadAsync(url);
 ```
 
 ---

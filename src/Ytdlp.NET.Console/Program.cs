@@ -19,21 +19,22 @@ internal class Program
             .WithFFmpegLocation("tools");
 
         // Run all demos/tests sequentially
-        //await TestGetVersionAsync(baseYtdlp);
-        //await TestUpdateAsync(baseYtdlp);
+        await TestGetVersionAsync(baseYtdlp);
+        await TestUpdateAsync(baseYtdlp);
 
-        //await TestGetFormatsAsync(baseYtdlp);
+        await TestGetFormatsAsync(baseYtdlp);
         await TestGetMetadataAsync(baseYtdlp);
-        //await TestGetLiteMetadataAsync(baseYtdlp);
-        //await TestGetTitleAsync(baseYtdlp);
+        await TestGetLiteMetadataAsync(baseYtdlp);
+        await TestGetTitleAsync(baseYtdlp);
 
         await TestDownloadVideoAsync(baseYtdlp);
-        //await TestDownloadAudioAsync(baseYtdlp);
-        //await TestBatchDownloadAsync(baseYtdlp);
-        //await TestSponsorBlockAsync(baseYtdlp);
-        //await TestConcurrentFragmentsAsync(baseYtdlp);
-        //await TestCancellationAsync(baseYtdlp);
+        await TestDownloadAudioAsync(baseYtdlp);
+        await TestBatchDownloadAsync(baseYtdlp);
+        await TestSponsorBlockAsync(baseYtdlp);
+        await TestConcurrentFragmentsAsync(baseYtdlp);
+        await TestCancellationAsync(baseYtdlp);
 
+        var lists = await baseYtdlp.ExtractorsAsync();
 
         Console.WriteLine("\nAll tests completed. Press any key to exit...");
         Console.ReadKey();
@@ -106,7 +107,7 @@ internal class Program
 
         var url1 = "https://www.youtube.com/watch?v=983bBbJx0Mk&list=RD983bBbJx0Mk&start_radio=1&pp=ygUFc29uZ3OgBwE%3D"; //playlist
         var url2 = "https://www.youtube.com/watch?v=ZGnQH0LN_98"; // video
-        var metadata = await ytdlp.GetMetadataAsync(url2);
+        var metadata = await ytdlp.GetMetadataAsync(url1);
         stopwatch.Stop(); // stop timer
 
         Console.WriteLine($"Detailed metedata took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
@@ -191,7 +192,7 @@ internal class Program
             .WithExtractAudio(AudioFormat.Mp3)
             .WithFormat("ba")
             .WithOutputFolder("./downloads/audio")
-            .ExecuteAsync(url);
+            .DownloadAsync(url);
     }
 
     // Test 8: Batch download (concurrent)
@@ -209,7 +210,7 @@ internal class Program
              .WithFormat("best[height<=480]")  // Lower quality for speed
              .WithOutputFolder("./downloads/batch");
 
-        await ytdlp.ExecuteBatchAsync(urls, maxConcurrency: 3);
+        await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
     }
 
     // Test 9: SponsorBlock removal
@@ -222,7 +223,7 @@ internal class Program
             .WithFormat("best")
             .WithSponsorblockRemove("all")  // Removes sponsor, intro, etc.
             .WithOutputFolder("./downloads/sponsorblock")
-            .ExecuteAsync(url);
+            .DownloadAsync(url);
     }
 
     // Test 10: Concurrent fragments (faster download)
@@ -236,7 +237,7 @@ internal class Program
             .WithFormat("b")
             .WithOutputTemplate("%(title)s.%(ext)s")
             .WithOutputFolder("./downloads/concurrent")
-            .ExecuteAsync(url);
+            .DownloadAsync(url);
     }
 
     // Test 11: Cancellation support
@@ -250,7 +251,7 @@ internal class Program
             .WithFormat("b")
             .WithOutputTemplate("%(title)s.%(ext)s")
             .WithOutputFolder("./downloads/cancel")
-            .ExecuteAsync(url, cts.Token);
+            .DownloadAsync(url, cts.Token);
 
         // Simulate cancel after 20 seconds
         await Task.Delay(20000);
@@ -279,7 +280,7 @@ internal class Program
                 .WithOutputTemplate("%(title)s.%(ext)s")
                 .WithOutputFolder("./downloads/cancel")
                 .AddFlag("--get-title")
-                .ExecuteAsync(url);
+                .DownloadAsync(url);
 
             await downloadTask;
         }

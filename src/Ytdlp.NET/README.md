@@ -66,6 +66,7 @@ var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "tools");
 ## 🛠 Methods
 * `VersionAsync(CancellationToken ct)`
 * `UpdateAsync(UpdateChannel channel, CancellationToken ct)`
+* `ExtractorsAsync(CancellationToken ct, int bufferKb)`
 * `GetMetadataAsync(string url, CancellationToken ct, int bufferKb)`
 * `GetMetadataRawAsync(string url, CancellationToken ct, int bufferKb)`
 * `GetFormatsAsync(string url, CancellationToken ct, int bufferKb)`
@@ -93,7 +94,7 @@ await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe", new ConsoleLogger())
 ytdlp.OnProgressDownload += (s, e) => Console.WriteLine($"Progress: {e.Percent:F2}%");
 ytdlp.OnCompleteDownload += (s, msg) => Console.WriteLine($"Download complete: {msg}");
 
-await ytdlp.ExecuteAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
+await ytdlp.DownloadAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
 ```
 
 ### **Parallel download example**:
@@ -110,7 +111,7 @@ var tasks = urls.Select(async url =>
     ytdlp.OnProgressDownload += (s, e) => Console.WriteLine($"[{url}] {e.Percent:F2}%");
     ytdlp.OnCompleteDownload += (s, msg) => Console.WriteLine($"[{url}] Download complete: {msg}");
 
-    await ytdlp.ExecuteAsync(url);
+    await ytdlp.DownloadAsync(url);
 });
 
 await Task.WhenAll(tasks);
@@ -138,7 +139,7 @@ await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe", new ConsoleLogger())
 ytdlp.OnProgressDownload += (s, e) => Console.WriteLine($"Progress: {e.Percent:F2}%");
 ytdlp.OnCompleteDownload += (s, msg) => Console.WriteLine($"Download complete: {msg}");
 
-await ytdlp.ExecuteAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
+await ytdlp.DownloadAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
 ```
 
 ### Extract Audio
@@ -149,7 +150,7 @@ await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe")
     .WithOutputFolder("./audio")
     .WithEmbedMetadata();
 
-await ytdlp.ExecuteAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
+await ytdlp.DownloadAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
 ```
 
 ---
@@ -190,7 +191,7 @@ string bestVideo = await ytdlp.GetBestVideoFormatIdAsync(url, maxHeight: 720);
 await ytdlp
     .WithFormat($"{bestVideo}+{bestAudio}/best")
     .WithOutputFolder("./downloads")
-    .ExecuteAsync(url);
+    .DownloadAsync(url);
 ```
 
 ---
@@ -206,36 +207,86 @@ var tasks = urls.Select(async url =>
         .WithFormat("best")
         .WithOutputFolder("./batch");
 
-    await ytdlp.ExecuteAsync(url);
+    await ytdlp.DownloadAsync(url);
 });
 
 await Task.WhenAll(tasks);
 ```
+**OR**
+
+```csharp
+var urls = new[] { "https://youtu.be/vid1", "https://youtu.be/vid2" };
+
+ await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe")
+        .WithFormat("best")
+        .WithOutputFolder("./batch");
+
+await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
+```
+
 
 ---
 
-### Fluent Methods (v3.0)
+## Fluent Methods (v3.0)
 
-#### General Options
+### General Options
+* `.WithIgnoreErrors()`
+* `.WithAbortOnError()`
+* `.WithIgnoreConfig()`
+* `.WithConfigLocations(string path)`
+* `.WithPluginDirs(string path)`
+* `.WithNoPluginDirs(string path)`
 * `.WithJsRuntime(Runtime runtime, string runtimePath)`
 * `.WithNoJsRuntime()`
 * `.WithFlatPlaylist()`
 * ` WithLiveFromStart()`
 * `.WithWaitForVideo(TimeSpan? maxWait = null)`
-* `.WithMarkWatched()`
+* `.WithMarkWatched()`   
 
-#### Network Options
+### Network Options
 * `.WithProxy(string? proxy)`
 * `.WithSocketTimeout(TimeSpan timeout)`
 * `.WithForceIpv4()`
 * `.WithForceIpv6()`
-* `.WithEnableFileUrl()`
+* `.WithEnableFileUrls()`
 
-#### Geo-restriction Options
+### Geo-restriction Options
 * `.WithGeoVerificationProxy(string url)`
 * `.WithGeoBypassCountry(string countryCode)`
 
-#### Filesystem Options
+### Video Selection
+* `.WithPlaylistItems(string items)`
+* `.WithMinFileSize(string size)`
+* `.WithMaxFileSize(string size)`
+* `.WithDate(string date)`
+* `.WithDateBefore(string date)`
+* `.WithDateAfter(string date)`
+* `.WithMatchFilter(string filterExpression)`
+* `.WithNoPlaylist()`
+* `.WithYesPlaylist()`
+* `.WithAgeLimit(int years)`
+* `.WithDownloadArchive(string archivePath = "archive.txt")`
+* `.WithMaxDownloads(int count)`
+* `.WithBreakOnExisting()`
+
+### Download Options
+* `.WithConcurrentFragments(int count = 8)`
+* `.WithLimitRate(string rate)`
+* `.WithThrottledRate(string rate)`
+* `.WithRetries(int maxRetries)`
+* `.WithFileAccessRetries(int maxRetries)`
+* `.WithFragmentRetries(int retries)`
+* `.WithSkipUnavailableFragments()`
+* `.WithAbortOnUnavailableFragments()`
+* `.WithKeepFragments()`
+* `.WithBufferSize(string size)`
+* `.WithNoResizeBuffer()`
+* `.WithPlaylistRandom()`
+* `.WithHlsUseMpegts()`
+* `.WithNoHlsUseMpegts()`
+* `.WithDownloadSections(string regex)`
+
+### Filesystem Options
 * `.WithHomeFolder(string path)`
 * `.WithTempFolder(string path)`
 * `.WithOutputFolder(string path)`
@@ -261,26 +312,69 @@ await Task.WhenAll(tasks);
 * `.WithNoCacheDir()`
 * `.WithRemoveCacheDir()`
 
-#### Format & Extraction
+### Thumbnail Options
+* `.WithThumbnails(bool allSizes = false)`
+
+### Verbosity and Simulation Options
+* `.WithQuiet()`
+* `.WithNoWarnings()`
+* `.WithSimulate()`
+* `.WithNoSimulate()`
+* `.WithSkipDownload()`
+* `.WithVerbose()`
+
+### Workgrounds
+* `.WithAddHeader(string header, string value)`
+* `.WithSleepInterval(double seconds, double? maxSeconds = null)`
+* `.WithSleepSubtitles(double seconds)`
+
+### Video Format Options
 * `.WithFormat(string format)`
+* `.WithMergeOutputFormat(string format)`
+
+### Subtitle Options
+* `.WithSubtitles(string languages = "all", bool auto = false)`
+
+### Authentication Options
+* `.WithAuthentication(string username, string password)`
+* `.WithTwoFactor(string code)`
+
+### Post-Processing Options
 * `.WithExtractAudio(string format = "mp3", int quality = 5)`
-* `.With720pOrBest()`
-* `.WithEmbedMetadata()`
+* `.WithRemuxVideo(MediaFormat format = MediaFormat.Mp4)`
+* `.WithRecodeVideo(MediaFormat format = MediaFormat.Mp4, string? videoCodec = null, string? audioCodec = null)`
+* `.WithPostprocessorArgs(PostProcessors postprocessor, string args)`
+* `.WithKeepVideo()`
+* `.WithNoPostOverwrites()`
+* `.WithEmbedSubtitles(string languages = "all", string? convertTo = null)`
 * `.WithEmbedThumbnail()`
+* `.WithEmbedMetadata()`
 * `.WithEmbedChapters()`
+* `.WithEmbedInfoJson()`
+* `.WithNoEmbedInfoJson()`
+* `.WithReplaceInMetadata(string field, string regex, string replacement)`
+* `.WithConcatPlaylist(string policy = "always")`
+* `.WithFFmpegLocation(string? ffmpegPath)`
+* `.WithConvertThumbnails(string format = "jpg")`
+* `.WithForceKeyframesAtCuts()`
 
-#### Subtitles & Thumbnails
-* `.WithSubtitles(string langs = "all", bool auto = false)`
-* `.WithEmbedSubtitles(string langs = "all", string? convertTo = null)`
-* `.WithThumbnails(bool all = false)`
-
-#### Download Control
-* `.WithConcurrentFragments(int count)`
+### SponsorBlock Options
+* `.WithSponsorblockMark(string categories = "all")`
 * `.WithSponsorblockRemove(string categories = "all")`
+* `.WithNoSponsorblock()`
 
-#### Advanced Options
+### Advanced Options
 * `.AddFlag(string flag)`
 * `.AddOption(string key, string value)`
+
+
+### Downloaders
+* `.WithExternalDownloader(string downloaderName, string? downloaderArgs = null)`
+* `.WithAria2(int connections = 16)`
+* `.WithHlsNative()`
+* `.WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null)`
+
+AND MORE ...
 
 ---
 
@@ -297,6 +391,92 @@ ytdlp.OnCommandCompleted += (s, e) => Console.WriteLine($"Command finished: {e.C
 ```
 
 ---
+
+# 🔄 Upgrade Guide (v2 → v3)
+
+v3 introduces a **new immutable fluent API**.
+
+Old mutable commands were removed.
+
+---
+
+## ❌ Old API (v2)
+
+```csharp
+var ytdlp = new Ytdlp();
+
+await ytdlp
+    .SetFormat("best")
+    .SetOutputFolder("./downloads")
+    .ExecuteAsync(url);
+```
+
+---
+
+## ✅ New API (v3)
+
+```csharp
+await using var ytdlp = new Ytdlp()
+    .WithFormat("best")
+    .WithOutputFolder("./downloads");
+
+await ytdlp.DownloadAsync(url);
+```
+
+---
+
+## Method changes
+
+| v2                    | v3                     |
+| --------------------- | ---------------------- |
+| `SetFormat()`         | `WithFormat()`         |
+| `SetOutputFolder()`   | `WithOutputFolder()`   |
+| `SetTempFolder()`     | `WithTempFolder()`     |
+| `SetOutputTemplate()` | `WithOutputTemplate()` |
+| `SetFFMpegLocation()` | `WithFFmpegLocation()` |
+| `ExtractAudio()`      | `WithExtractAudio()`   |
+| `UseProxy()`          | `WithProxy()`          |
+
+---
+
+## Important behavior changes
+
+### Instances are immutable
+
+Every `WithXxx()` call returns a **new instance**.
+
+```csharp
+var baseYtdlp = new Ytdlp();
+
+var download = baseYtdlp
+    .WithFormat("best")
+    .WithOutputFolder("./downloads");
+```
+
+---
+
+### Event subscription
+
+Attach events **to the configured instance**.
+
+```csharp
+var download = baseYtdlp.WithFormat("best");
+
+download.OnProgressDownload += ...
+```
+
+---
+
+### Proper disposal
+
+Use **`await using`** for automatic cleanup.
+
+```csharp
+await using var ytdlp = new Ytdlp();
+```
+
+---
+
 
 ### ✅ Notes
 
