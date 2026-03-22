@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/ClipMate.Lite/ClipMate.Lite.csproj" />
+  </Folder>
+  <Folder Name="/archives/">
+    <Project Path="archives/Ytdlp.Wrapper.Console/Ytdlp.Wrapper.Console.csproj" />
+    <Project Path="archives/Ytdlp.Wrapper/Ytdlp.Wrapper.csproj" />
+  </Folder>
+  <Folder Name="/feature/">
+    <Project Path="feature/Ytdlp.NET.vNext.Console/Ytdlp.NET.vNext.Console.csproj" />
+    <Project Path="feature/Ytdlp.NET.vNext/Ytdlp.NET.vNext.csproj" />
+  </Folder>
+  <Folder Name="/stable/">
+    <Project Path="src/Ytdlp.NET.Console/Ytdlp.NET.Console.csproj" />
+    <Project Path="src/Ytdlp.NET/Ytdlp.NET.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Ytdlp.NET.ParseTest/Ytdlp.NET.ParseTest.csproj" />
+    <Project Path="tests/Ytdlp.NET.Test/Ytdlp.NET.Test.csproj" />
+  </Folder>
+</Solution>

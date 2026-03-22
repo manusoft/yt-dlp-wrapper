@@ -14,8 +14,4 @@
     <PackageReference Include="ManuHub.Ytdlp" Version="6.3.3" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Ytdlp.NET.v3\Ytdlp.NET.v3.csproj" />
-  </ItemGroup>
-
 </Project>

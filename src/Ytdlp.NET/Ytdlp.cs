@@ -1,7 +1,6 @@
 ﻿using ManuHub.Ytdlp.NET.Core;
-using System.ComponentModel.DataAnnotations;
+using System.Collections.Immutable;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -13,793 +12,1248 @@ namespace ManuHub.Ytdlp.NET;
 /// and execute downloads with progress tracking and event support.
 /// </summary>
 /// <remarks>
-/// <strong>NOT THREAD-SAFE</strong> — do not share the same instance across threads or concurrent operations.
-/// For parallel/batch downloads, create a new <see cref="Ytdlp"/> instance for each task.
+/// <strong>THREAD-SAFE:</strong> Multiple threads can safely use the same <see cref="Ytdlp"/> instance concurrently.
+/// Each call to <see cref="DownloadAsync"/> creates isolated runners and parsers, preventing race conditions 
+/// and shared state issues.
 ///
 /// Example of safe concurrent usage:
 /// <code>
-/// var tasks = urls.Select(u => new Ytdlp().SetFormat("best").ExecuteAsync(u));
+/// var ytdlp = new Ytdlp()
+///     .WithOutputFolder(@"D:\Downloads\YouTube")
+///     .WithFormat("best");
+///
+/// var tasks = urls.Select(url => ytdlp.ExecuteAsync(url));
 /// await Task.WhenAll(tasks);
 /// </code>
 ///
-/// <strong>Disposal</strong>: This class does not currently implement <see cref="IDisposable"/>.
-/// Resource cleanup (e.g. child processes) is handled internally. Proper disposal support
-/// and an immutable builder pattern are planned for a future version.
+/// <strong>Event forwarding:</strong>
+/// All progress and output events are forwarded from the internal runners and parsers. 
+/// Subscriptions are safe per execution and cleaned up automatically to prevent memory leaks.
+///
+/// <strong>Fluent builder:</strong> All configuration methods (e.g., <see cref="WithOutputFolder"/>, 
+/// <see cref="WithFormat"/>, <see cref="WithExtractAudio"/>) return a new instance. This preserves 
+/// immutability and thread-safety.
+///
+/// <strong>Resource cleanup:</strong> Internal runners and parsers are disposed automatically after each 
+/// <see cref="DownloadAsync"/> call. For advanced scenarios, future versions may implement <see cref="IAsyncDisposable"/> 
+/// for global disposal of resources and cancellation support.
 /// </remarks>
-public sealed class Ytdlp
+public sealed class Ytdlp : IAsyncDisposable
 {
-    private readonly string _ytDlpPath;
-    private readonly StringBuilder _commandBuilder = new();
-    private readonly ProgressParser _progressParser;
+    #region Frozen configuration
+    private readonly string _ytdlpPath;
     private readonly ILogger _logger;
 
-    private readonly ProbeRunner _probe;
-    private readonly DownloadRunner _download;
+    private readonly string? _outputFolder;
+    private readonly string? _homeFolder;
+    private readonly string? _tempFolder;
+    private readonly string _outputTemplate;
+    private readonly string _format;
+    private readonly string? _cookiesFile;
+    private readonly string? _cookiesFromBrowser;
+    private readonly string? _proxy;
+    private readonly string? _ffmpegLocation;
+    private readonly string? _sponsorblockRemove;
+    private readonly int? _concurrentFragments;
 
-    private string _format = "best";
-    private string _outputFolder = ".";
-    private string _outputTemplate = "%(title)s.%(ext)s";
+    private readonly ImmutableArray<string> _flags;
+    private readonly ImmutableArray<(string Key, string Value)> _options;
+    #endregion
 
-    // <summary>
-    /// Fired for general progress messages from yt-dlp output.
-    /// </summary>
-    //public event EventHandler<string>? OnProgress;
-
-
-    /// <summary>
-    /// Fired when the yt-dlp process completes (success or failure/cancel).
-    /// </summary>
-    public event EventHandler<CommandCompletedEventArgs>? OnCommandCompleted;
-
-    /// <summary>
-    /// Fired for every output line from yt-dlp (stdout).
-    /// </summary>
-    public event EventHandler<string>? OnOutputMessage;
-
-    /// <summary>
-    /// Fired when download progress updates are parsed (percentage, speed, ETA).
-    /// </summary>
+    #region Events
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
-
-    /// <summary>
-    /// Fired when a single download completes successfully.
-    /// </summary>
-    public event EventHandler<string>? OnCompleteDownload;
-
-    /// <summary>
-    /// Fired for informational progress messages (e.g. merging, extracting).
-    /// </summary>
     public event EventHandler<string>? OnProgressMessage;
-
-    /// <summary>
-    /// Fired for error messages from yt-dlp.
-    /// </summary>
-    public event EventHandler<string>? OnErrorMessage;
-
-    /// <summary>
-    /// Fired when post-processing (e.g. merging, conversion) completes.
-    /// </summary>
+    public event EventHandler<string>? OnOutputMessage;
+    public event EventHandler<string>? OnCompleteDownload;
     public event EventHandler<string>? OnPostProcessingComplete;
+    public event EventHandler<CommandCompletedEventArgs>? OnCommandCompleted;
+    public event EventHandler<string>? OnErrorMessage;
+    #endregion
 
-    // Valid options set (used for custom command validation)
-    private static readonly HashSet<string> ValidOptions = new HashSet<string>(StringComparer.Ordinal)
+    #region Flag to prevent double disposal
+    private bool _disposed = false;
+
+    public async ValueTask DisposeAsync()
     {
-        // ───────── Core ─────────
-        "--help","--version","--update","--update-to","--no-update",
-        "--config-location","--ignore-config",
+        if (_disposed) return;
+        _disposed = true;
 
-        // ───────── Output / Files ─────────
-        "--output","-o","--paths","--output-na-placeholder",
-        "--restrict-filenames","--windows-filenames",
-        "--trim-filenames","--no-overwrites","--force-overwrites",
-        "--continue","--no-continue","--part","--no-part",
-        "--mtime","--no-mtime",
+        // Optionally, cancel running downloads (if you store CancellationTokens)
+        // e.g., _cts?.Cancel();
 
-        // ───────── Format selection ─────────
-        "--format","-f","--format-sort","-S",
-        "--format-sort-force","--S-force",
-        "--format-sort-reset","--no-format-sort-force",
-        "--merge-output-format",
-        "--prefer-free-formats","--no-prefer-free-formats",
-        "--check-formats","--check-all-formats","--no-check-formats",
-        "--list-formats","-F",
-        "--video-multistreams","--no-video-multistreams",
-        "--audio-multistreams","--no-audio-multistreams",
+        await Task.CompletedTask;
+    }
+    #endregion
 
-        // ───────── Playlist ─────────
-        "--playlist-items","--playlist-start","--playlist-end",
-        "--playlist-random","--no-playlist","--yes-playlist",
-        "--flat-playlist","--no-flat-playlist","--concat-playlist",
-        "--playlist-reverse",
+    #region Constructors
 
-        // ───────── Network / Geo ─────────
-        "--proxy","--source-address","--force-ipv4","--force-ipv6",
-        "--geo-bypass","--no-geo-bypass",
-        "--geo-bypass-country","--geo-bypass-ip-block",
-        "--timeout","--socket-timeout",
-        "--retries","--fragment-retries",
-        "--retry-sleep","--file-access-retries",
-        "--http-chunk-size","--limit-rate","--throttled-rate",
-
-        // ───────── Auth / Cookies ─────────
-        "--username","--password","--twofactor",
-        "--video-password","--netrc","--netrc-location",
-        "--cookies","--cookies-from-browser",
-        "--add-header","--user-agent","--referer",
-        "--age-limit",
-
-        // ───────── Filters ─────────
-        "--match-title","--reject-title","--match-filter",
-        "--min-filesize","--max-filesize",
-        "--date","--datebefore","--dateafter",
-        "--download-archive","--force-write-archive",
-        "--break-on-existing","--break-per-input",
-        "--max-downloads",
-
-        // ───────── Subtitles / Thumbnails ─────────
-        "--write-sub","--write-auto-sub",
-        "--sub-lang","--sub-langs","--sub-format",
-        "--convert-subs","--embed-subs",
-        "--write-thumbnail","--write-all-thumbnails",
-        "--embed-thumbnail",
-
-        // ───────── Metadata ─────────
-        "--write-description","--write-info-json",
-        "--write-annotations","--write-chapters",
-        "--embed-metadata","--embed-info-json",
-        "--embed-chapters","--replace-in-metadata",
-
-        // ───────── Post-processing ─────────
-        "--extract-audio","-x",
-        "--audio-format","--audio-quality",
-        "--recode-video","--remux-video",
-        "--postprocessor-args","--ffmpeg-location",
-        "--force-keyframes-at-cuts",
-
-        // ───────── Live / Streaming ─────────
-        "--live-from-start","--no-live-from-start",
-        "--wait-for-video","--wait-for-video-to-end",
-        "--hls-use-mpegts","--no-hls-use-mpegts",
-        "--downloader","--downloader-args",
-
-        // ───────── SponsorBlock ─────────
-        "--sponsorblock-mark","--sponsorblock-remove",
-        "--sponsorblock-chapter-title","--sponsorblock-api",
-
-        // ───────── JS / Extractor ─────────
-        "--js-runtimes","--remote-components",
-        "--extractor-args","--force-generic-extractor",
-
-        // ───────── Debug / Simulation ─────────
-        "--simulate","--skip-download",
-        "--dump-json","-j",
-        "--dump-single-json","-J",
-        "--print","--print-to-file",
-        "--quiet","--no-warnings","--verbose",
-        "--newline","--progress","--no-progress",
-        "--console-title","--write-log",
-
-         // ───────── Misc ─────────
-        "--call-home","--write-pages","--write-link",
-        "--sleep-interval","--min-sleep-interval",
-        "--max-sleep-interval","--sleep-subtitles",
-        "--no-color", "--abort-on-error", "--concurrent-fragments",
-    };
-
-    #region Constructor & Initialization
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="Ytdlp"/> class.
-    /// </summary>
-    /// <param name="ytdlpPath">Path to the yt-dlp executable (default: "yt-dlp").</param>
-    /// <param name="logger">Optional logger instance (defaults to <see cref="DefaultLogger"/>).</param>
-    /// <exception cref="YtdlpException">Thrown if yt-dlp executable is not found.</exception>
     public Ytdlp(string ytdlpPath = "yt-dlp", ILogger? logger = null)
     {
-        _ytDlpPath = ValidatePath(ytdlpPath);
-        if (!File.Exists(_ytDlpPath) && !IsInPath(_ytDlpPath))
-            throw new YtdlpException($"yt-dlp executable not found at {_ytDlpPath}. Install yt-dlp or specify a valid path.");
-        _commandBuilder = new StringBuilder();
-        _progressParser = new ProgressParser(logger);
+        _ytdlpPath = ValidatePath(ytdlpPath);
         _logger = logger ?? new DefaultLogger();
 
-        var factory = new ProcessFactory(ytdlpPath);
+        // defaults
+        _outputFolder = null;
+        _tempFolder = null;
+        _homeFolder = null;
+        _outputTemplate = "%(title)s [%(id)s].%(ext)s";
+        _format = "b";
+        _concurrentFragments = null;
+        _flags = ImmutableArray<string>.Empty;
+        _options = ImmutableArray<(string, string)>.Empty;
+        _cookiesFile = null;
+        _cookiesFromBrowser = null;
+        _proxy = null;
+        _ffmpegLocation = null;
+        _sponsorblockRemove = null;
+    }
 
-        _probe = new ProbeRunner(factory, _logger);
-        _download = new DownloadRunner(factory, _progressParser, _logger);
+    // Private copy constructor – every WithXxx() uses this
+    private Ytdlp(Ytdlp other,
+        string? outputFolder = null,
+        string? homeFolder = null,
+        string? tempFolder = null,
+        string? outputTemplate = null,
+        string? format = null,
+        int? concurrentFragments = null,
+        string? cookiesFile = null,
+        string? cookiesFromBrowser = null,
+        string? proxy = null,
+        string? ffmpegLocation = null,
+        string? sponsorblockRemove = null,
+        IEnumerable<string>? extraFlags = null,
+        IEnumerable<(string, string)>? extraOptions = null)
+    {
+        _ytdlpPath = other._ytdlpPath;
+        _logger = other._logger;
 
-        // Subscribe to progress parser events
-        _progressParser.OnOutputMessage += (s, e) => OnOutputMessage?.Invoke(this, e);
-        _progressParser.OnProgressDownload += (s, e) => OnProgressDownload?.Invoke(this, e);
-        _progressParser.OnCompleteDownload += (s, e) => OnCompleteDownload?.Invoke(this, e);
-        _progressParser.OnProgressMessage += (s, e) => OnProgressMessage?.Invoke(this, e);
-        _progressParser.OnErrorMessage += (s, e) => OnErrorMessage?.Invoke(this, e);
-        _progressParser.OnPostProcessingComplete += (s, e) => OnPostProcessingComplete?.Invoke(this, e);
+        _outputFolder = outputFolder ?? other._outputFolder;
+        _homeFolder = homeFolder ?? other._homeFolder;
+        _tempFolder = tempFolder ?? other._tempFolder;
+        _outputTemplate = outputTemplate ?? other._outputTemplate;
 
-        //  Subscribe to process complete events
-        _download.OnCommandCompleted += (s, e) => OnCommandCompleted?.Invoke(this, e);
+        _format = format ?? other._format;
+        _concurrentFragments = concurrentFragments ?? other._concurrentFragments;
+        _cookiesFile = cookiesFile ?? other._cookiesFile;
+        _cookiesFromBrowser = cookiesFromBrowser ?? other._cookiesFromBrowser;
+        _proxy = proxy ?? other._proxy;
+        _ffmpegLocation = ffmpegLocation ?? other._ffmpegLocation;
+        _sponsorblockRemove = sponsorblockRemove ?? other._sponsorblockRemove;
+
+        _flags = extraFlags is null ? other._flags : other._flags.AddRange(extraFlags);
+        _options = extraOptions is null ? other._options : other._options.AddRange(extraOptions);
     }
 
     #endregion
 
-    #region Output & Path Configuration
+    // ==================================================================================================================
+    // Fluent configuration methods
+    // ==================================================================================================================
+
+    #region General Options
 
     /// <summary>
-    /// Sets the output folder for downloaded files.
+    /// Ignore download and postprocessing errors. The download will be considered successful even if the postprocessing fails
     /// </summary>
-    /// <param name="outputFolderPath">The target output directory.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if path is empty.</exception>
-    public Ytdlp SetOutputFolder([Required] string outputFolderPath)
-    {
-        if (string.IsNullOrWhiteSpace(outputFolderPath))
-            throw new ArgumentException("Output folder path cannot be empty.", nameof(outputFolderPath));
+    /// <returns></returns>
+    public Ytdlp WithIgnoreErrors() => AddFlag("--ignore-errors");
 
-        _outputFolder = outputFolderPath;
-        return this;
+    /// <summary>
+    /// IgAbort downloading of further videos if an error occurs 
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithAbortOnError() => AddFlag("--abort-on-error");
+
+    /// <summary>
+    /// Don't load any more configuration files except those given to <see cref="WithConfigLocations(string)"/>.
+    /// For backward compatibility, if this option is found inside the system configuration file, the user configuration is not loaded.
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithIgnoreConfig() => AddFlag("--ignore-config");
+
+    /// <summary>
+    /// Location of the main configuration file;either the path to the config or its containing directory ("-" for stdin). 
+    /// Can be used multiple times and inside other configuration files.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public Ytdlp WithConfigLocations(string path) 
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Config folder path required");
+         return AddOption("--config-locations", Path.GetFullPath(path)); 
     }
 
     /// <summary>
-    /// Sets the temporary folder path used by yt-dlp.
+    /// Path to an additional directory to search for plugins. This option can be used multiple times to add multiple directories.
     /// </summary>
-    /// <param name="tempFolderPath">Path to temporary folder.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if path is empty.</exception>
-    public Ytdlp SetTempFolder([Required] string tempFolderPath)
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public Ytdlp WithPluginDirs(string path)
     {
-        if (string.IsNullOrWhiteSpace(tempFolderPath))
-            throw new ArgumentException("Temporary folder path cannot be empty.", nameof(tempFolderPath));
-
-        _commandBuilder.Append($"--paths temp:{SanitizeInput(tempFolderPath)} ");
-        return this;
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("plugin folder path required");
+        return AddOption("--plugin-dirs", path);
     }
 
     /// <summary>
-    /// Sets the home folder path used by yt-dlp.
+    /// Clear plugin directories to search, including defaults and those provided by previous <see cref="WithPluginDirs(string)"/>
     /// </summary>
-    /// <param name="homeFolderPath">Path to home folder.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if path is empty.</exception>
-    public Ytdlp SetHomeFolder([Required] string homeFolderPath)
-    {
-        if (string.IsNullOrWhiteSpace(homeFolderPath))
-            throw new ArgumentException("Home folder path cannot be empty.", nameof(homeFolderPath));
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public Ytdlp WithNoPluginDirs(string path) => AddFlag("--no-plugin-dirs");
 
-        _commandBuilder.Append($"--paths home:{SanitizeInput(homeFolderPath)} ");
-        return this;
+    /// <summary>
+    /// Additional JavaScript runtime to enable, with an optional location for the runtime (either the path to the binary or its containing directory).
+    /// This option can be used multiple times to enable multiple runtimes. Supported runtimes are (in order of priority, from highest to lowest): deno, node, quickjs, bun.
+    /// Only "deno" is enabled by default. The highest priority runtime that is both enabled and available will be used. 
+    /// In order to use a lower priority runtime when "deno" is available, <see cref="WithNoJsRuntime"/> needs to be passed before enabling other runtimes
+    /// </summary>
+    /// <param name="runtime">Supported runtimes are deno, node, quickjs, bun</param>
+    /// <param name="runtimePath"></param>
+    public Ytdlp WithJsRuntime(Runtime runtime, string path)
+    {
+        var builder = $"{runtime}:{path}";
+        return AddOption("--js-runtime", builder);
     }
 
     /// <summary>
-    /// Specifies the location of FFmpeg executable.
+    /// Clear JavaScript runtimes to enable, including defaults and those provided by <see cref="WithJsRuntime(Runtime, string)"/>
     /// </summary>
-    /// <param name="ffmpegFolder">Path to ffmpeg executable or folder.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if path is empty.</exception>
-    public Ytdlp SetFFmpegLocation([Required] string ffmpegFolder)
-    {
-        if (string.IsNullOrWhiteSpace(ffmpegFolder))
-            throw new ArgumentException("FFmpeg folder cannot be empty.", nameof(ffmpegFolder));
+    public Ytdlp WithNoJsRuntime() => AddFlag("--no-js-runtime");
 
-        _commandBuilder.Append($"--ffmpeg-location {SanitizeInput(ffmpegFolder)} ");
-        return this;
+    /// <summary>
+    /// Do not extract a playlist's URL result entries; some entry metadata may be missing and downloading may be bypassed
+    /// </summary>
+    public Ytdlp WithFlatPlaylist() => AddFlag("--flat-playlist");
+
+    /// <summary>
+    /// Download livestreams from the start. Currently experimental and only supported for YouTube, Twitch, and TVer.
+    /// </summary>
+    public Ytdlp WithLiveFromStart() => AddFlag("--live-from-start");
+
+    /// <summary>
+    /// Wait for scheduled streams to become available.Pass the minimum number of seconds(or range) to wait between retries
+    /// </summary>
+    /// <param name="maxWait"></param>
+    /// <returns></returns>
+    public Ytdlp WithWaitForVideo(TimeSpan? maxWait = null)
+    {
+        var opts = new List<(string Key, string? Value)>();
+
+        opts.Add(("--wait-for-video", "any"));   // "any" = wait indefinitely or until timeout
+
+        if (maxWait.HasValue && maxWait.Value.TotalSeconds > 0)
+        {
+            opts.Add(("--wait-for-video", maxWait.Value.TotalSeconds.ToString("F0")));
+        }
+
+        return new Ytdlp(this, extraOptions: opts!);
     }
 
     /// <summary>
-    /// Sets the output filename template.
+    /// Mark videos watched (even with Simulate())
     /// </summary>
-    /// <param name="template">Template string (e.g. "%(title)s.%(ext)s").</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if template is empty.</exception>
-    public Ytdlp SetOutputTemplate([Required] string template)
-    {
-        if (string.IsNullOrWhiteSpace(template))
-            throw new ArgumentException("Output template cannot be empty.", nameof(template));
+    public Ytdlp WithMarkWatched() => AddFlag("--mark-watched");
 
-        _outputTemplate = template.Replace("\\", "/").Trim();
-        return this;
+    #endregion
+
+    #region Network Options
+
+    /// <summary>
+    /// Use the specified HTTP/HTTPS/SOCKS proxy. To enable SOCKS proxy, specify a proper scheme, e.g. socks5://user:pass@127.0.0.1:1080/.
+    /// </summary>
+    /// <param name="url">Pass in an empty string for direct connection</param>
+    public Ytdlp WithProxy(string? proxy) => string.IsNullOrWhiteSpace(proxy) ? this : new Ytdlp(this, proxy: proxy);
+
+    /// <summary>
+    /// Time to wait before giving up, in seconds
+    /// </summary>
+    /// <param name="timeout"></param>
+    public Ytdlp WithSocketTimeout(TimeSpan timeout)
+    {
+        if (timeout <= TimeSpan.Zero) return this;
+        double seconds = timeout.TotalSeconds;
+        return AddOption("--socket-timeout", seconds.ToString("F0"));
+    }
+
+    /// <summary>
+    /// Make all connections via IPv4
+    /// </summary>
+    public Ytdlp WithForceIpv4() => AddFlag("--force-ipv4");
+
+    /// <summary>
+    /// Make all connections via IPv6
+    /// </summary>
+    public Ytdlp WithForceIpv6() => AddFlag("--force-ipv6");
+
+    /// <summary>
+    /// Enable file:// URLs. This is disabled by default for security reasons.
+    /// </summary>
+    public Ytdlp WithEnableFileUrls() => AddFlag("--enable-file-urls");
+
+    #endregion
+
+    #region Geo-restriction
+
+    /// <summary>
+    /// Use this proxy to verify the IP address for some geo-restricted sites. 
+    /// The default proxy specified by <see cref="WithProxy(string?)"/> (or none, if the option is not present) is used for the actual downloading
+    /// </summary>
+    /// <param name="url"></param>
+    /// <returns></returns>
+    public Ytdlp WithGeoVerificationProxy(string url) => AddOption("--geo-verification-proxy", url);
+
+    /// <summary>
+    /// How to fake X-Forwarded-For HTTP header to try bypassing geographic restriction. One of "default" (only when known to be useful),
+    /// "never", an IP block in CIDR notation, or a two-letter ISO 3166-2 country code
+    /// </summary>
+    /// <param name="countryCode"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithGeoBypassCountry(string countryCode)
+    {
+        if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length != 2) throw new ArgumentException("Country code must be 2 letters.");
+        return AddOption("--xff", countryCode.ToUpper());
     }
 
     #endregion
 
-    #region Format Selection & Extraction
+    #region Video Selection
 
     /// <summary>
-    /// Sets the format selector string passed to -f/--format.
+    /// Comma-separated playlist_index of the items to download. You can specify a range using "[START]:[STOP][:STEP]".
+    /// For backward compatibility, START-STOP is also supported. Use negative indices to count from the right and negative STEP to download in reverse order.
+    /// E.g. "1:3,7,-5::2" used on a playlist of size 15 will download the items at index 1,2,3,7,11,13,15
     /// </summary>
-    /// <param name="format">Format string (e.g. "best", "137+251", "bv*+ba").</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetFormat([Required] string format)
-    {
-        _format = format;
-        return this;
-    }
-
-    /// <summary>
-    /// Configures audio-only extraction with the specified format.
-    /// </summary>
-    /// <param name="audioFormat">Audio format (e.g. "mp3", "m4a", "best").</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if format is empty.</exception>
-    public Ytdlp ExtractAudio(string audioFormat)
-    {
-        if (string.IsNullOrWhiteSpace(audioFormat))
-            throw new ArgumentException("Audio format cannot be empty.", nameof(audioFormat));
-
-        _commandBuilder.Append($"--extract-audio --audio-format {SanitizeInput(audioFormat)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Limits video resolution by height (uses bestvideo[height<=...]).
-    /// </summary>
-    /// <param name="resolution">Max height (e.g. "1080", "720").</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if resolution is empty.</exception>
-    public Ytdlp SetResolution(string resolution)
-    {
-        if (string.IsNullOrWhiteSpace(resolution))
-            throw new ArgumentException("Resolution cannot be empty.", nameof(resolution));
-
-        _commandBuilder.Append($"--format \"bestvideo[height<={SanitizeInput(resolution)}]\" ");
-        return this;
-    }
-
-    #endregion
-
-    #region Metadata & Format Fetching
-
-    /// <summary>
-    /// Appends --version to the command (useful for preview or testing).
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp Version()
-    {
-        _commandBuilder.Append("--version ");
-        return this;
-    }
-
-    /// <summary>
-    /// Appends --update to the command (useful for preview or testing).
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp Update()
-    {
-        _commandBuilder.Append("--update ");
-        return this;
-    }
-
-    /// <summary>
-    /// Appends --write-info-json to save metadata as JSON file.
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp WriteMetadataToJson()
-    {
-        _commandBuilder.Append("--write-info-json ");
-        return this;
-    }
-
-    /// <summary>
-    /// Appends --dump-json (simulate and output metadata only).
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp ExtractMetadataOnly()
-    {
-        _commandBuilder.Append("--dump-json ");
-        return this;
-    }
-
-    #endregion
-
-    #region Download & Post-Processing Options
-
-    /// <summary>
-    /// Embeds metadata into the output file.
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp EmbedMetadata()
-    {
-        _commandBuilder.Append("--embed-metadata ");
-        return this;
-    }
-
-    /// <summary>
-    /// Embeds thumbnail into the output file.
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp EmbedThumbnail()
-    {
-        _commandBuilder.Append("--embed-thumbnail ");
-        return this;
-    }
-
-    /// <summary>
-    /// Downloads thumbnails as separate files.
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp DownloadThumbnails()
-    {
-        _commandBuilder.Append("--write-thumbnail ");
-        return this;
-    }
-
-    /// <summary>
-    /// Downloads subtitles in the specified languages.
-    /// </summary>
-    /// <param name="languages">Language codes (default: "all").</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    /// <exception cref="ArgumentException">Thrown if languages is empty.</exception>
-    public Ytdlp DownloadSubtitles(string languages = "all")
-    {
-        _commandBuilder.Append($"--write-sub --sub-langs {SanitizeInput(languages)} ");
-        return this;
-    }
-
-
-    public Ytdlp DownloadLivestream(bool fromStart = true)
-    {
-        _commandBuilder.Append(fromStart ? "--live-from-start " : "--no-live-from-start ");
-        return this;
-    }
-
-    public Ytdlp DownloadLiveStreamRealTime()
-    {
-        _commandBuilder.Append("--live-from-start --recode-video mp4 ");
-        return this;
-    }
-
-    public Ytdlp DownloadSections(string timeRanges)
-    {
-        if (string.IsNullOrWhiteSpace(timeRanges))
-            throw new ArgumentException("Time ranges cannot be empty.", nameof(timeRanges));
-
-        _commandBuilder.Append($"--download-sections {SanitizeInput(timeRanges)} ");
-        return this;
-    }
-
-    public Ytdlp DownloadAudioAndVideoSeparately()
-    {
-        _commandBuilder.Append("--write-video --write-audio ");
-        return this;
-    }
-
-    public Ytdlp PostProcessFiles(string operation)
-    {
-        if (string.IsNullOrWhiteSpace(operation))
-            throw new ArgumentException("Operation cannot be empty.", nameof(operation));
-
-        _commandBuilder.Append($"--postprocessor-args \"{SanitizeInput(operation)}\" ");
-        return this;
-    }
-
-    public Ytdlp MergePlaylistIntoSingleVideo(string format)
-    {
-        if (string.IsNullOrWhiteSpace(format))
-            throw new ArgumentException("Format cannot be empty.", nameof(format));
-
-        _commandBuilder.Append($"--merge-output-format {SanitizeInput(format)} ");
-        return this;
-    }
-
-    public Ytdlp ConcatenateVideos()
-    {
-        _commandBuilder.Append("--concat-playlist always ");
-        return this;
-    }
-
-    public Ytdlp ReplaceMetadata(string field, string regex, string replacement)
-    {
-        if (string.IsNullOrWhiteSpace(field) || string.IsNullOrWhiteSpace(regex) || replacement == null)
-            throw new ArgumentException("Metadata field, regex, and replacement cannot be empty.");
-
-        _commandBuilder.Append($"--replace-in-metadata {SanitizeInput(field)} {SanitizeInput(regex)} {SanitizeInput(replacement)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Keeps temporary/intermediate files after processing.
-    /// </summary>
-    /// <param name="keep">True to keep temp files.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetKeepTempFiles(bool keep)
-    {
-        if (keep) _commandBuilder.Append("-k");
-        return this;
-    }
-
-    public Ytdlp SetDownloadTimeout(string timeout)
-    {
-        if (string.IsNullOrWhiteSpace(timeout))
-            throw new ArgumentException("Timeout cannot be empty.", nameof(timeout));
-
-        _commandBuilder.Append($"--download-timeout {SanitizeInput(timeout)} ");
-        return this;
-    }
-
-    public Ytdlp SetTimeout(TimeSpan timeout)
-    {
-        if (timeout.TotalSeconds <= 0)
-            throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
-
-        _commandBuilder.Append($"--timeout {timeout.TotalSeconds} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Sets number of retries for failed downloads/fragments.
-    /// </summary>
-    /// <param name="retries">Retry count or "infinite".</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetRetries(string retries)
-    {
-        _commandBuilder.Append($"--retries {SanitizeInput(retries)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Limits download speed (e.g. "500K", "1M").
-    /// </summary>
-    /// <param name="rate">Rate limit string.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetDownloadRate(string rate)
-    {
-        _commandBuilder.Append($"--limit-rate {SanitizeInput(rate)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Skips already downloaded files using an archive.
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SkipDownloaded()
-    {
-        _commandBuilder.Append("--download-archive downloaded.txt "); return this;
-    }
-
-    #endregion
-
-    #region Authentication & Security
-
-    /// <summary>
-    /// Sets username and password for authentication.
-    /// </summary>
-    /// <param name="username">Username or email.</param>
-    /// <param name="password">Password.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetAuthentication(string username, string password)
-    {
-        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-            throw new ArgumentException("Username and password cannot be empty.");
-
-        _commandBuilder.Append($"--username {SanitizeInput(username)} --password {SanitizeInput(password)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Loads cookies from a file.
-    /// </summary>
-    /// <param name="cookieFile">Path to cookies file (Netscape format).</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp UseCookies(string cookieFile)
-    {
-        if (string.IsNullOrWhiteSpace(cookieFile))
-            throw new ArgumentException("Cookie file path cannot be empty.", nameof(cookieFile));
-
-        _commandBuilder.Append($"--cookies {SanitizeInput(cookieFile)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a custom HTTP header.
-    /// </summary>
-    /// <param name="header">Header name (e.g. "Referer").</param>
-    /// <param name="value">Header value.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetCustomHeader(string header, string value)
-    {
-        if (string.IsNullOrWhiteSpace(header) || string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Header and value cannot be empty.");
-
-        _commandBuilder.Append($"--add-header \"{SanitizeInput(header)}:{SanitizeInput(value)}\" ");
-        return this;
-    }
-
-    #endregion
-
-    #region Network & Headers
-
-    /// <summary>
-    /// Sets custom User-Agent header.
-    /// </summary>
-    /// <param name="userAgent">User-Agent string.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetUserAgent(string userAgent)
-    {
-        if (string.IsNullOrWhiteSpace(userAgent))
-            throw new ArgumentException("User agent cannot be empty.", nameof(userAgent));
-
-        _commandBuilder.Append($"--user-agent {SanitizeInput(userAgent)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Sets custom Referer header.
-    /// </summary>
-    /// <param name="referer">Referer URL.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp SetReferer(string referer)
-    {
-        if (string.IsNullOrWhiteSpace(referer))
-            throw new ArgumentException("Referer URL cannot be empty.", nameof(referer));
-
-        _commandBuilder.Append($"--referer {SanitizeInput(referer)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Uses a proxy server for all requests.
-    /// </summary>
-    /// <param name="proxy">Proxy URL (e.g. "http://host:port").</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp UseProxy(string proxy)
-    {
-        if (string.IsNullOrWhiteSpace(proxy))
-            throw new ArgumentException("Proxy URL cannot be empty.", nameof(proxy));
-
-        _commandBuilder.Append($"--proxy {SanitizeInput(proxy)} ");
-        return this;
-    }
-
-    /// <summary>
-    /// Disables advertisements where supported.
-    /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp DisableAds()
-    {
-        _commandBuilder.Append("--no-ads ");
-        return this;
-    }
-
-    #endregion
-
-    #region Playlist & Selection
-
-    public Ytdlp SelectPlaylistItems(string items)
+    /// <param name="items"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithPlaylistItems(string items)
     {
         if (string.IsNullOrWhiteSpace(items))
-            throw new ArgumentException("Playlist items cannot be empty.", nameof(items));
-
-        _commandBuilder.Append($"--playlist-items {SanitizeInput(items)} ");
-        return this;
+            throw new ArgumentException("Playlist items string cannot be empty.", nameof(items));
+        return AddOption("--playlist-items", items.Trim());
     }
+
+    /// <summary>
+    /// Abort download if filesize is smaller than SIZE
+    /// </summary>
+    /// <param name="size">e.g. 50k or 44.6M</param>
+    public Ytdlp WithMinFileSize(string size)
+    {
+        // size examples: 50k, 4.2M, 1G
+        if (string.IsNullOrWhiteSpace(size))
+            throw new ArgumentException("Size cannot be empty", nameof(size));
+        return AddOption("--min-filesize", size.Trim());
+    }
+
+    /// <summary>
+    /// Abort download if filesize is larger than SIZE
+    /// </summary>
+    /// <param name="size">e.g. 50k or 44.6M</param>
+    public Ytdlp WithMaxFileSize(string size)
+    {
+        if (string.IsNullOrWhiteSpace(size))
+            throw new ArgumentException("Size cannot be empty", nameof(size));
+        return AddOption("--max-filesize", size.Trim());
+    }
+
+    /// <summary>
+    /// Download only videos uploaded on this date.
+    /// The date can be "YYYYMMDD" or in the format [now|today|yesterday][-N[day|week|month|year]].
+    /// E.g. "--date today-2weeks" downloads only videos uploaded on the same day two weeks ago
+    /// </summary>
+    /// <param name="date">"today-2weeks" or "YYYYMMDD"</param>
+    public Ytdlp WithDate(string date)
+    {
+        // formats: YYYYMMDD, today, yesterday, now-2weeks, etc.
+        if (string.IsNullOrWhiteSpace(date))
+            throw new ArgumentException("Date cannot be empty", nameof(date));
+        return AddOption("--date", date.Trim());
+    }
+
+    /// <summary>
+    /// Download only videos uploaded on or before this date. The date formats accepted are the same as <see cref="WithDate(string)"/>
+    /// </summary>
+    /// <param name="date">"today-2weeks" or "YYYYMMDD"</param>
+    public Ytdlp WithDateBefore(string date)
+    {
+        // formats: YYYYMMDD, today, yesterday, now-2weeks, etc.
+        if (string.IsNullOrWhiteSpace(date))
+            throw new ArgumentException("Date cannot be empty", nameof(date));
+        return AddOption("--datebefore", date.Trim());
+    }
+
+    /// <summary>
+    /// Download only videos uploaded on or after this date. The date formats accepted are the same as <see cref="WithDate(string)"/>
+    /// </summary>
+    /// <param name="date">"today-2weeks" or "YYYYMMDD"</param>
+    public Ytdlp WithDateAfter(string date)
+    {
+        // formats: YYYYMMDD, today, yesterday, now-2weeks, etc.
+        if (string.IsNullOrWhiteSpace(date))
+            throw new ArgumentException("Date cannot be empty", nameof(date));
+        return AddOption("--dateafter", date.Trim());
+    }
+
+    /// <summary>
+    /// Generic video filter. Any "OUTPUT TEMPLATE" field can be compared with a number or a string using the operators defined in "Filtering Formats".
+    /// </summary>
+    /// <param name="filterExpression"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithMatchFilter(string filterExpression)
+    {
+        if (string.IsNullOrWhiteSpace(filterExpression))
+            throw new ArgumentException("Match filter expression cannot be empty", nameof(filterExpression));
+
+        return AddOption("--match-filter", filterExpression.Trim());
+    }
+
+    /// <summary>
+    /// Download only the video, if the URL refers to a video and a playlist
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoPlaylist() => AddFlag("--no-playlist");
+
+    /// <summary>
+    /// Download the playlist, if the URL refers to a video and a playlist
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithYesPlaylist() => AddFlag("--yes-playlist");
+
+    /// <summary>
+    /// Download only videos suitable for the given age
+    /// </summary>
+    /// <param name="years"></param>
+    public Ytdlp WithAgeLimit(int years)
+    {
+        if (years < 0) throw new ArgumentOutOfRangeException(nameof(years));
+        return AddOption("--age-limit", years.ToString());
+    }
+
+    /// <summary>
+    /// Download only videos not listed in the archive file. Record the IDs of all downloaded videos in it
+    /// </summary>
+    /// <param name="archivePath"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithDownloadArchive(string archivePath = "archive.txt")
+    {
+        if (string.IsNullOrWhiteSpace(archivePath))
+            throw new ArgumentException("Archive path cannot be empty", nameof(archivePath));
+        return AddOption("--download-archive", Path.GetFullPath(archivePath));
+    }
+
+    /// <summary>
+    /// Abort after downloading number files
+    /// </summary>
+    /// <param name="count"></param>
+    public Ytdlp WithMaxDownloads(int count)
+    {
+        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
+        return AddOption("--max-downloads", count.ToString());
+    }
+
+    /// <summary>
+    /// Stop the download process when encountering a file that is in the archive supplied with the <see cref="WithDownloadArchive(string)" /> option
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithBreakOnExisting() => AddFlag("--break-on-existing");
 
     #endregion
 
-    #region Logging & Simulation
+    #region Download Options
 
     /// <summary>
-    /// Writes yt-dlp log output to a file.
+    /// Number of fragments of a dash/hlsnative video that should be downloaded concurrently (default is 1)
     /// </summary>
-    /// <param name="logFile">Path to log file.</param>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp LogToFile(string logFile)
-    {
-        if (string.IsNullOrWhiteSpace(logFile))
-            throw new ArgumentException("Log file path cannot be empty.", nameof(logFile));
+    /// <param name="count"></param>
+    public Ytdlp WithConcurrentFragments(int count = 8) => count > 0 ? new Ytdlp(this, concurrentFragments: count) : this;
 
-        _commandBuilder.Append($"--write-log {SanitizeInput(logFile)} ");
-        return this;
+    /// <summary>
+    /// Maximum download rate in bytes per second
+    /// </summary>
+    /// <param name="rate">e.g. 50K or 4.2M</param>
+    public Ytdlp WithLimitRate(string rate) => AddOption("--limit-rate", rate);
+
+    /// <summary>
+    /// Minimum download rate in bytes per second below which throttling is assumed and the video data is re-extracted
+    /// </summary>
+    /// <param name="rate">e.g. 100K</param>
+    public Ytdlp WithThrottledRate(string rate) => AddOption("--throttled-rate", rate);
+
+    /// <summary>
+    /// Number of retries (default is 10), or -1 for "infinite"
+    /// </summary>
+    /// <param name="maxRetries"></param>
+    public Ytdlp WithRetries(int maxRetries) => AddOption("--retries", maxRetries < 0 ? "infinite" : maxRetries.ToString());
+
+    /// <summary>
+    /// Number of times to retry on file access error (default is 3), or -1 for "infinite"
+    /// </summary>
+    /// <param name="maxRetries"></param>
+    public Ytdlp WithFileAccessRetries(int maxRetries) => AddOption("--file-access-retries", maxRetries < 0 ? "infinite" : maxRetries.ToString());
+
+    /// <summary>
+    /// Number of retries for a fragment (default is 10), or -1 for "infinite" (DASH, hlsnative and ISM)
+    /// </summary>
+    /// <param name="maxRetries"></param>
+    public Ytdlp WithFragmentRetries(int retries)
+    {
+        // -1 = infinite
+        string value = retries < 0 ? "infinite" : retries.ToString();
+        return AddOption("--fragment-retries", value);
     }
 
     /// <summary>
-    /// Simulates download without saving files.
+    /// Skip unavailable fragments for DASH, hlsnative and ISM downloads (default)
     /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp Simulate()
+    /// <returns></returns>
+    public Ytdlp WithSkipUnavailableFragments() => AddFlag("--skip-unavailable-fragments");
+
+    /// <summary>
+    /// Abort download if a fragment is unavailable
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithAbortOnUnavailableFragments() => AddFlag("--abort-on-unavailable-fragments");
+
+    /// <summary>
+    /// Keep downloaded fragments on disk after downloading is finished
+    /// </summary>
+    public Ytdlp WithKeepFragments() => AddFlag("--keep-fragments");
+
+    /// <summary>
+    /// Size of download buffer, (default is 1024) 
+    /// </summary>
+    /// <param name="size">e.g. 1024 or 16K</param>
+    public Ytdlp WithBufferSize(string size) => AddOption("--buffer-size", size);
+
+    /// <summary>
+    /// Do not automatically adjust the buffer size
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoResizeBuffer() => AddFlag("--no-resize-buffer");
+
+    /// <summary>
+    /// Download playlist videos in random order
+    /// </summary>
+    public Ytdlp WithPlaylistRandom() => AddFlag("--playlist-random");
+
+    /// <summary>
+    /// Use the mpegts container for HLS videos; allowing some players to play the video while downloading, 
+    /// and reducing the chance of file corruption if download is interrupted. This is enabled by default for live streams
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithHlsUseMpegts() => AddFlag("--hls-use-mpegts");
+
+    /// <summary>
+    /// Do not use the mpegts container for HLS videos. This is default when not downloading live streams
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoHlsUseMpegts() => AddFlag("--no-hls-use-mpegts");
+
+
+    /// <summary>
+    /// Download only chapters that match the regular expression. A "*" prefix denotes time-range instead of chapter.
+    /// Negative timestamps are calculated from the end. "*from-url" can be used to download between the "start_time" and "end_time" extracted from the URL.
+    /// Needs ffmpeg. This option can be used multiple times to download multiple sections
+    /// </summary>
+    /// <param name="regex">e.g. "*10:15-inf", "intro"</param>
+    /// <returns></returns>
+    public Ytdlp WithDownloadSections(string regex)
     {
-        _commandBuilder.Append("--simulate ");
-        return this;
+        if (string.IsNullOrWhiteSpace(regex)) return this;
+        return AddOption("--download-sections", regex);
     }
+
+
+    #endregion
+
+    #region Filesystem Options
+
+    /// <summary>
+    /// Sets the home folder for yt-dlp (used for config or as base directory).
+    /// Path is automatically normalized and quoted.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithHomeFolder(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Home folder path required");
+        return new Ytdlp(this, homeFolder: Path.GetFullPath(path));
+    }
+
+    /// <summary>
+    /// Sets the temporary folder for yt-dlp intermediate files (fragments, etc.).
+    /// Path is automatically normalized and quoted.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithTempFolder(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Temp folder path required");
+        return new Ytdlp(this, tempFolder: Path.GetFullPath(path));
+    }
+
+    /// <summary>
+    /// Sets the output folder
+    /// </summary>
+    /// <param name="path"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithOutputFolder(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Output folder path required");
+        return new Ytdlp(this, outputFolder: Path.GetFullPath(path));
+    }
+
+    /// <summary>
+    /// Output filename template
+    /// </summary>
+    /// <param name="template"></param>
+    public Ytdlp WithOutputTemplate(string template)
+    {
+        if (string.IsNullOrWhiteSpace(template)) throw new ArgumentException("Template required");
+        return new Ytdlp(this, outputTemplate: template.Trim());
+    }
+
+    /// <summary>
+    /// Restrict filenames to only ASCII characters, and avoid "&" and spaces in filenames
+    /// </summary>
+    public Ytdlp WithRestrictFilenames() => AddFlag("--restrict-filenames");
+
+    /// <summary>
+    /// Force filenames to be Windows-compatible
+    /// </summary>
+    public Ytdlp WithWindowsFilenames() => AddFlag("--windows-filenames");
+
+    /// <summary>
+    /// Limit the filename length (excluding extension) to the specified number of characters
+    /// </summary>
+    /// <param name="length"></param>
+    public Ytdlp WithTrimFilenames(int length)
+    {
+        if (length < 10)
+            throw new ArgumentOutOfRangeException(nameof(length), "Length should be at least 10 characters");
+
+        return AddOption("--trim-filenames", length.ToString());
+    }
+
+    /// <summary>
+    /// Do not overwrite any files
+    /// </summary>
+    public Ytdlp WithNoOverwrites() => AddFlag("--no-overwrites");
+
+    /// <summary>
+    /// Overwrite all video and metadata files. This option includes <see cref="WithNoContinue" />
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithForceOverwrites() => AddFlag("--force-overwrites");
+
+    /// <summary>
+    /// Do not resume partially downloaded fragments. If the file is not fragmented, restart download of the entire file
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoContinue() => AddFlag("--no-continue");
+
+    /// <summary>
+    /// Do not use .part files - write directly into output file
+    /// </summary>
+    public Ytdlp WithNoPart() => AddFlag("--no-part");
+
+    /// <summary>
+    /// Use the Last-modified header to set the file modification time
+    /// </summary>
+    public Ytdlp WithMtime() => AddFlag("--mtime");
+
+    /// <summary>
+    /// Write video description to a .description file
+    /// </summary>
+    public Ytdlp WithWriteDescription() => AddFlag("--write-description");
+
+    /// <summary>
+    /// Write video metadata to a .info.json file (this may contain personal information)
+    /// </summary>
+    public Ytdlp WithWriteInfoJson() => AddFlag("--write-info-json");
+
+    /// <summary>
+    /// Do not write playlist metadata when using <see cref="WithWriteInfoJson"/>, <see cref="WithWriteDescription"/>
+    /// </summary>
+    public Ytdlp WithNoWritePlaylistMetafiles() => AddFlag("--no-write-playlist-metafiles");
+
+    /// <summary>
+    /// Write all fields to the infojson
+    /// </summary>
+    public Ytdlp WithNoCleanInfoJson() => AddFlag("--no-clean-info-json");
+
+    /// <summary>
+    /// Retrieve video comments to be placed in the infojson. The comments are fetched even without this option if the extraction is known to be quick
+    /// </summary>
+    public Ytdlp WriteComments() => AddFlag("--write-comments");
+
+    /// <summary>
+    /// Do not retrieve video comments unless the extraction is known to be quick
+    /// </summary>
+    public Ytdlp WithNoWriteComments() => AddFlag("--no-write-comments");
+
+    /// <summary>
+    /// JSON file containing the video information (created with the WriteVideoMetadata() option)
+    /// </summary>
+    /// <param name="path">*.json</param>
+    public Ytdlp WithLoadInfoJson(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Json file path cannot be empty.", nameof(path));
+        return AddOption("--load-info-json", path);
+    }
+
+    /// <summary>
+    /// Netscape formatted file to read cookies from and dump cookie jar in
+    /// </summary>
+    /// <param name="path"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithCookiesFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Cookie file path cannot be empty.", nameof(path));
+        return new Ytdlp(this, cookiesFile: Path.GetFullPath(path));
+    }
+
+    /// <summary>
+    /// The name of the browser to load cookies from. Currently supported browsers are: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale.
+    /// Optionally, the KEYRING used for decrypting Chromium cookies on Linux, the name/path of the PROFILE to load cookies from, and the CONTAINER name (if Firefox) 
+    /// ("none" for no container) can be given with their respective separators. By default, all containers of the most recently accessed profile are used.
+    /// keyrings are: basictext, gnomekeyring, kwallet, kwallet5, kwallet6
+    /// </summary>
+    /// <param name="browser"></param>
+    public Ytdlp WithCookiesFromBrowser(string browser) => new Ytdlp(this, cookiesFromBrowser: browser);
+
+    /// <summary>
+    /// Disable filesystem caching
+    /// </summary>
+    public Ytdlp WithNoCacheDir() => AddFlag("--no-cache-dir");
+
+    /// <summary>
+    /// Delete all filesystem cache files
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithRemoveCacheDir() => AddFlag("--rm-cache-dir");
+
+    #endregion
+
+    #region Thumbnail Options
+
+    /// <summary>
+    /// Write thumbnail image to disk / Write all thumbnail image formats to disk
+    /// </summary>
+    /// <param name="allSizes"></param>
+    /// <returns></returns>
+    public Ytdlp WithThumbnails(bool allSizes = false)
+    {
+        if (allSizes)
+            return AddFlag("--write-all-thumbnails");
+
+        return AddFlag("--write-thumbnail");
+    }
+
+
+    #endregion
+
+    #region Verbosity and Simulation Options
+
+    /// <summary>
+    /// Activate quiet mode. If used with --verbose, print the log to stderr
+    /// </summary>
+    public Ytdlp WithQuiet() => AddFlag("--quiet");
 
     /// <summary>
     /// Ignore warnings
     /// </summary>
-    /// <returns>The current <see cref="Ytdlp"/> instance for chaining.</returns>
-    public Ytdlp NoWarning()
+    public Ytdlp WithNoWarnings() => AddFlag("--no-warnings");
+
+    /// <summary>
+    /// Do not download the video and do not write anything to disk
+    /// </summary>
+    public Ytdlp WithSimulate() => AddFlag("--simulate");
+
+    /// <summary>
+    /// Download the video even if printing/listing options are used
+    /// </summary>
+    public Ytdlp WithNoSimulate() => AddFlag("--no-simulate");
+
+    /// <summary>
+    /// Do not download the video but write all related files (Alias: --no-download)
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithSkipDownload() => AddFlag("--skip-download");
+
+    /// <summary>
+    /// Print various debugging information
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithVerbose() => AddFlag("--verbose");
+
+    #endregion
+
+    #region Workgrounds
+
+    /// <summary>
+    /// Specify a custom HTTP header and its value. You can use this option multiple times
+    /// </summary>
+    /// <param name="header">"Referer" "User-Agent"</param>
+    /// <param name="value">"URL", "UA"</param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithAddHeader(string header, string value)
     {
-        _commandBuilder.Append("--no-warnings ");
-        return this;
+        if (string.IsNullOrWhiteSpace(header) || string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Header and value cannot be empty.");
+        return AddOption("--add-headers", $"{header}:{value}");
+    }
+
+    /// <summary>
+    ///  Number of seconds to sleep between requests during data extraction, Maximum number of seconds to sleep. 
+    ///  Can only be used along with --min-sleep-interval
+    /// </summary>
+    /// <param name="seconds"></param>
+    /// <param name="maxSeconds"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public Ytdlp WithSleepInterval(double seconds, double? maxSeconds = null)
+    {
+        if (seconds <= 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+        var opts = new List<(string, string?)> { ("--sleep-requests", seconds.ToString("F2", CultureInfo.InvariantCulture)) };
+        if (maxSeconds.HasValue && maxSeconds > seconds)
+        {
+            opts.Add(("--max-sleep-requests", maxSeconds.Value.ToString("F2", CultureInfo.InvariantCulture)));
+        }
+        return new Ytdlp(this, extraOptions: opts!);
+    }
+
+    /// <summary>
+    /// Number of seconds to sleep before each subtitle download
+    /// </summary>
+    /// <param name="seconds"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public Ytdlp WithSleepSubtitles(double seconds)
+    {
+        if (seconds <= 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+        return AddOption("--sleep-subtitles", seconds.ToString("F2", CultureInfo.InvariantCulture));
     }
 
     #endregion
 
-    #region Advanced & Specialized Options
+    #region Video Format Options
 
-    public Ytdlp WithConcurrentFragments(int count)
+    /// <summary>
+    /// Video format code
+    /// </summary>
+    /// <param name="format"></param>
+    public Ytdlp WithFormat(string format) => new Ytdlp(this, format: format.Trim());
+
+    /// <summary>
+    /// Containers that may be used when merging formats, separated by "/", e.g. "mp4/mkv" Ignored if no merge is required.
+    /// </summary>
+    /// <param name="format">(currently supported: avi, flv, mkv, mov, mp4, webm)</param>
+    /// <returns></returns>
+    public Ytdlp WithMergeOutputFormat(string format)
     {
-        if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
-        _commandBuilder.Append($"--concurrent-fragments {count} ");
-        return this;
+        // Common values: mp4, mkv, webm, mov, avi, flv
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Merge output format cannot be empty", nameof(format));
+
+        return AddOption("--merge-output-format", format.Trim().ToLowerInvariant());
     }
 
-    public Ytdlp RemoveSponsorBlock(params string[] categories)
+    #endregion
+
+    #region Subtitle Options 
+
+    /// <summary>
+    /// Write subtitle file
+    /// </summary>
+    /// <param name="languages">Languages of the subtitles to download (can be regex) or "all" separated by commas, e.g."en.*,ja"
+    /// (where "en.*" is a regex pattern that matches "en" followed by 0 or more of any character).
+    /// </param>
+    /// <param name="auto">Write automatically generated subtitle file</param>
+    public Ytdlp WithSubtitles(string languages = "all", bool auto = false)
     {
-        var cats = categories.Length == 0 ? "all" : string.Join(",", categories);
-        _commandBuilder.Append($"--sponsorblock-remove {SanitizeInput(cats)} ");
-        return this;
+        var flags = new List<string> { "--write-subs" };
+        if (auto) flags.Add("--write-auto-subs");
+
+        return new Ytdlp(this, extraFlags: flags, extraOptions: new[] { ("--sub-langs", languages) });
     }
 
-    public Ytdlp EmbedSubtitles(string languages = "all", string? convertTo = null)
+    #endregion
+
+    #region Authentication Options
+
+    /// <summary>
+    /// Login with this account ID and account password.
+    /// </summary>
+    /// <param name="username">Account ID</param>
+    /// <param name="password">Account password</param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithAuthentication(string username, string password)
     {
-        _commandBuilder.Append($"--write-subs --sub-langs {SanitizeInput(languages)} ");
-        if (!string.IsNullOrEmpty(convertTo)) _commandBuilder.Append($"--convert-subs {SanitizeInput(convertTo)} ");
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            throw new ArgumentException("Username and password cannot be empty.");
+        return this
+            .AddOption("--username", username)
+            .AddOption("--password", password);
+    }
+
+    /// <summary>
+    /// Two-factor authentication code
+    /// </summary>
+    /// <param name="code">Two-factor Code</param>
+    /// <returns></returns>
+    public Ytdlp WithTwoFactor(string code) => AddOption("--twofactor", code);
+
+    #endregion
+
+    #region Post-Processing Options
+
+    /// <summary>
+    /// Convert video files to audio-only files (requires ffmpeg and ffprobe).        
+    /// </summary>
+    /// <param name="format">Formats currently supported: best (default),aac, alac, flac, m4a, mp3, opus, vorbis, wav).</param>
+    /// <param name="quality">Audio quality (0–10, lower = better). Default: 5 (medium)</param>
+    public Ytdlp WithExtractAudio(AudioFormat format = AudioFormat.Best, int quality = 5)
+    {
+        return this
+            .AddFlag("--extract-audio")
+            .AddOption("--audio-format", format.ToString().ToLowerInvariant())
+            .AddOption("--audio-quality", quality.ToString());
+    }
+
+    /// <summary>
+    /// Remux the video into another container if necessary (requires ffmpeg and ffprobe)
+    /// If the target container does not support the video/audio codec, remuxing will fail. You can specify multiple rules; 
+    /// e.g. "aac>m4a/mov>mp4/mkv" will remux aac to m4a, mov to mp4 and anything else to mkv
+    /// </summary>
+    /// <param name="format">(currently supported: avi, flv, gif, mkv, mov, mp4, webm, aac, aiff, alac, flac, m4a, mka, mp3, ogg, opus, vorbis, wav).</param>
+    public Ytdlp WithRemuxVideo(MediaFormat format = MediaFormat.Mp4) => AddOption("--remux-video", format.ToString().ToLowerInvariant());
+
+
+    /// <summary>
+    /// Re-encode the video into another format if necessary. The syntax and supported formats are the same as WithRemuxVideo()
+    /// </summary>
+    /// <param name="format">(currently supported: avi, flv, gif, mkv, mov, mp4, webm, aac, aiff, alac, flac, m4a, mka, mp3, ogg, opus, vorbis, wav).</param>
+    /// <param name="videoCodec"></param>
+    /// <param name="audioCodec"></param>
+    public Ytdlp WithRecodeVideo(MediaFormat format = MediaFormat.Mp4, string? videoCodec = null, string? audioCodec = null)
+    {
+        var builder = AddOption("--recode-video", format.ToString().ToLowerInvariant());
+        if (!string.IsNullOrWhiteSpace(videoCodec))
+            builder = builder.AddOption("--video-codec", videoCodec);
+        if (!string.IsNullOrWhiteSpace(audioCodec))
+            builder = builder.AddOption("--audio-codec", audioCodec);
+        return builder;
+    }
+
+    /// <summary>
+    /// Give these arguments to the postprocessors. Specify the postprocessor/executable name and to give the argument to the specified
+    /// </summary>
+    /// <param name="postprocessor">Supported PP are: Merger, ModifyChapters, SplitChapters, ExtractAudio, 
+    /// VideoRemuxer, VideoConvertor, Metadata, EmbedSubtitle, EmbedThumbnail, SubtitlesConvertor, ThumbnailsConvertor, 
+    /// FixupStretched, FixupM4a, FixupM3u8, FixupTimestamp and FixupDuration.</param>
+    /// <param name="args"></param>
+    public Ytdlp WithPostprocessorArgs(PostProcessors postprocessor, string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            throw new ArgumentException("Both postprocessor name and arguments are required");
+
+        string combined = $"{postprocessor.ToString().Trim()}:{args.Trim()}";
+        return AddOption("--postprocessor-args", combined);
+    }
+
+    /// <summary>
+    /// Keep the intermediate video file on disk after post-processing
+    /// </summary>
+    public Ytdlp WithKeepVideo() => AddFlag("-k");
+
+    /// <summary>
+    /// Do not overwrite post-processed files
+    /// </summary>
+    public Ytdlp WithNoPostOverwrites() => AddFlag("--no-post-overwrites");
+
+    /// <summary>
+    /// Embed subtitles in the video (only for mp4, webm and mkv videos)
+    /// </summary>
+    /// <param name="languages"></param>
+    /// <param name="convertTo"></param>
+    public Ytdlp WithEmbedSubtitles(string languages = "all", string? convertTo = null)
+    {
+        var builder = AddFlag("--sub-langs")
+            .AddOption("--write-sub", languages);
+        if (!string.IsNullOrWhiteSpace(convertTo))
+            builder = builder.AddOption("--convert-subs", convertTo);
         if (convertTo?.Equals("embed", StringComparison.OrdinalIgnoreCase) == true)
-            _commandBuilder.Append("--embed-subs ");
-        return this;
+            builder = builder.AddFlag("--embed-subs");
+        return builder;
     }
 
-    public Ytdlp CookiesFromBrowser(string browser, string? profile = null)
+    /// <summary>
+    /// Embed thumbnail in the video as cover art
+    /// </summary>
+    public Ytdlp WithEmbedThumbnail() => AddFlag("--embed-thumbnail");
+
+    /// <summary>
+    /// Embed metadata to the video file
+    /// </summary>
+    public Ytdlp WithEmbedMetadata() => AddFlag("--embed-metadata");
+
+    /// <summary>
+    /// Add chapter markers to the video file
+    /// </summary>
+    public Ytdlp WithEmbedChapters() => AddFlag("--embed-chapters");
+
+    /// <summary>
+    /// Embed the infojson as an attachment to mkv/mka video files
+    /// </summary>
+    public Ytdlp WithEmbedInfoJson() => AddFlag("--embed-info-json");
+
+    /// <summary>
+    /// Do not embed the infojson as an attachment to the video file
+    /// </summary>
+    public Ytdlp WithNoEmbedInfoJson() => AddFlag("--no-embed-info-json");
+
+    /// <summary>
+    /// Replace text in a metadata field using the given regex. This option can be used multiple times.
+    /// </summary>
+    /// <param name="field"></param>
+    /// <param name="regex"></param>
+    /// <param name="replacement"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithReplaceInMetadata(string field, string regex, string replacement)
     {
-        var arg = profile != null ? $"{browser}:{profile}" : browser;
-        _commandBuilder.Append($"--cookies-from-browser {SanitizeInput(arg)} ");
-        return this;
+        if (string.IsNullOrWhiteSpace(field) || string.IsNullOrWhiteSpace(regex) || replacement == null)
+            throw new ArgumentException("Metadata field, regex, and replacement cannot be empty.");
+        return AddFlag($"--replace-in-metadata {field} {regex} {replacement}");
     }
 
-    public Ytdlp GeoBypassCountry(string countryCode)
+    /// <summary>
+    /// Concatenate videos in a playlist. All the video files must have the same codecs and number of streams to be concatenable
+    /// </summary>
+    /// <param name="policy">never, always, multi_video (default; only when the videos form a single show)</param>
+    public Ytdlp WithConcatPlaylist(string policy = "always") => AddOption("--concat-playlist", policy);
+
+    /// <summary>
+    /// Location of the ffmpeg binary
+    /// </summary>
+    /// <param name="ffmpegPath">Either the path to the binary or its containing directory</param>
+    public Ytdlp WithFFmpegLocation(string? ffmpegPath)
     {
-        if (countryCode.Length != 2) throw new ArgumentException("Country code must be 2 letters.");
-        _commandBuilder.Append($"--geo-bypass-country {SanitizeInput(countryCode.ToUpperInvariant())} ");
-        return this;
+        if (string.IsNullOrWhiteSpace(ffmpegPath)) return this;
+        return new Ytdlp(this, ffmpegLocation: ffmpegPath);
     }
 
-    public Ytdlp AddCustomCommand(string customCommand)
+    /// <summary>
+    /// Convert the thumbnails to another format. You can specify multiple rules using similar WithRemuxVideo().
+    /// </summary>
+    /// <param name="format">(currently supported: jpg, png, webp)</param>
+    /// <returns></returns>
+    public Ytdlp WithConvertThumbnails(string format = "jpg")
     {
-        if (string.IsNullOrWhiteSpace(customCommand))
-            throw new ArgumentException("Custom command cannot be empty.", nameof(customCommand));
+        // Supported: jpg, png, webp
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Thumbnail format cannot be empty", nameof(format));
 
-        var parts = customCommand
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(SanitizeInput)
-            .ToArray();
+        return AddOption("--convert-thumbnails", format.Trim().ToLowerInvariant());
+    }
 
-        // Validate only option tokens (flags)
-        foreach (var part in parts)
+    /// <summary>
+    /// Force keyframes at cuts when downloading/splitting/removing sections. 
+    /// This is slow due to needing a re-encode, but the resulting video may have fewer artifacts around the cuts
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithForceKeyframesAtCuts() => AddFlag("--force-keyframes-at-cuts");
+
+    #endregion
+
+    #region SponsorBlock Options
+
+    /// <summary>
+    /// SponsorBlock categories to create chapters for, separated by commas. 
+    /// Available categories are sponsor, intro, outro, selfpromo, preview, filler, interaction, music_offtopic, hook, poi_highlight, chapter, all and default (=all).
+    /// You can prefix the category with a "-" to exclude it. E.g. SponsorBlockMark("all,-preview)
+    /// </summary>
+    /// <param name="categories"></param>
+    /// <returns></returns>
+    public Ytdlp WithSponsorblockMark(string categories = "all") => AddOption("--sponsorblock-mark", categories);
+
+    /// <summary>
+    /// SponsorBlock categories to be removed from the video file, separated by commas. 
+    /// If a category is present in both mark and remove, remove takes precedence. Working and available categories are the same as for WithSponsorblockMark()
+    /// </summary>
+    /// <param name="categories"></param>
+    /// <returns></returns>
+    public Ytdlp WithSponsorblockRemove(string categories = "all") => new Ytdlp(this, sponsorblockRemove: categories);
+
+    /// <summary>
+    /// Disable both WithSponsorblockMark() and WithSponsorblockRemove() options and do not use any sponsorblock features
+    /// </summary>
+    /// <returns></returns>
+    public Ytdlp WithNoSponsorblock() => AddFlag("--no-sponsorblock");
+
+    #endregion
+
+    #region Core
+    public Ytdlp AddFlag(string flag) => new Ytdlp(this, extraFlags: new[] { flag.Trim() });
+
+    public Ytdlp AddOption(string key, string value) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
+    #endregion
+
+    #region Downloaders
+    public Ytdlp WithExternalDownloader(string downloaderName, string? downloaderArgs = null)
+    {
+        if (string.IsNullOrWhiteSpace(downloaderName))
+            throw new ArgumentException("Downloader name cannot be empty", nameof(downloaderName));
+
+        var opts = new List<(string, string?)> { ("--downloader", downloaderName.Trim()) };
+
+        if (!string.IsNullOrWhiteSpace(downloaderArgs))
         {
-            if (part.StartsWith("-", StringComparison.Ordinal) && !IsAllowedOption(part))
-            {
-                var errorMessage = $"Invalid yt-dlp option: {part}";
-                OnErrorMessage?.Invoke(this, errorMessage);
-                _logger.Log(LogType.Error, errorMessage);
-                return this;
-            }
+            opts.Add(("--downloader-args", downloaderArgs.Trim()));
         }
 
-        _commandBuilder.Append(' ').Append(string.Join(' ', parts));
-
-        return this;
+        return new Ytdlp(this, extraOptions: opts!);
     }
 
+    public Ytdlp WithAria2(int connections = 16)
+    {
+        return new Ytdlp(this, extraOptions: new[]
+            {
+            ("--downloader", "aria2c"),
+            ("--downloader-args", $"aria2c:-x{connections} -k1M")
+            });
+    }
+
+    public Ytdlp WithHlsNative() => AddOption("--downloader", "hlsnative");
+
+    public Ytdlp WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null) => WithExternalDownloader("ffmpeg", extraFfmpegArgs);
+
     #endregion
+
+    #region Redundant options
+
+    /// <summary>
+    /// Playlist start index
+    /// </summary>
+    /// <param name="index"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public Ytdlp WithPlaylistStart(int index)
+    {
+        if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
+        return AddOption("--playlist-start", index.ToString());
+    }
+
+    /// <summary>
+    /// Playlist end index
+    /// </summary>
+    /// <param name="index"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public Ytdlp WithPlaylistEnd(int index)
+    {
+        if (index < 1) throw new ArgumentOutOfRangeException(nameof(index), "Must be >= 1");
+        return AddOption("--playlist-end", index.ToString());
+    }
+
+    public Ytdlp WithUserAgent(string userAgent)
+    {
+        if (string.IsNullOrWhiteSpace(userAgent))
+            throw new ArgumentException("User-Agent cannot be empty", nameof(userAgent));
+        return AddOption("--user-agent", userAgent.Trim());
+    }
+
+    public Ytdlp WithReferer(string referer)
+    {
+        if (string.IsNullOrWhiteSpace(referer))
+            throw new ArgumentException("Referer cannot be empty", nameof(referer));
+        return AddOption("--referer", referer.Trim());
+    }
+
+    public Ytdlp WithMatchTitle(string regex)
+    {
+        if (string.IsNullOrWhiteSpace(regex))
+            throw new ArgumentException("Regex cannot be empty", nameof(regex));
+        return AddOption("--match-title", regex.Trim());
+    }
+
+    public Ytdlp WithRejectTitle(string regex)
+    {
+        if (string.IsNullOrWhiteSpace(regex))
+            throw new ArgumentException("Regex cannot be empty", nameof(regex));
+        return AddOption("--reject-title", regex.Trim());
+    }
+
+    public Ytdlp WithBreakOnReject() => AddFlag("--break-on-reject");
+    #endregion
+
+    #region Bonus
+
+    public Ytdlp WithBestUpTo1440p() => new Ytdlp(this, format: "bestvideo[height<=?1440]+bestaudio/best");
+    public Ytdlp With1080pOrBest() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
+
+    public Ytdlp WithBestUpTo1080p() => new Ytdlp(this, format: "bestvideo[height<=?1080]+bestaudio/best");
+
+    public Ytdlp With720pOrBest() => new Ytdlp(this, format: "bv*[height<=?720]+ba/best/best");
+
+    public Ytdlp WithMp4PostProcessingPreset()
+        => this
+            .WithRemuxVideo(MediaFormat.Mp4)
+            .WithEmbedMetadata()
+            .WithEmbedChapters()
+            .WithEmbedThumbnail();
+
+    public Ytdlp WithMkvOutput()
+        => this
+            .WithRemuxVideo(MediaFormat.Mkv)
+            .WithMergeOutputFormat("mkv");
+
+    public Ytdlp WithMaxHeight(int height)
+    {
+        if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height), "Height must be positive");
+
+        string formatSelector = $"bestvideo[height<={height}]+bestaudio/best";
+        return new Ytdlp(this, format: formatSelector);
+    }
+
+    public Ytdlp WithMaxHeightOrBest(int height)
+    {
+        if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height), "Height must be positive");
+
+        string formatSelector = $"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best";
+        return new Ytdlp(this, format: formatSelector);
+    }
+
+    public Ytdlp WithBestVideoPlusBestAudio() => new Ytdlp(this, format: "bestvideo+bestaudio/best");
+
+    public Ytdlp WithBestAudioOnly() => new Ytdlp(this, format: "bestaudio");
+
+    public Ytdlp WithNo4k() => new Ytdlp(this, format: "bestvideo[height<=?2160]+bestaudio/best");
+
+    public Ytdlp WithBestM4aAudio() => new Ytdlp(this, format: "bestaudio[ext=m4a]/bestaudio/best");
+    #endregion
+
+    // ==================================================================================================================
+    // Probe and Download Functions
+    // ==================================================================================================================
 
     #region Execution & Utility Methods
 
     /// <summary>
-    /// Preview Commands
+    /// Command preview ofr debug operatons
     /// </summary>
     /// <param name="url"></param>
     /// <returns></returns>
-    /// <exception cref="ArgumentException"></exception>
-    public string PreviewCommand(string url)
+    public string Preview(string url)
     {
-        if (string.IsNullOrWhiteSpace(url))
-            throw new ArgumentException("URL cannot be empty.", nameof(url));
-
-        string template = Path.Combine(_outputFolder, _outputTemplate.Replace("\\", "/"));
-
-        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" {SanitizeInput(url)}";
-
-        return $"{_ytDlpPath} {arguments}";
+        var argsList = BuildArguments(url);
+        return string.Join(" ", argsList.Select(Quote));
     }
-
 
     /// <summary>
     /// Retrieves the current version string of the underlying yt-dlp executable.
@@ -809,9 +1263,9 @@ public sealed class Ytdlp
     /// A <see cref="string"/> representing the yt-dlp version (e.g., "2023.03.04"); 
     /// returns an empty string or throws if the binary cannot be found.
     /// </returns>
-    public async Task<string> GetVersionAsync(CancellationToken ct = default)
+    public async Task<string> VersionAsync(CancellationToken ct = default)
     {
-        var output = await _probe.RunAsync("--version", ct);
+        var output = await Probe().RunAsync("--version", ct);
         string version = output is null ? string.Empty : output.Trim();
         _logger.Log(LogType.Info, $"yt-dlp version: {version}");
         return version;
@@ -821,14 +1275,14 @@ public sealed class Ytdlp
     /// Updates the underlying yt-dlp binary to the latest version on the specified release channel.
     /// </summary>
     /// <param name="channel">The release channel to pull updates from (Master, Nightly, Stable.).</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to abort the download and installation process.</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> to abort the download and installation process.</param>
     /// <returns>
     /// A <see cref="string"/> containing the update log or the new version number; 
     /// returns an empty string or throws if the update process fails.
     /// </returns>
-    public async Task<string> UpdateAsync(UpdateChannel channel = UpdateChannel.Stable, CancellationToken cancellationToken = default)
+    public async Task<string> UpdateAsync(UpdateChannel channel = UpdateChannel.Stable, CancellationToken ct = default)
     {
-        var output = await _probe.RunAsync($"--update-to {channel.ToString().ToLowerInvariant()}", cancellationToken);
+        var output = await Probe().RunAsync($"--update-to {channel.ToString().ToLowerInvariant()}", ct);
         if (output is null)
             return string.Empty;
 
@@ -841,7 +1295,45 @@ public sealed class Ytdlp
 
         return "yt-dlp update check completed (no changes detected).";
 
-        
+
+    }
+
+    /// <summary>
+    /// List all supported extractors and exit
+    /// </summary>
+    /// <param name="ct"></param>
+    /// <param name="bufferKb">Buffer size in KB.</param>
+    /// <returns>List of extractor names</returns>
+    public async Task<List<string>> ExtractorsAsync(CancellationToken ct = default, int bufferKb = 128)
+    {
+        try
+        {
+            List<string> list = new();
+            var result = await Probe().RunAsync("--list-extractors", ct, bufferKb);
+
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                _logger.Log(LogType.Warning, "Empty extractor list.");
+                return list;
+            }
+
+            var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            foreach (var line in lines)
+                list.Add(line);
+
+            return list;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Log(LogType.Warning, "Extractors fetch cancelled.");
+            return new List<string>();
+        }
+        catch (Exception ex)
+        {
+            _logger.Log(LogType.Warning, $"Extrators fetch failed: {ex.Message}");
+            return new List<string>();
+        }
     }
 
     /// <summary>
@@ -870,9 +1362,9 @@ public sealed class Ytdlp
                 $"--lazy-playlist " +
                 $"--quiet " +
                 $"--no-warnings " +
-                $"{SanitizeInput(url)}";
+                $"{Quote(url)}";
 
-            var json = await _probe.RunAsync(arguments, ct);
+            var json = await Probe().RunAsync(arguments, ct);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -927,9 +1419,9 @@ public sealed class Ytdlp
                 $"--lazy-playlist " +
                 $"--quiet " +
                 $"--no-warnings " +
-                $"{SanitizeInput(url)}";
+                $"{Quote(url)}";
 
-            var json = await _probe.RunAsync(arguments, ct);
+            var json = await Probe().RunAsync(arguments, ct);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -962,12 +1454,12 @@ public sealed class Ytdlp
     /// returns an empty list or <see langword="null"/> if the probe fails or is cancelled.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<List<Format>> GetAvailableFormatsAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<List<Format>> GetFormatsAsync(string url, CancellationToken ct = default, int bufferKb = 128)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("Video URL cannot be empty.", nameof(url));
 
-        var output = await _probe.RunAsync($"-F {SanitizeInput(url)}", ct, bufferKb);
+        var output = await Probe().RunAsync($"-F {Quote(url)}", ct, bufferKb);
 
         if (string.IsNullOrWhiteSpace(output))
         {
@@ -1012,9 +1504,9 @@ public sealed class Ytdlp
 
             var printArg = $"--print \"{string.Join(separator, fields)}\"";
 
-            var arguments = $"{printArg} --skip-download --no-playlist --quiet {SanitizeInput(url)}";
+            var arguments = $"{printArg} --skip-download --no-playlist --quiet {Quote(url)}";
 
-            var output = await _probe.RunAsync(arguments, ct, bufferKb);
+            var output = await Probe().RunAsync(arguments, ct, bufferKb);
 
             if (string.IsNullOrWhiteSpace(output))
                 return null;
@@ -1075,9 +1567,9 @@ public sealed class Ytdlp
             var printParts = fields.Select(f => $"%({f})s");
             var printFormat = string.Join(separator, printParts);
 
-            var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {SanitizeInput(url)}";
+            var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {Quote(url)}";
 
-            var rawOutput = await _probe.RunAsync(arguments, ct, bufferKb);
+            var rawOutput = await Probe().RunAsync(arguments, ct, bufferKb);
             if (string.IsNullOrWhiteSpace(rawOutput))
                 return null;
 
@@ -1156,52 +1648,78 @@ public sealed class Ytdlp
         return best?.FormatId ?? "bestvideo";
     }
 
-
     /// <summary>
-    /// Executes a download process for the specified URL using an optional output template.
+    /// Executes download processing for a URL.
     /// </summary>
-    /// <param name="url">The source URL to process.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to terminate the process execution.</param>
-    /// <returns>
-    /// A <see cref="Task"/> representing the asynchronous execution of the process.
-    /// </returns>
+    /// <param name="url">The source URL to download.</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> to stop the execution.</param>
+    /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="YtdlpException"></exception>
-    public async Task ExecuteAsync(string url, CancellationToken ct = default)
+    public async Task DownloadAsync(string url, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(url))
-            throw new ArgumentException("URL cannot be empty.", nameof(url));
+            throw new ArgumentException("URL required", nameof(url));
 
-        if (string.IsNullOrWhiteSpace(_format))
-            _format = "best";
-
-        // Ensure output folder exists
+        // Ensure directories exist if needed
         try
         {
-            Directory.CreateDirectory(_outputFolder);
-            _logger.Log(LogType.Info, $"Output folder: {Path.GetFullPath(_outputFolder)}");
+            if (!string.IsNullOrWhiteSpace(_outputFolder))
+                Directory.CreateDirectory(_outputFolder);
+
+            if (!string.IsNullOrWhiteSpace(_homeFolder))
+                Directory.CreateDirectory(_homeFolder);
+
+            if (!string.IsNullOrWhiteSpace(_tempFolder))
+                Directory.CreateDirectory(_tempFolder);
         }
         catch (Exception ex)
         {
-            _logger.Log(LogType.Error, $"Failed to create output folder {_outputFolder}: {ex.Message}");
-            throw new YtdlpException($"Failed to create output folder {_outputFolder}", ex);
+            _logger.Log(LogType.Error, $"Failed to create necessary folders: {ex.Message}");
+            throw new YtdlpException("Failed to create required folders", ex);
         }
 
-        // Reset ProgressParser for this download
-        _progressParser.Reset();
-        _logger.Log(LogType.Info, $"Starting download for URL: {url}");
+        var argsList = BuildArguments(url);
+        var arguments = string.Join(" ", argsList.Select(Quote));
 
-        // Use provided template or default
-        string template = Path.Combine(_outputFolder, _outputTemplate.Replace("\\", "/"));
+        _logger.Log(LogType.Info, $"Executing: {_ytdlpPath} {arguments}");
 
-        // Build command with format and output template
-        string arguments = $"{_commandBuilder} -f \"{_format}\" -o \"{template}\" {SanitizeInput(url)}";
+        // Create isolated execution components
+        var factory = new ProcessFactory(_ytdlpPath);
+        var progressParser = new ProgressParser(_logger);
+        var download = new DownloadRunner(factory, progressParser, _logger);
 
-        _logger.Log(LogType.Info, arguments);
+        // Forward progress events locally inside this method
+        void OnProgressDownloadHandler(object? s, DownloadProgressEventArgs e)
+            => OnProgressDownload?.Invoke(this, e);
 
-        _commandBuilder.Clear(); // Clear after building arguments
+        void OnProgressMessageHandler(object? s, string msg)
+            => OnProgressMessage?.Invoke(this, msg);
 
-        await _download.RunAsync(arguments, ct);
+        // Attach progress handlers
+        progressParser.OnProgressDownload += OnProgressDownloadHandler;
+        progressParser.OnProgressMessage += OnProgressMessageHandler;
+
+        // Forward other events
+        progressParser.OnOutputMessage += (_, e) => OnOutputMessage?.Invoke(this, e);
+        progressParser.OnCompleteDownload += (_, e) => OnCompleteDownload?.Invoke(this, e);
+        progressParser.OnErrorMessage += (_, e) => OnErrorMessage?.Invoke(this, e);
+        progressParser.OnPostProcessingComplete += (_, e) => OnPostProcessingComplete?.Invoke(this, e);
+
+        download.OnCommandCompleted += (_, e) => OnCommandCompleted?.Invoke(this, e);
+
+        try
+        {
+            await download.RunAsync(arguments, ct);
+        }
+        finally
+        {
+            // Unsubscribe immediately after execution to prevent memory leaks
+            progressParser.OnProgressDownload -= OnProgressDownloadHandler;
+            progressParser.OnProgressMessage -= OnProgressMessageHandler;
+        }
     }
 
     /// <summary>
@@ -1214,23 +1732,12 @@ public sealed class Ytdlp
     /// A <see cref="Task"/> representing the asynchronous execution of the process.
     /// </returns>
     /// <exception cref="YtdlpException"></exception>
-    public async Task ExecuteBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default)
+    public async Task DownloadBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default)
     {
         if (urls == null || !urls.Any())
         {
             _logger.Log(LogType.Error, "No URLs provided for batch download");
             throw new YtdlpException("No URLs provided for batch download");
-        }
-
-        try
-        {
-            Directory.CreateDirectory(_outputFolder);
-            _logger.Log(LogType.Info, $"Output folder for batch: {Path.GetFullPath(_outputFolder)}");
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Failed to create output folder {_outputFolder}: {ex.Message}");
-            throw new YtdlpException($"Failed to create output folder {_outputFolder}", ex);
         }
 
         using SemaphoreSlim throttler = new(maxConcurrency);
@@ -1240,7 +1747,7 @@ public sealed class Ytdlp
             await throttler.WaitAsync();
             try
             {
-                await ExecuteAsync(url, ct);
+                await DownloadAsync(url, ct);
             }
             catch (YtdlpException ex)
             {
@@ -1257,24 +1764,125 @@ public sealed class Ytdlp
 
     #endregion
 
-    #region Private Helpers
+    #region Helpers
+
+    // Get probe runner
+    private ProbeRunner Probe()
+    {
+        // Create isolated execution components
+        var factory = new ProcessFactory(_ytdlpPath);
+        return new ProbeRunner(factory, _logger);
+    }
+
+    private List<string> BuildArguments(string url)
+    {
+        var args = new List<string>();
+
+        bool usingAbsoluteOutput = !string.IsNullOrWhiteSpace(_outputFolder);
+
+        if (usingAbsoluteOutput && !string.IsNullOrWhiteSpace(_tempFolder))
+        {
+            _logger.Log(LogType.Debug, "Temp folder ignored because absolute output template is used.");
+        }
+
+        // temp folder
+        if (!usingAbsoluteOutput && !string.IsNullOrWhiteSpace(_tempFolder))
+        {
+            args.Add("--paths");
+            args.Add($"temp:{_tempFolder.Replace("\\", "/")}");
+        }
+
+        // home folder only if NOT using absolute output
+        if (!usingAbsoluteOutput && !string.IsNullOrWhiteSpace(_homeFolder))
+        {
+            args.Add("--paths");
+            args.Add($"home:{_homeFolder.Replace("\\", "/")}");
+        }
+
+        // Output template
+        if (!string.IsNullOrWhiteSpace(_outputTemplate))
+        {
+            args.Add("-o");
+
+            if (usingAbsoluteOutput)
+            {
+                var full = Path.Combine(_outputFolder!, _outputTemplate)
+                    .Replace("\\", "/");
+
+                args.Add(full);
+            }
+            else
+            {
+                args.Add(_outputTemplate);
+            }
+        }
+
+        // Format
+        if (!string.IsNullOrWhiteSpace(_format))
+        {
+            args.Add("-f");
+            args.Add(_format);
+        }
+
+        // Concurrent fragments
+        if (_concurrentFragments > 1)
+        {
+            args.Add("--concurrent-fragments");
+            args.Add(_concurrentFragments.Value.ToString());
+        }
+
+        // Flags
+        if (_flags.Length > 0)
+            args.AddRange(_flags);
+
+        // Options
+        if (_options.Length > 0)
+        {
+            foreach (var kv in _options)
+            {
+                args.Add(kv.Key);
+                if (kv.Value != null)
+                    args.Add(kv.Value);
+            }
+        }
+
+        // Special single-value options
+        if (_cookiesFile is not null) { args.Add("--cookies"); args.Add(_cookiesFile); }
+        if (_cookiesFromBrowser is not null) { args.Add("--cookies-from-browser"); args.Add(Quote(_cookiesFromBrowser)); }
+        if (_proxy is not null) { args.Add("--proxy"); args.Add(_proxy); }
+        if (_ffmpegLocation is not null) { args.Add("--ffmpeg-location"); args.Add(_ffmpegLocation); }
+        if (_sponsorblockRemove is not null) { args.Add("--sponsorblock-remove"); args.Add(_sponsorblockRemove); }
+
+        // URL last
+        args.Add(url);
+
+        return args;
+    }
+
     private static string ValidatePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("yt-dlp path cannot be empty.", nameof(path));
+            throw new ArgumentException("yt-dlp path cannot be empty");
+
+        if (!File.Exists(path) && !IsExecutableInPath(path))
+            throw new FileNotFoundException($"yt-dlp executable not found: {path}");
+
         return path;
     }
 
-    private static string SanitizeInput(string input)
+    private static bool IsExecutableInPath(string name)
     {
-        if (string.IsNullOrEmpty(input))
-            return input;
+        return Environment.GetEnvironmentVariable("PATH")?
+            .Split(Path.PathSeparator)
+            .Any(p => File.Exists(Path.Combine(p, name))) ?? false;
+    }
 
-        // escape internal quotes
-        input = input.Replace("\"", "\\\"");
-
-        // wrap with quotes (CRITICAL for paths with spaces)
-        return $"\"{input}\"";
+    private static string Quote(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "\"\"";
+        // Escape " and \
+        string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        return $"\"{escaped}\"";
     }
 
     private List<Format> ParseFormats(string result)
@@ -1307,241 +1915,6 @@ public sealed class Ytdlp
         return formats;
     }
 
-    private bool IsInPath(string executable)
-    {
-        var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? Array.Empty<string>();
-        return paths.Any(path => File.Exists(Path.Combine(path, executable)));
-    }
-
-    private static bool IsAllowedOption(string arg)
-    {
-        if (string.IsNullOrWhiteSpace(arg)) return false;
-        if (ValidOptions.Contains(arg)) return true;
-        if (arg.StartsWith("--") || arg.StartsWith("-")) return true;
-        return false;
-    }
-
-    #endregion
-
-
-    #region Obsolete Methods
-
-    [Obsolete("This method will be removed in the next version. Use GetAvailableFormatsAsync() or GetMetadataAsync() instead.", true)]
-    public async Task<List<Format>> GetFormatsDetailedAsync(string url, CancellationToken ct = default, int bufferKb = 128)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            throw new ArgumentException("URL cannot be empty.", nameof(url));
-
-        try
-        {
-            var arguments =
-                $"--dump-single-json " +
-                $"--simulate " +
-                $"--skip-download " +
-                $"--no-playlist " +
-                $"--quiet " +
-                $"--no-warnings " +
-                $"{SanitizeInput(url)}";
-
-            var json = await _probe.RunAsync(arguments, ct, bufferKb);
-
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                _logger.Log(LogType.Warning, "Empty JSON output from --dump-single-json");
-                throw new YtdlpException("No data returned from format query.");
-            }
-
-            // JSON options
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                NumberHandling = JsonNumberHandling.AllowReadingFromString,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
-
-            // Deserialize
-            var videoInfo = JsonSerializer.Deserialize<SingleVideoJson>(json, jsonOptions);
-
-            if (videoInfo?.Formats == null || !videoInfo.Formats.Any())
-            {
-                _logger.Log(LogType.Warning, "No formats array in JSON or empty → falling back to -F");
-                return await GetAvailableFormatsAsync(url, ct);
-            }
-
-            // Map in one clean pass — no modification during enumeration
-            var detailedFormats = new List<Format>(videoInfo.Formats.Count);
-
-            foreach (var f in videoInfo.Formats)
-            {
-                if (string.IsNullOrEmpty(f.FormatId))
-                    continue;
-
-                var fmt = new Format
-                {
-                    Id = f.FormatId!,
-                    Extension = f.Ext ?? string.Empty,
-                    Height = f.Height,
-                    Width = f.Width,
-                    // Build resolution fallback
-                    Resolution = !string.IsNullOrEmpty(f.Resolution)
-                                            ? f.Resolution
-                                            : (f.Height.HasValue ? $"{f.Height}p" : "audio only"),
-                    Fps = f.Fps,
-                    Channels = f.AudioChannels?.ToString(),
-                    AudioSampleRate = f.Asr,
-                    TotalBitrate = f.Tbr?.ToString(CultureInfo.InvariantCulture),
-                    VideoBitrate = f.Vbr?.ToString(CultureInfo.InvariantCulture),
-                    AudioBitrate = f.Abr?.ToString(CultureInfo.InvariantCulture),
-                    VideoCodec = f.Vcodec == "none" ? null : f.Vcodec,
-                    AudioCodec = f.Acodec == "none" ? null : f.Acodec,
-                    Protocol = f.Protocol,
-                    Language = f.Language,
-                    FileSizeApprox = f.FilesizeApprox?.ToString("N0") ?? f.Filesize?.ToString("N0"),
-                    ApproxFileSizeBytes = f.FilesizeApprox ?? f.Filesize,
-                    Note = f.FormatNote,
-                    MoreInfo = f.FormatNote,
-                };
-
-                detailedFormats.Add(fmt);
-            }
-
-            if (detailedFormats.Count > 0)
-            {
-                _logger.Log(LogType.Info, $"Successfully parsed {detailedFormats.Count} detailed formats from JSON");
-                return detailedFormats;
-            }
-
-            _logger.Log(LogType.Warning, "JSON parsed but no valid formats after filtering → fallback");
-        }
-        catch (JsonException jex)
-        {
-            _logger.Log(LogType.Warning, $"JSON deserialization failed: {jex.Message} → falling back");
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.Log(LogType.Warning, "Format fetch cancelled");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Error, $"Unexpected error in GetFormatsDetailedAsync: {ex.Message} → fallback");
-        }
-
-        // Ultimate fallback
-        return await GetAvailableFormatsAsync(url, ct);
-    }
-
-    [Obsolete("This method will be removed in the next version. Use GetMetadataLiteAsync() instead.", true)]
-    public async Task<SimpleMetadata?> GetSimpleMetadataAsync(string url, CancellationToken ct = default, int bufferKb = 128)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            throw new ArgumentException("URL cannot be empty.", nameof(url));
-
-        try
-        {
-            // Use a rare separator that is unlikely to appear in title/description
-            const string separator = "|||YTDLP.NET|||";
-
-            var fields = new[]
-            {
-                "%(id)s",
-                "%(title)s",
-                "%(duration)s",
-                "%(thumbnail)s",
-                "%(view_count)s",
-                "%(filesize,filesize_approx)s",
-                "%(description).500s"  // limit to first 500 chars to avoid huge output
-            };
-
-            var printArg = $"--print \"{string.Join(separator, fields)}\"";
-
-            var arguments = $"{printArg} --skip-download --no-playlist --quiet {SanitizeInput(url)}";
-
-            var output = await _probe.RunAsync(arguments, ct, bufferKb);
-
-            if (string.IsNullOrWhiteSpace(output))
-                return null;
-
-            var parts = output.Trim().Split(separator);
-
-            if (parts.Length < 6) // at least id, title, duration, thumbnail, views, size
-                return null;
-
-            return new SimpleMetadata
-            {
-                Id = parts[0].Trim(),
-                Title = parts[1].Trim(),
-                Duration = double.TryParse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture, out var dur) ? dur : null,
-                Thumbnail = parts[3].Trim(),
-                ViewCount = long.TryParse(parts[4], NumberStyles.Any, CultureInfo.InvariantCulture, out var views) ? views : null,
-                FileSize = long.TryParse(parts[5], NumberStyles.Any, CultureInfo.InvariantCulture, out var size) ? size : null,
-                Description = parts.Length > 6 ? parts[6].Trim() : null
-            };
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.Log(LogType.Warning, "Simple metadata fetch cancelled.");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Warning, $"Failed to fetch simple metadata: {ex.Message}");
-            return null;
-        }
-
-    }
-
-    [Obsolete("This method will be removed in the next version. Use GetMetadataLiteAsync() instead.", true)]
-    public async Task<Dictionary<string, string>?> GetSimpleMetadataAsync(string url, IEnumerable<string> fields, CancellationToken ct = default, int bufferKb = 128)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            throw new ArgumentException("URL cannot be empty.", nameof(url));
-
-        if (fields == null || !fields.Any())
-            throw new ArgumentException("At least one field must be requested.", nameof(fields));
-
-        try
-        {
-            const string separator = "|||YTDLP.NET|||";
-
-            // Build print format: %(id)s|||YTDLP.NET|||%(title)s|||YTDLP.NET|||...
-            var printParts = fields.Select(f => $"%({f})s");
-            var printFormat = string.Join(separator, printParts);
-
-            var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {SanitizeInput(url)}";
-
-            var rawOutput = await _probe.RunAsync(arguments, ct, bufferKb);
-            if (string.IsNullOrWhiteSpace(rawOutput))
-                return null;
-
-            var parts = rawOutput.Trim().Split(separator);
-
-            // Should have exactly as many parts as requested fields
-            if (parts.Length != fields.Count())
-                return null;
-
-            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            int index = 0;
-            foreach (var field in fields)
-            {
-                var value = parts[index++].Trim();
-                result[field] = value;
-            }
-
-            return result;
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.Log(LogType.Warning, "Simple metadata fetch cancelled.");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.Log(LogType.Warning, $"Simple metadata failed: {ex.Message}");
-            return null;
-        }
-    }
     #endregion
 
 }
