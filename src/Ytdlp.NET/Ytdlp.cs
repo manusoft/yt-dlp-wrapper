@@ -1301,15 +1301,16 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <summary>
     /// List all supported extractors and exit
     /// </summary>
-    /// <param name="ct"></param>
+    /// <param name="ct"></param>    
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">Buffer size in KB.</param>
     /// <returns>List of extractor names</returns>
-    public async Task<List<string>> ExtractorsAsync(CancellationToken ct = default, int bufferKb = 128)
+    public async Task<List<string>> ExtractorsAsync(CancellationToken ct = default, bool tuneProcess= true, int bufferKb = 256)
     {
         try
         {
             List<string> list = new();
-            var result = await Probe().RunAsync("--list-extractors", ct, bufferKb);
+            var result = await Probe().RunAsync("--list-extractors", ct, tuneProcess, bufferKb);
 
             if (string.IsNullOrWhiteSpace(result))
             {
@@ -1341,13 +1342,14 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name = "url">The source URL(video or playlist) to probe.</param>
     /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">Buffer size in KB.</param>
     /// <returns>
     /// A <see cref="Metadata"/> object containing the parsed metadata output; 
     /// returns <see langword="null"/> if the process fails, returns empty, or is cancelled.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<Metadata?> GetMetadataAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<Metadata?> GetMetadataAsync(string url, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -1364,7 +1366,7 @@ public sealed class Ytdlp : IAsyncDisposable
                 $"--no-warnings " +
                 $"{Quote(url)}";
 
-            var json = await Probe().RunAsync(arguments, ct);
+            var json = await Probe().RunAsync(arguments, ct, tuneProcess, bufferKb);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -1398,13 +1400,14 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="url">The source URL (video or playlist) to probe.</param>
     /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">The buffer size for the process output stream (default 128KB).</param>
     /// <returns>
     /// A raw JSON <see cref="object"/> containing the parsed metadata output; 
     /// returns <see langword="null"/> if the process fails, returns empty, or is cancelled.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<object?> GetMetadataRawAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<object?> GetMetadataRawAsync(string url, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -1421,7 +1424,7 @@ public sealed class Ytdlp : IAsyncDisposable
                 $"--no-warnings " +
                 $"{Quote(url)}";
 
-            var json = await Probe().RunAsync(arguments, ct);
+            var json = await Probe().RunAsync(arguments, ct, tuneProcess, bufferKb);
 
             if (string.IsNullOrWhiteSpace(json))
             {
@@ -1448,18 +1451,19 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="url">The video or playlist URL to probe.</param>
     /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">The buffer size in kilobytes for the process output stream (default 128KB).</param>
     /// <returns>
     /// A <see cref="List{Format}"/> containing all available streams; 
     /// returns an empty list or <see langword="null"/> if the probe fails or is cancelled.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<List<Format>> GetFormatsAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<List<Format>> GetFormatsAsync(string url, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("Video URL cannot be empty.", nameof(url));
 
-        var output = await Probe().RunAsync($"-F {Quote(url)}", ct, bufferKb);
+        var output = await Probe().RunAsync($"-F {Quote(url)}", ct,tuneProcess, bufferKb);
 
         if (string.IsNullOrWhiteSpace(output))
         {
@@ -1475,13 +1479,14 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="url">The video or playlist URL to probe.</param>
     /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">The buffer size in kilobytes for the process output stream (default 128KB).</param>
     /// <returns>
     /// A <see cref="MetadataLight"/> object if successful; 
     /// returns <see langword="null"/> if the process fails or is cancelled.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<MetadataLight?> GetMetadataLiteAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<MetadataLight?> GetMetadataLiteAsync(string url, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -1506,7 +1511,7 @@ public sealed class Ytdlp : IAsyncDisposable
 
             var arguments = $"{printArg} --skip-download --no-playlist --quiet {Quote(url)}";
 
-            var output = await Probe().RunAsync(arguments, ct, bufferKb);
+            var output = await Probe().RunAsync(arguments, ct, tuneProcess, bufferKb);
 
             if (string.IsNullOrWhiteSpace(output))
                 return null;
@@ -1545,13 +1550,14 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <param name="url">The source URL to probe.</param>
     /// <param name="fields">A collection of field names to extract (e.g., "title", "uploader").</param>
     /// <param name="ct">A <see cref="CancellationToken"/> to abort the yt-dlp process.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">The buffer size in kilobytes for the process output (default 128KB).</param>
     /// <returns>
     /// A <see cref="Dictionary{TKey, TValue}"/> containing the requested fields and their values; 
     /// returns <see langword="null"/> if the process fails, returns no data, or is cancelled.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<Dictionary<string, string>?> GetMetadataLiteAsync(string url, IEnumerable<string> fields, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<Dictionary<string, string>?> GetMetadataLiteAsync(string url, IEnumerable<string> fields, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("URL cannot be empty.", nameof(url));
@@ -1569,7 +1575,7 @@ public sealed class Ytdlp : IAsyncDisposable
 
             var arguments = $"--print \"{printFormat}\" --skip-download --no-playlist --quiet {Quote(url)}";
 
-            var rawOutput = await Probe().RunAsync(arguments, ct, bufferKb);
+            var rawOutput = await Probe().RunAsync(arguments, ct, tuneProcess, bufferKb);
             if (string.IsNullOrWhiteSpace(rawOutput))
                 return null;
 
@@ -1607,15 +1613,16 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="url">The video or playlist URL to probe.</param>
     /// <param name="ct">The <see cref="CancellationToken"/> to abort the process.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">The buffer size in kilobytes for the process output stream (default 128KB).</param>
     /// <returns>
     /// A <see cref="string"/> representing the best audio format ID (e.g., "140"); 
     /// returns an empty string or throws if no suitable audio is found.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<string> GetBestAudioFormatIdAsync(string url, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<string> GetBestAudioFormatIdAsync(string url, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
-        var meta = await GetMetadataAsync(url, ct, bufferKb);
+        var meta = await GetMetadataAsync(url, ct,tuneProcess, bufferKb);
         var best = meta?.Formats?
             .Where(f => f.IsAudio && (f.Abr > 0 || f.Tbr > 0))
             .OrderByDescending(f => f.Abr ?? f.Tbr ?? 0)
@@ -1630,15 +1637,16 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <param name="url">The source URL to probe for video formats.</param>
     /// <param name="maxHeight">The maximum vertical resolution allowed (default 1080p).</param>
     /// <param name="ct">A <see cref="CancellationToken"/> to cancel the underlying yt-dlp process.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">The buffer size in kilobytes for the process output (default 128KB).</param>
     /// <returns>
     /// A <see cref="string"/> representing the best video format ID (e.g., "137" or "248"); 
     /// returns an empty string or <see langword="null"/> if no suitable format is found.
     /// </returns>
     /// <exception cref="ArgumentException"></exception>
-    public async Task<string> GetBestVideoFormatIdAsync(string url, int maxHeight = 1080, CancellationToken ct = default, int bufferKb = 128)
+    public async Task<string> GetBestVideoFormatIdAsync(string url, int maxHeight = 1080, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
-        var meta = await GetMetadataAsync(url, ct, bufferKb);
+        var meta = await GetMetadataAsync(url, ct,tuneProcess, bufferKb);
         var best = meta?.Formats?
             .Where(f => !f.IsAudio && f.Height.HasValue && f.Height <= maxHeight)
             .OrderByDescending(f => f.Height)
@@ -1653,10 +1661,11 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="url">The source URL to download.</param>
     /// <param name="ct">A <see cref="CancellationToken"/> to stop the execution.</param>
+    /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     /// <exception cref="YtdlpException"></exception>
-    public async Task DownloadAsync(string url, CancellationToken ct = default)
+    public async Task DownloadAsync(string url, CancellationToken ct = default, bool tuneProcess = true)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -1712,7 +1721,7 @@ public sealed class Ytdlp : IAsyncDisposable
 
         try
         {
-            await download.RunAsync(arguments, ct);
+            await download.RunAsync(arguments, ct, tuneProcess);
         }
         finally
         {
@@ -1728,11 +1737,12 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <param name="urls">An enumerable collection of source URLs to process.</param>
     /// <param name="maxConcurrency">The maximum number of simultaneous yt-dlp processes (default is 3).</param>
     /// <param name="ct">A <see cref="CancellationToken"/> to stop the batch execution.</param>
+    /// <param name="tuneProcess">Whether to tune the processes for better performance (true by default). If false, the processes will use the default buffer size and may have slower output processing.</param>
     /// <returns>
     /// A <see cref="Task"/> representing the asynchronous execution of the process.
     /// </returns>
     /// <exception cref="YtdlpException"></exception>
-    public async Task DownloadBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default)
+    public async Task DownloadBatchAsync(IEnumerable<string> urls, int maxConcurrency = 3, CancellationToken ct = default, bool tuneProcess = true)
     {
         if (urls == null || !urls.Any())
         {
@@ -1747,7 +1757,7 @@ public sealed class Ytdlp : IAsyncDisposable
             await throttler.WaitAsync();
             try
             {
-                await DownloadAsync(url, ct);
+                await DownloadAsync(url, ct, tuneProcess);
             }
             catch (YtdlpException ex)
             {

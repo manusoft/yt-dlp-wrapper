@@ -180,19 +180,20 @@ internal class Program
 
         Console.WriteLine(ytdlp.Preview(url));
 
-        // await ytdlp.ExecuteAsync(url);
+        await ytdlp.DownloadAsync(url);
     }
 
-    private static async Task TestDownloadAudioAsync(Ytdlp ytdlp)
+    private static async Task TestDownloadAudioAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 7: Extracting audio...");
         var url = "https://www.youtube.com/watch?v=ZGnQH0LN_98";
 
-        await ytdlp
+        var ytdlp = ytdlpBase
             .WithExtractAudio(AudioFormat.Mp3)
             .WithFormat("ba")
-            .WithOutputFolder("./downloads/audio")
-            .DownloadAsync(url);
+            .WithOutputFolder("./downloads/audio");
+
+        await ytdlp.DownloadAsync(url);
     }
 
     // Test 8: Batch download (concurrent)
@@ -214,30 +215,32 @@ internal class Program
     }
 
     // Test 9: SponsorBlock removal
-    private static async Task TestSponsorBlockAsync(Ytdlp ytdlp)
+    private static async Task TestSponsorBlockAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 9: Download with SponsorBlock removal...");
         var url = "https://www.youtube.com/watch?v=oDSEGkT6J-0";
 
-        await ytdlp
+        var ytdlp = ytdlpBase
             .WithFormat("best")
             .WithSponsorblockRemove("all")  // Removes sponsor, intro, etc.
-            .WithOutputFolder("./downloads/sponsorblock")
-            .DownloadAsync(url);
+            .WithOutputFolder("./downloads/sponsorblock");
+
+        await ytdlp.DownloadAsync(url);
     }
 
     // Test 10: Concurrent fragments (faster download)
-    private static async Task TestConcurrentFragmentsAsync(Ytdlp ytdlp)
+    private static async Task TestConcurrentFragmentsAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 10: Download with concurrent fragments...");
         var url = "https://www.youtube.com/watch?v=oDSEGkT6J-0";
 
-        await ytdlp
+        var ytdlp = ytdlpBase
             .WithConcurrentFragments(8)  // 8 parallel fragments
             .WithFormat("b")
             .WithOutputTemplate("%(title)s.%(ext)s")
-            .WithOutputFolder("./downloads/concurrent")
-            .DownloadAsync(url);
+            .WithOutputFolder("./downloads/concurrent");
+
+        await ytdlp.DownloadAsync(url);
     }
 
     // Test 11: Cancellation support
