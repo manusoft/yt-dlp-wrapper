@@ -1,4 +1,6 @@
-﻿namespace ManuHub.Ytdlp.NET.Core;
+﻿using System.Diagnostics;
+
+namespace ManuHub.Ytdlp.NET.Core;
 
 public sealed class DownloadRunner
 {
@@ -17,82 +19,109 @@ public sealed class DownloadRunner
         _logger = logger;
     }
 
-    public async Task RunAsync(string arguments, CancellationToken ct)
+    public async Task RunAsync(string arguments, CancellationToken ct, bool tuneProcess = true)
     {
-        var process = _factory.Create(arguments);
+        using var process = _factory.Create(arguments);
+
+        int completed = 0;
+
+        void Complete(bool success, string message)
+        {
+            if (Interlocked.Exchange(ref completed, 1) == 0)
+            {
+                OnCommandCompleted?.Invoke(this, new CommandCompletedEventArgs(success, message));
+            }
+        }
 
         try
         {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // ✅ Attach BEFORE Start (fix race condition)
+            process.Exited += (_, _) => tcs.TrySetResult(true);
+
+            process.OutputDataReceived += (s, e) =>
+            {
+                if (e.Data == null) return;
+
+                try
+                {
+                    _progressParser.ParseProgress(e.Data);
+                    OnProgress?.Invoke(this, e.Data);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log(LogType.Error, $"Parse error: {ex.Message}");
+                }
+            };
+
+            process.ErrorDataReceived += (s, e) =>
+            {
+                if (e.Data == null) return;
+
+                OnErrorMessage?.Invoke(this, e.Data);
+                _logger.Log(LogType.Error, e.Data);
+            };
+
             if (!process.Start())
                 throw new YtdlpException("Failed to start yt-dlp process.");
 
-            // Improved cancellation: Try to close streams first, then kill
-            using var ctsRegistration = ct.Register(() =>
+            if (tuneProcess)
+                ProcessFactory.Tune(process);
+
+            // ✅ Start reading AFTER handlers
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            // 🔥 Cancellation
+            using var registration = ct.Register(() =>
             {
-                try
+                if (!process.HasExited)
                 {
-                    if (!process.HasExited)
-                    {
-                        process.Kill(entireProcessTree: true);
-                        _logger.Log(LogType.Info, "yt-dlp process killed due to cancellation");
-                    }
-                }
-                catch
-                {
-                    // silent - already dead or disposed
+                    _logger.Log(LogType.Info, "Cancellation requested → killing process tree");
+                    ProcessFactory.SafeKill(process, _logger);
                 }
             });
 
-            // Read output and error concurrently
-            var outputTask = Task.Run(async () =>
+            // Wait for exit OR cancellation
+            await Task.WhenAny(tcs.Task, Task.Delay(Timeout.Infinite, ct));
+
+            // Ensure process is dead
+            if (!process.HasExited)
             {
-                string? line;
-                while ((line = await process.StandardOutput.ReadLineAsync()) != null)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    _progressParser.ParseProgress(line);
-                    OnProgress?.Invoke(this, line);
-                }
-            }, ct);
-
-            var errorTask = Task.Run(async () =>
-            {
-                string? line;
-                while ((line = await process.StandardError.ReadLineAsync()) != null)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    OnErrorMessage?.Invoke(this, line);
-                    _logger.Log(LogType.Error, line);
-                }
-            }, ct);
-
-            await Task.WhenAll(outputTask, errorTask);
-
-            // Wait for exit (may throw OperationCanceledException)
-            await process.WaitForExitAsync(ct);
-
-            // Only throw on real failure (not cancellation)
-            if (process.ExitCode != 0 && !ct.IsCancellationRequested)
-            {
-                throw new YtdlpException($"yt-dlp exited with code {process.ExitCode}");
+                ProcessFactory.SafeKill(process, _logger);
             }
 
-            // Success or intentional cancel
-            var success = !ct.IsCancellationRequested;
-            var message = success ? "Completed successfully" : "Cancelled by user";
-            OnCommandCompleted?.Invoke(this, new CommandCompletedEventArgs(success, message));
+            try
+            {
+                await process.WaitForExitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                ProcessFactory.SafeKill(process, _logger);
+            }
+
+            var success = process.ExitCode == 0 && !ct.IsCancellationRequested;
+
+            var message = success
+                ? "Completed successfully"
+                : ct.IsCancellationRequested
+                    ? "Cancelled by user"
+                    : $"Failed with exit code {process.ExitCode}";
+
+            Complete(success, message);
         }
         catch (OperationCanceledException)
         {
-            // Normal cancel path — no need to log again
-            OnCommandCompleted?.Invoke(this, new CommandCompletedEventArgs(false, "Cancelled by user"));
-            throw; // let caller handle if needed
+            Complete(false, "Cancelled by user");
+            throw;
         }
         catch (Exception ex)
         {
             var msg = $"Error executing yt-dlp: {ex.Message}";
-            OnErrorMessage?.Invoke(this, msg);
             _logger.Log(LogType.Error, msg);
+            OnErrorMessage?.Invoke(this, msg);
+
             throw new YtdlpException(msg, ex);
         }
     }

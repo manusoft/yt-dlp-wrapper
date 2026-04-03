@@ -7,7 +7,7 @@
 		<PackageId>Ytdlp.NET</PackageId>
 		<AssemblyName>Ytdlp.NET</AssemblyName>
 		<RootNamespace>ManuHub.Ytdlp.NET</RootNamespace>
-		<Version>3.0.0</Version>
+		<Version>3.0.1</Version>
 		<Authors>ManuHub Manojbabu</Authors>
 		<PackageDescription>A .NET wrapper for yt-dlp with advanced features like concurrent downloads, SponsorBlock, and improved format parsing</PackageDescription>
 		<Copyright>© 2025-2026 ManuHub. Allrights researved</Copyright>
@@ -20,36 +20,42 @@
 		<PackageIcon>icon.png</PackageIcon>
 		<Icon>icon.png</Icon>
 		<PackageReleaseNotes>
-			Ytdlp.NET v3.0
+			Ytdlp.NET v3.0 ✨ Major Redesign with Fluent API
 
-			✨ Major Updates:
-			- Complete v3.0 redesign with immutable, fluent API (`WithXxx()` methods).
-			- Added IAsyncDisposable support for proper async cleanup of child processes.
-			- Thread-safe usage: safe for parallel downloads using multiple instances.
-			- Events fully supported: OnProgressDownload, OnProgressMessage, OnCompleteDownload, OnPostProcessingComplete, OnErrorMessage, OnCommandCompleted.
-			- All old command methods removed; only `WithXxx()` methods remain.
-			- Improved cancellation handling for downloads and metadata fetching.
-			- Enhanced metadata probe methods: GetMetadataAsync, GetAvailableFormatsAsync, GetBestVideoFormatIdAsync, GetBestAudioFormatIdAsync.
-			- Flexible output templates and FFmpeg/Deno integration.
-			- Custom command injection (`AddCustomCommand`) validated safely.
+			- Complete rewrite using an immutable, fluent API (`WithXxx()` methods).
+			- Added `IAsyncDisposable` support for proper async cleanup of processes.
+			- Thread-safe design: safe to run multiple instances in parallel.
+			- Rich event system: OnProgressDownload, OnProgressMessage, OnCompleteDownload,
+			OnPostProcessingComplete, OnErrorMessage, OnCommandCompleted.
+			- Improved cancellation handling for both downloads and metadata probing.
+			- Enhanced probe methods: GetMetadataAsync, GetAvailableFormatsAsync,
+			GetBestVideoFormatIdAsync, GetBestAudioFormatIdAsync.
+			- Better output templates, FFmpeg/Deno integration, and safe custom command support.
 
-			🚀 Features:
-			- Fluent, chainable API for downloads, audio extraction, subtitles, and post-processing.
-			- Supports batch downloads with sequential or parallel execution.
-			- Real-time progress tracking with events.
-			- Automatic cleanup of resources when disposed asynchronously.
-			- Cross-platform: Windows, macOS, Linux (yt-dlp supported).
+			🛠 Improvements in this update
+			- Better internal DownloadRunner and ProbeRunner for heavy JSON output and cancellation safety.
+			- Safer process killing and stream handling to prevent potential hangs.
 
-			⚠️ Breaking Changes:
-			- Old SetFormat/SetOutputFolder methods removed; replace with `WithFormat()`, `WithOutputFolder()`, etc.
-			- Deprecated events/methods removed.
-			- Always use a new instance per download for parallel execution.
-			- Use `await using` with Ytdlp for async disposal.
+			🚀 New Features
+			- Fully chainable fluent API for downloads, audio extraction, subtitles, post-processing and more.
+			- Batch download support (sequential or parallel execution).
+			- Real-time progress tracking via events.
+			- Automatic resource cleanup with `await using`.
+			- Cross-platform (Windows, macOS, Linux).
 
-			🛠 Notes:
-			- Namespace migrated to `ManuHub.Ytdlp.NET`.
-			- Recommended: Use companion NuGet packages for yt-dlp, FFmpeg, FFprobe, and Deno.
-			- All examples updated for fluent v3.0 API.
+			⚠️ Breaking Changes
+			- All old command methods (SetFormat, SetOutputFolder, etc.) have been removed.
+			- Only the new fluent `WithXxx()` style remains.
+			- Namespace changed to `ManuHub.Ytdlp.NET`.
+			- Always use a fresh instance per download for parallel scenarios.
+			- Use `await using` for proper async disposal.
+
+			🛠 Notes
+			- Companion packages recommended: ManuHub.Ytdlp, ManuHub.FFmpeg, ManuHub.FFprobe, ManuHub.Deno.
+			- All examples and documentation updated for v3.0.
+			- This release greatly improves reliability, cancellation, and maintainability.
+
+			See the repository for the full migration guide.
 		</PackageReleaseNotes>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 		<IsPackable>true</IsPackable>
