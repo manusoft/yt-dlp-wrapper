@@ -1,5 +1,6 @@
 ﻿using ManuHub.Ytdlp.NET.Core;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -1365,6 +1366,9 @@ public sealed class Ytdlp : IAsyncDisposable
                 $"--quiet " +
                 $"--no-warnings " +
                 $"{Quote(url)}";
+
+            if(ct.IsCancellationRequested)
+                Debug.WriteLine("Cancellation requested before starting the process.");
 
             var json = await Probe().RunAsync(arguments, ct, tuneProcess, bufferKb);
 

@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace ManuHub.Ytdlp.NET.Core;
+﻿namespace ManuHub.Ytdlp.NET.Core;
 
 public sealed class DownloadRunner
 {
@@ -88,9 +86,7 @@ public sealed class DownloadRunner
 
             // Ensure process is dead
             if (!process.HasExited)
-            {
-                ProcessFactory.SafeKill(process, _logger);
-            }
+                ProcessFactory.SafeKill(process);
 
             try
             {
@@ -98,7 +94,8 @@ public sealed class DownloadRunner
             }
             catch (OperationCanceledException)
             {
-                ProcessFactory.SafeKill(process, _logger);
+                if (!process.HasExited)
+                    ProcessFactory.SafeKill(process);
             }
 
             var success = process.ExitCode == 0 && !ct.IsCancellationRequested;

@@ -19,20 +19,20 @@ internal class Program
             .WithFFmpegLocation("tools");
 
         // Run all demos/tests sequentially
-        await TestGetVersionAsync(baseYtdlp);
-        await TestUpdateAsync(baseYtdlp);
+        //await TestGetVersionAsync(baseYtdlp);
+        //await TestUpdateAsync(baseYtdlp);
 
-        await TestGetFormatsAsync(baseYtdlp);
-        await TestGetMetadataAsync(baseYtdlp);
-        await TestGetLiteMetadataAsync(baseYtdlp);
-        await TestGetTitleAsync(baseYtdlp);
+        //await TestGetFormatsAsync(baseYtdlp);
+        //await TestGetMetadataAsync(baseYtdlp);
+        //await TestGetLiteMetadataAsync(baseYtdlp);
+        //await TestGetTitleAsync(baseYtdlp);
 
         await TestDownloadVideoAsync(baseYtdlp);
-        await TestDownloadAudioAsync(baseYtdlp);
-        await TestBatchDownloadAsync(baseYtdlp);
-        await TestSponsorBlockAsync(baseYtdlp);
-        await TestConcurrentFragmentsAsync(baseYtdlp);
-        await TestCancellationAsync(baseYtdlp);
+        //await TestDownloadAudioAsync(baseYtdlp);
+        //await TestBatchDownloadAsync(baseYtdlp);
+        //await TestSponsorBlockAsync(baseYtdlp);
+        //await TestConcurrentFragmentsAsync(baseYtdlp);
+        //await TestCancellationAsync(baseYtdlp);
 
         var lists = await baseYtdlp.ExtractorsAsync();
 
@@ -104,10 +104,12 @@ internal class Program
         var stopwatch = Stopwatch.StartNew();
 
         Console.WriteLine("\nTest 4: Fetching detailed metedata...");
-
+        var token = new CancellationTokenSource().Token; // In real use, you might want to cancel if it takes too long
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
         var url1 = "https://www.youtube.com/watch?v=983bBbJx0Mk&list=RD983bBbJx0Mk&start_radio=1&pp=ygUFc29uZ3OgBwE%3D"; //playlist
         var url2 = "https://www.youtube.com/watch?v=ZGnQH0LN_98"; // video
-        var metadata = await ytdlp.GetMetadataAsync(url1);
+        var metadata = await ytdlp.GetMetadataAsync(url2, linkedCts.Token);
         stopwatch.Stop(); // stop timer
 
         Console.WriteLine($"Detailed metedata took {stopwatch.Elapsed.TotalSeconds:F3} seconds");
@@ -157,7 +159,7 @@ internal class Program
     private static async Task TestDownloadVideoAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 6: Downloading a video...");
-        var url = "https://www.youtube.com/watch?v=3pecPwPIFIc&pp=ugUEEgJtbA%3D%3D";
+        var url = "https://www.youtube.com/watch?v=89-i4aPOMrc";
 
         var ytdlp = ytdlpBase
             .With720pOrBest()
@@ -170,7 +172,7 @@ internal class Program
 
         // Subscribe to events
         ytdlp.OnProgressDownload += (sender, args) =>
-            Console.WriteLine($"Progress: {args.Percent:F2}% - {args.Speed} - ETA {args.ETA}");
+            Console.WriteLine($"Progress: {args.Percent:F2}% - {args.Speed} - ETA {args.ETA} - Size {args.Size}");
 
         ytdlp.OnCompleteDownload += (sender, message) =>
             Console.WriteLine($"Download complete: {message}");
@@ -240,6 +242,9 @@ internal class Program
             .WithOutputTemplate("%(title)s.%(ext)s")
             .WithOutputFolder("./downloads/concurrent");
 
+        ytdlp.OnProgressDownload += (sender, args) =>
+           Console.WriteLine($"Progress: {args.Percent:F2}% - {args.Speed} - ETA {args.ETA} - FRA {args.Fragments}");
+
         await ytdlp.DownloadAsync(url);
     }
 
@@ -250,11 +255,22 @@ internal class Program
         var url = "https://www.youtube.com/watch?v=zGlwuHqGVIA";  // A longer video
 
         var cts = new CancellationTokenSource();
+
         var downloadTask = ytdlp
             .WithFormat("b")
             .WithOutputTemplate("%(title)s.%(ext)s")
             .WithOutputFolder("./downloads/cancel")
             .DownloadAsync(url, cts.Token);
+
+        ytdlp.OnCommandCompleted += (sender, args) =>
+        {
+            if (args.Success)
+                Console.WriteLine("Download completed successfully.");
+            else if (args.Message.Contains("cancelled", StringComparison.OrdinalIgnoreCase))
+                Console.WriteLine("Download was cancelled.");
+            else
+                Console.WriteLine($"Download failed: {args.Message}");
+        };
 
         // Simulate cancel after 20 seconds
         await Task.Delay(20000);
@@ -262,6 +278,8 @@ internal class Program
 
         try
         {
+
+
             await downloadTask;
         }
         catch (OperationCanceledException)
