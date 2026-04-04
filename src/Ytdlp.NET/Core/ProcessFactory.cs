@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using ManuHub.Ytdlp.NET.Extensions;
+using System.Diagnostics;
 using System.Text;
 
 namespace ManuHub.Ytdlp.NET.Core;
@@ -24,7 +25,6 @@ public sealed class ProcessFactory
             FileName = _ytdlpPath,
             Arguments = arguments,
 
-            // Must for async/event-based reading
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
@@ -75,18 +75,15 @@ public sealed class ProcessFactory
             if (process.HasExited)
                 return;
 
-            // Close streams first → prevents ReadLine hang
-            try { process.StandardOutput?.Close(); } catch { }
-            try { process.StandardError?.Close(); } catch { }
-            try { process.StandardInput?.Close(); } catch { }
+            process.KillTree();
 
-            process.Kill(entireProcessTree: true);
-
-            logger?.Log(LogType.Info, "Process killed (entire tree)");
+            if(logger != null)
+                logger.Log(LogType.Info, "Process killed (entire tree)");
         }
         catch (Exception ex)
         {
-            logger?.Log(LogType.Error, $"Failed to kill process: {ex.Message}");
+            if(logger != null)
+                logger.Log(LogType.Error, $"Failed to kill process: {ex.Message}");
         }
     }
 }

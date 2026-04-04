@@ -239,7 +239,7 @@ await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 * `.WithJsRuntime(Runtime runtime, string runtimePath)`
 * `.WithNoJsRuntime()`
 * `.WithFlatPlaylist()`
-* ` WithLiveFromStart()`
+* `.WithLiveFromStart()`
 * `.WithWaitForVideo(TimeSpan? maxWait = null)`
 * `.WithMarkWatched()`   
 
@@ -436,8 +436,15 @@ await ytdlp.DownloadAsync(url);
 | `SetFFMpegLocation()` | `WithFFmpegLocation()` |
 | `ExtractAudio()`      | `WithExtractAudio()`   |
 | `UseProxy()`          | `WithProxy()`          |
+| `AddCustomCommand()`  | `AddFlag(string flag)` or `AddOption(string key, string value)` |
 
 ---
+
+## Custom commands
+```csharp
+AddFlag("--no-check-certificate");
+AddOption("--external-downloader", "aria2c");
+```
 
 ## Important behavior changes
 

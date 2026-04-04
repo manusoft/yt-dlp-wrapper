@@ -183,7 +183,7 @@ public sealed class ProgressParser
     {
         // Existing logic unchanged
         string percentString = match.Groups["percent"].Value;
-        string sizeString = match.Groups["size"].Value;
+        string sizeString = match.Groups["total"].Value;
         string speedString = match.Groups["speed"].Value;
         string etaString = match.Groups["eta"].Value;
 
