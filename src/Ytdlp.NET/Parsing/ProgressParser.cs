@@ -102,19 +102,13 @@ public sealed class ProgressParser
     {
         if (_isDownloadCompleted) return;
 
-        // Existing logic unchanged
         string percentString = match.Groups["percent"].Value;
         string sizeString = match.Groups["total"].Value;
         string speedString = match.Groups["speed"].Value;
         string etaString = match.Groups["eta"].Value;
 
         if (!double.TryParse(percentString.Replace("%", ""), out double percent))
-            percent = 0;
-
-        if (percent >= 99.0 && !_isDownloadCompleted)
-        {
-            HandleDownloadProgressComplete(match);
-        }
+            percent = 0;       
 
         var args = new DownloadProgressEventArgs
         {
@@ -127,13 +121,17 @@ public sealed class ProgressParser
 
         LogAndNotify(LogType.Info, args.Message);
         OnProgressDownload?.Invoke(this, args);
+
+        if (percent >= 99.0 && !_isDownloadCompleted)
+        {
+            HandleDownloadProgressComplete(match);
+        }
     }
 
     private void HandleDownloadProgressWithFrag(Match match)
     {
         if (_isDownloadCompleted) return;
 
-        // Existing + prevent premature complete if fragments remain
         string percentString = match.Groups["percent"].Value;
         string sizeString = match.Groups["size"].Value;
         string speedString = match.Groups["speed"].Value;
@@ -155,8 +153,6 @@ public sealed class ProgressParser
 
         LogAndNotify(LogType.Info, args.Message);
         OnProgressDownload?.Invoke(this, args);
-
-        Debug.WriteLine($"DEBUG: Progress with frag → percent: {percent}, size: {sizeString}, speed: {speedString}, eta: {etaString}, frag: {fragString}");
 
         // Only trigger complete if really done (avoid false 100% on fragment level)
         if (percent >= 99.0 && IsFinalFragment(fragString) && !_isDownloadCompleted)
@@ -229,7 +225,7 @@ public sealed class ProgressParser
 
         _postProcessStepCount++;
 
-        // Better group extraction
+        // Extract processor and action safely
         string processor = match.Groups["processor"].Success
             ? match.Groups["processor"].Value.Trim()
             : "PostProcessor";
@@ -241,11 +237,11 @@ public sealed class ProgressParser
         var message = $"[{processor}] {action}";
         LogAndNotify(LogType.Info, $"Post-processing [{_postProcessStepCount}]: {message}");
 
-        // === KEY CHANGE: Only complete on MoveFiles or after many steps ===
+        // Trigger completion when we hit the real last step (MoveFiles is usually the final one)
         bool isFinalStep =
             processor.Equals("MoveFiles", StringComparison.OrdinalIgnoreCase) ||
             action.Contains("Moving file", StringComparison.OrdinalIgnoreCase) ||
-            _postProcessStepCount >= 8;   // safety net
+            _postProcessStepCount >= 10;  // safety net for unusual cases
 
         if (isFinalStep)
         {
@@ -259,13 +255,6 @@ public sealed class ProgressParser
             // Reset flags so next download starts fresh
             Reset();
         }
-    }
-
-    private void HandleSponsorBlock(Match match)
-    {
-        var action = match.Groups["action"].Value.Trim();
-        var details = match.Groups["details"].Success ? match.Groups["details"].Value.Trim() : "";
-        LogAndNotify(LogType.Info, $"SponsorBlock {action}{(string.IsNullOrEmpty(details) ? "" : $": {details}")}");
     }
 
     private void HandleUnknownOutput(string output)

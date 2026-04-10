@@ -146,8 +146,9 @@ await ytdlp.DownloadAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
 
 ```csharp
 await using var ytdlp = new Ytdlp("tools\\yt-dlp.exe")
-    .WithExtractAudio("mp3")
+    .WithExtractAudio(AudioFormat.Mp3, 5)
     .WithOutputFolder("./audio")
+    .WithEmbedThumbnail()
     .WithEmbedMetadata();
 
 await ytdlp.DownloadAsync("https://www.youtube.com/watch?v=RGg-Qx1rL9U");
@@ -340,9 +341,9 @@ await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 * `.WithTwoFactor(string code)`
 
 ### Post-Processing Options
-* `.WithExtractAudio(string format = "mp3", int quality = 5)`
-* `.WithRemuxVideo(MediaFormat format = MediaFormat.Mp4)`
-* `.WithRecodeVideo(MediaFormat format = MediaFormat.Mp4, string? videoCodec = null, string? audioCodec = null)`
+* `.WithExtractAudio(string format, int quality = 5)`
+* `.WithRemuxVideo(string format)` usage 'mp4' or 'mp4>mkv'
+* `.WithRecodeVideo(string format, string? videoCodec = null, string? audioCodec = null)`
 * `.WithPostprocessorArgs(PostProcessors postprocessor, string args)`
 * `.WithKeepVideo()`
 * `.WithNoPostOverwrites()`
@@ -367,7 +368,6 @@ await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 * `.AddFlag(string flag)`
 * `.AddOption(string key, string value)`
 
-
 ### Downloaders
 * `.WithExternalDownloader(string downloaderName, string? downloaderArgs = null)`
 * `.WithAria2(int connections = 16)`
@@ -384,7 +384,8 @@ AND MORE ...
 ytdlp.OnProgressDownload += (s, e) => Console.WriteLine($"Progress: {e.Percent:F2}%");
 ytdlp.OnProgressMessage += (s, msg) => Console.WriteLine(msg);
 ytdlp.OnCompleteDownload += (s, msg) => Console.WriteLine($"Done: {msg}");
-ytdlp.OnPostProcessingComplete += (s, msg) => Console.WriteLine($"Post-processing: {msg}");
+ytdlp.OnPostProcessingStart += (s, msg) => Console.WriteLine($"Post-processing-start: {msg}")
+ytdlp.OnPostProcessingComplete += (s, msg) => Console.WriteLine($"Post-processing-complete: {msg}");
 ytdlp.OnErrorMessage += (s, err) => Console.WriteLine($"Error: {err}");
 ytdlp.OnOutputMessage += (s, msg) => Console.WriteLine(msg);
 ytdlp.OnCommandCompleted += (s, e) => Console.WriteLine($"Command finished: {e.Command}");

@@ -197,6 +197,7 @@ await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 | `OnProgressDownload`       | Download progress        |
 | `OnProgressMessage`        | Informational messages   |
 | `OnCompleteDownload`       | File finished            |
+| `OnPostProcessingStart`    | Post‑processing start    |
 | `OnPostProcessingComplete` | Post‑processing finished |
 | `OnOutputMessage`          | Raw output line          |
 | `OnErrorMessage`           | Error message            |
@@ -206,61 +207,154 @@ await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 
 # 🔧 Fluent API Methods
 
-### Output
+### General Options
+* `.WithIgnoreErrors()`
+* `.WithAbortOnError()`
+* `.WithIgnoreConfig()`
+* `.WithConfigLocations(string path)`
+* `.WithPluginDirs(string path)`
+* `.WithNoPluginDirs(string path)`
+* `.WithJsRuntime(Runtime runtime, string runtimePath)`
+* `.WithNoJsRuntime()`
+* `.WithFlatPlaylist()`
+* `.WithLiveFromStart()`
+* `.WithWaitForVideo(TimeSpan? maxWait = null)`
+* `.WithMarkWatched()`   
 
-```
-WithOutputFolder()
-WithTempFolder()
-WithHomeFolder()
-WithOutputTemplate()
-WithFFmpegLocation()
-```
+### Network Options
+* `.WithProxy(string? proxy)`
+* `.WithSocketTimeout(TimeSpan timeout)`
+* `.WithForceIpv4()`
+* `.WithForceIpv6()`
+* `.WithEnableFileUrls()`
 
-### Formats
+### Geo-restriction Options
+* `.WithGeoVerificationProxy(string url)`
+* `.WithGeoBypassCountry(string countryCode)`
 
-```
-WithFormat()
-With720pOrBest()
-WithExtractAudio()
-```
+### Video Selection
+* `.WithPlaylistItems(string items)`
+* `.WithMinFileSize(string size)`
+* `.WithMaxFileSize(string size)`
+* `.WithDate(string date)`
+* `.WithDateBefore(string date)`
+* `.WithDateAfter(string date)`
+* `.WithMatchFilter(string filterExpression)`
+* `.WithNoPlaylist()`
+* `.WithYesPlaylist()`
+* `.WithAgeLimit(int years)`
+* `.WithDownloadArchive(string archivePath = "archive.txt")`
+* `.WithMaxDownloads(int count)`
+* `.WithBreakOnExisting()`
 
-### Metadata
+### Download Options
+* `.WithConcurrentFragments(int count = 8)`
+* `.WithLimitRate(string rate)`
+* `.WithThrottledRate(string rate)`
+* `.WithRetries(int maxRetries)`
+* `.WithFileAccessRetries(int maxRetries)`
+* `.WithFragmentRetries(int retries)`
+* `.WithSkipUnavailableFragments()`
+* `.WithAbortOnUnavailableFragments()`
+* `.WithKeepFragments()`
+* `.WithBufferSize(string size)`
+* `.WithNoResizeBuffer()`
+* `.WithPlaylistRandom()`
+* `.WithHlsUseMpegts()`
+* `.WithNoHlsUseMpegts()`
+* `.WithDownloadSections(string regex)`
 
-```
-GetMetadataAsync()
-GetBestAudioFormatIdAsync()
-GetBestVideoFormatIdAsync()
-GetAvailableFormatsAsync()
-```
+### Filesystem Options
+* `.WithHomeFolder(string path)`
+* `.WithTempFolder(string path)`
+* `.WithOutputFolder(string path)`
+* `.WithFFmpegLocation(string path)`
+* `.WithOutputTemplate(string template)`
+* `.WithRestrictFilenames()`
+* `.WithWindowsFilenames()`
+* `.WithTrimFilenames(int length)`
+* `.WithNoOverwrites()`
+* `.WithForceOverwrites()`
+* `.WithNoContinue()`
+* `.WithNoPart()`
+* `.WithMtime()`
+* `.WithWriteDescription()`
+* `.WithWriteInfoJson()`
+* `.WithNoWritePlaylistMetafiles()`
+* `.WithNoCleanInfoJson()`
+* `.WriteComments()`
+* `.WithNoWriteComments()`
+* `.WithLoadInfoJson(string path)`
+* `.WithCookiesFile(string path)`
+* `.WithCookiesFromBrowser(string browser)`
+* `.WithNoCacheDir()`
+* `.WithRemoveCacheDir()`
 
-### Features
+### Thumbnail Options
+* `.WithThumbnails(bool allSizes = false)`
 
-```
-WithEmbedMetadata()
-WithEmbedThumbnail()
-WithEmbedSubtitles()
-WithSubtitles()
-WithConcurrentFragments()
-WithSponsorblockRemove()
-```
+### Verbosity and Simulation Options
+* `.WithQuiet()`
+* `.WithNoWarnings()`
+* `.WithSimulate()`
+* `.WithNoSimulate()`
+* `.WithSkipDownload()`
+* `.WithVerbose()`
 
-### Network
+### Workgrounds
+* `.WithAddHeader(string header, string value)`
+* `.WithSleepInterval(double seconds, double? maxSeconds = null)`
+* `.WithSleepSubtitles(double seconds)`
 
-```
-WithProxy()
-WithCookiesFile()
-WithCookiesFromBrowser()
-```
+### Video Format Options
+* `.WithFormat(string format)`
+* `.WithMergeOutputFormat(string format)`
 
-### Advanced
+### Subtitle Options
+* `.WithSubtitles(string languages = "all", bool auto = false)`
 
-```
-AddFlag()
-AddOption()
-AddCustomCommand()
-```
+### Authentication Options
+* `.WithAuthentication(string username, string password)`
+* `.WithTwoFactor(string code)`
+
+### Post-Processing Options
+* `.WithExtractAudio(string format, int quality = 5)`
+* `.WithRemuxVideo(string format)` usage 'mp4' or 'mp4>mkv'
+* `.WithRecodeVideo(string format, string? videoCodec = null, string? audioCodec = null)`
+* `.WithPostprocessorArgs(PostProcessors postprocessor, string args)`
+* `.WithKeepVideo()`
+* `.WithNoPostOverwrites()`
+* `.WithEmbedSubtitles(string languages = "all", string? convertTo = null)`
+* `.WithEmbedThumbnail()`
+* `.WithEmbedMetadata()`
+* `.WithEmbedChapters()`
+* `.WithEmbedInfoJson()`
+* `.WithNoEmbedInfoJson()`
+* `.WithReplaceInMetadata(string field, string regex, string replacement)`
+* `.WithConcatPlaylist(string policy = "always")`
+* `.WithFFmpegLocation(string? ffmpegPath)`
+* `.WithConvertThumbnails(string format = "jpg")`
+* `.WithForceKeyframesAtCuts()`
+
+### SponsorBlock Options
+* `.WithSponsorblockMark(string categories = "all")`
+* `.WithSponsorblockRemove(string categories = "all")`
+* `.WithNoSponsorblock()`
+
+### Advanced Options
+* `.AddFlag(string flag)`
+* `.AddOption(string key, string value)`
+
+### Downloaders
+* `.WithExternalDownloader(string downloaderName, string? downloaderArgs = null)`
+* `.WithAria2(int connections = 16)`
+* `.WithHlsNative()`
+* `.WithFfmpegAsLiveDownloader(string? extraFfmpegArgs = null)`
+
+AND MORE ...
 
 ---
+
 
 # 🔄 Upgrade Guide (v2 → v3)
 
@@ -306,8 +400,15 @@ await ytdlp.DownloadAsync(url);
 | `SetFFMpegLocation()` | `WithFFmpegLocation()` |
 | `ExtractAudio()`      | `WithExtractAudio()`   |
 | `UseProxy()`          | `WithProxy()`          |
+| `AddCustomCommand()`  | `AddFlag(string flag)` or `AddOption(string key, string value)` |
 
 ---
+
+## Custom commands
+```csharp
+AddFlag("--no-check-certificate");
+AddOption("--external-downloader", "aria2c");
+```
 
 ## Important behavior changes
 

@@ -934,18 +934,24 @@ public sealed class Ytdlp : IAsyncDisposable
     /// e.g. "aac>m4a/mov>mp4/mkv" will remux aac to m4a, mov to mp4 and anything else to mkv
     /// </summary>
     /// <param name="format">(currently supported: avi, flv, gif, mkv, mov, mp4, webm, aac, aiff, alac, flac, m4a, mka, mp3, ogg, opus, vorbis, wav).</param>
-    public Ytdlp WithRemuxVideo(MediaFormat format = MediaFormat.Mp4) => AddOption("--remux-video", format.ToString().ToLowerInvariant());
-
+    public Ytdlp WithRemuxVideo(string format)
+    {
+        if(string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Remux format cannot be empty", nameof(format));
+        return this.AddOption("--remux-video", format.ToLowerInvariant());
+    }
 
     /// <summary>
-    /// Re-encode the video into another format if necessary. The syntax and supported formats are the same as WithRemuxVideo()
+    /// Re-encode the video into another format if necessary. The syntax and supported formats are the same as <see cref="WithRemuxVideo"/>
     /// </summary>
     /// <param name="format">(currently supported: avi, flv, gif, mkv, mov, mp4, webm, aac, aiff, alac, flac, m4a, mka, mp3, ogg, opus, vorbis, wav).</param>
     /// <param name="videoCodec"></param>
     /// <param name="audioCodec"></param>
-    public Ytdlp WithRecodeVideo(MediaFormat format = MediaFormat.Mp4, string? videoCodec = null, string? audioCodec = null)
+    public Ytdlp WithRecodeVideo(string format, string? videoCodec = null, string? audioCodec = null)
     {
-        var builder = AddOption("--recode-video", format.ToString().ToLowerInvariant());
+        if(string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Recode format cannot be empty", nameof(format));
+        var builder = AddOption("--recode-video", format.ToLowerInvariant());
         if (!string.IsNullOrWhiteSpace(videoCodec))
             builder = builder.AddOption("--video-codec", videoCodec);
         if (!string.IsNullOrWhiteSpace(audioCodec))
@@ -1101,8 +1107,24 @@ public sealed class Ytdlp : IAsyncDisposable
     #endregion
 
     #region Core
+    /// <summary>
+    /// Returns a new instance of the Ytdlp class with the specified command-line flag added.
+    /// </summary>
+    /// <remarks>Use this method to add a single custom flag to the Ytdlp command invocation. This does not
+    /// modify the current instance, but returns a new one with the additional flag applied.</remarks>
+    /// <param name="flag">The command-line flag to add. Leading and trailing whitespace is ignored.</param>
+    /// <returns>A new Ytdlp instance that includes the specified flag in its configuration.</returns>
     public Ytdlp AddFlag(string flag) => new Ytdlp(this, extraFlags: new[] { flag.Trim() });
 
+    /// <summary>
+    /// Returns a new instance of the Ytdlp class with an additional command-line option specified by the given key and
+    /// value.
+    /// </summary>
+    /// <remarks>This method does not modify the current instance. Use this method to fluently add options
+    /// when constructing command-line arguments.</remarks>
+    /// <param name="key">The name of the command-line option to add. Leading and trailing whitespace is ignored. Cannot be null or empty.</param>
+    /// <param name="value">The value to assign to the specified command-line option. Cannot be null.</param>
+    /// <returns>A new Ytdlp instance that includes the specified option in addition to any existing options.</returns>
     public Ytdlp AddOption(string key, string value) => new Ytdlp(this, extraOptions: new[] { (key.Trim(), value) });
     #endregion
 
@@ -1163,6 +1185,13 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--playlist-end", index.ToString());
     }
 
+    /// <summary>
+    /// Specifies a custom User-Agent string to be used for HTTP requests.
+    /// </summary>
+    /// <param name="userAgent">The User-Agent string to send with HTTP requests. Cannot be null, empty, or consist only of white-space
+    /// characters.</param>
+    /// <returns>A new instance of the Ytdlp class with the specified User-Agent option applied.</returns>
+    /// <exception cref="ArgumentException">Thrown if userAgent is null, empty, or consists only of white-space characters.</exception>
     public Ytdlp WithUserAgent(string userAgent)
     {
         if (string.IsNullOrWhiteSpace(userAgent))
@@ -1170,6 +1199,14 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--user-agent", userAgent.Trim());
     }
 
+    /// <summary>
+    /// Sets the HTTP referer header to use for subsequent requests.
+    /// </summary>
+    /// <remarks>Use this method when the target resource requires a specific referer header for access or
+    /// authentication.</remarks>
+    /// <param name="referer">The referer URL to include in the HTTP header. Cannot be null, empty, or whitespace.</param>
+    /// <returns>A new instance of the <see cref="Ytdlp"/> class with the referer option applied.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="referer"/> is null, empty, or consists only of whitespace.</exception>
     public Ytdlp WithReferer(string referer)
     {
         if (string.IsNullOrWhiteSpace(referer))
@@ -1177,6 +1214,15 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--referer", referer.Trim());
     }
 
+    /// <summary>
+    /// Adds a filter to include only videos whose titles match the specified regular expression.
+    /// </summary>
+    /// <remarks>Use this method to restrict downloads to videos with titles that match the given pattern.
+    /// This option corresponds to the '--match-title' command-line argument in yt-dlp.</remarks>
+    /// <param name="regex">A regular expression pattern used to match video titles. Cannot be null, empty, or consist only of white-space
+    /// characters.</param>
+    /// <returns>The current <see cref="Ytdlp"/> instance with the match title filter applied.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="regex"/> is null, empty, or consists only of white-space characters.</exception>
     public Ytdlp WithMatchTitle(string regex)
     {
         if (string.IsNullOrWhiteSpace(regex))
@@ -1184,6 +1230,13 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--match-title", regex.Trim());
     }
 
+    /// <summary>
+    /// Adds an option to reject downloads with titles matching the specified regular expression.
+    /// </summary>
+    /// <param name="regex">A regular expression pattern used to filter out downloads by title. Titles matching this pattern will be
+    /// excluded.</param>
+    /// <returns>The current <see cref="Ytdlp"/> instance with the reject title option applied.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="regex"/> is null, empty, or consists only of white-space characters.</exception>
     public Ytdlp WithRejectTitle(string regex)
     {
         if (string.IsNullOrWhiteSpace(regex))
@@ -1191,6 +1244,12 @@ public sealed class Ytdlp : IAsyncDisposable
         return AddOption("--reject-title", regex.Trim());
     }
 
+    /// <summary>
+    /// Enables the break-on-reject option, causing the process to stop when a download is rejected.
+    /// </summary>
+    /// <remarks>Use this method to configure the process to halt immediately if any download is rejected,
+    /// rather than continuing with subsequent downloads.</remarks>
+    /// <returns>A new instance of the current object with the break-on-reject flag applied.</returns>
     public Ytdlp WithBreakOnReject() => AddFlag("--break-on-reject");
     #endregion
 
@@ -1205,14 +1264,14 @@ public sealed class Ytdlp : IAsyncDisposable
 
     public Ytdlp WithMp4PostProcessingPreset()
         => this
-            .WithRemuxVideo(MediaFormat.Mp4)
+            .WithRemuxVideo("mp4")
             .WithEmbedMetadata()
             .WithEmbedChapters()
             .WithEmbedThumbnail();
 
     public Ytdlp WithMkvOutput()
         => this
-            .WithRemuxVideo(MediaFormat.Mkv)
+            .WithRemuxVideo("mkv")
             .WithMergeOutputFormat("mkv");
 
     public Ytdlp WithMaxHeight(int height)
@@ -1872,7 +1931,7 @@ public sealed class Ytdlp : IAsyncDisposable
 
         // Special single-value options
         if (_cookiesFile is not null) { args.Add("--cookies"); args.Add(_cookiesFile); }
-        if (_cookiesFromBrowser is not null) { args.Add("--cookies-from-browser"); args.Add(Quote(_cookiesFromBrowser)); }
+        if (_cookiesFromBrowser is not null) { args.Add("--cookies-from-browser"); args.Add(_cookiesFromBrowser); }
         if (_proxy is not null) { args.Add("--proxy"); args.Add(_proxy); }
         if (_ffmpegLocation is not null) { args.Add("--ffmpeg-location"); args.Add(_ffmpegLocation); }
         if (_sponsorblockRemove is not null) { args.Add("--sponsorblock-remove"); args.Add(_sponsorblockRemove); }
