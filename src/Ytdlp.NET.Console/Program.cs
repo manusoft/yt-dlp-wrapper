@@ -181,10 +181,12 @@ internal class Program
         var url = "https://www.youtube.com/watch?v=89-i4aPOMrc"; //"https://www.dailymotion.com/video/xa3ron2"; 
 
         var ytdlp = ytdlpBase
-            .WithFormat("95+ba/b")
+            .WithFormat("ba/b")
+            .WithExtractAudio(AudioFormat.Mp3)
             .WithConcurrentFragments(8)
-            .WithHomeFolder("./downloads")
-            .WithTempFolder("./downloads/temp")
+            .WithOutputFolder("./downloads")
+            //.WithHomeFolder("./downloads")
+            //.WithTempFolder("./downloads/temp")
             .WithOutputTemplate("%(title)s.%(ext)s");
             //.WithEmbedMetadata()
             //.WithEmbedThumbnail()
@@ -215,7 +217,7 @@ internal class Program
 
         Console.WriteLine(ytdlp.Preview(url));
 
-        await ytdlp.DownloadAsync(url);
+       await ytdlp.DownloadAsync(url);
     }
 
     private static async Task TestDownloadAudioAsync(Ytdlp ytdlpBase)
