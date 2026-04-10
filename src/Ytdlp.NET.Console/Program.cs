@@ -1,11 +1,30 @@
 ﻿using ManuHub.Ytdlp.NET;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 internal class Program
 {
     private static async Task Main(string[] args)
     {
+        //Console.WriteLine("=== yt-dlp Output to Regex Converter ===\n");
+        //Console.WriteLine("Paste a yt-dlp output line below (or type 'exit' to quit):\n");
+
+        //while (true)
+        //{
+        //    Console.Write("> ");
+        //    string? input = Console.ReadLine();
+
+        //    if (string.IsNullOrWhiteSpace(input) || input.Trim().ToLower() == "exit")
+        //        break;
+
+        //    string regex = ConvertToRegex(input);
+        //    Console.WriteLine("\nGenerated Regex Pattern:");
+        //    Console.WriteLine(regex);
+        //    Console.WriteLine("\n" + new string('-', 60) + "\n");
+        //}
+
+
         // Must be the FIRST line — before any Console.WriteLine
         Console.OutputEncoding = Encoding.UTF8;
         Console.InputEncoding = Encoding.UTF8;
@@ -159,23 +178,37 @@ internal class Program
     private static async Task TestDownloadVideoAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 6: Downloading a video...");
-        var url = "https://www.youtube.com/watch?v=89-i4aPOMrc";
+        var url = "https://www.youtube.com/watch?v=89-i4aPOMrc"; //"https://www.dailymotion.com/video/xa3ron2"; 
 
         var ytdlp = ytdlpBase
-            .With720pOrBest()
+            .WithFormat("95+ba/b")
             .WithConcurrentFragments(8)
             .WithHomeFolder("./downloads")
             .WithTempFolder("./downloads/temp")
-            .WithOutputTemplate("%(title)s.%(ext)s")
-            .WithMtime()
-            .WithTrimFilenames(100);
+            .WithOutputTemplate("%(title)s.%(ext)s");
+            //.WithEmbedMetadata()
+            //.WithEmbedThumbnail()
+            //.WithRemuxVideo(MediaFormat.Mp4);
 
         // Subscribe to events
+        ytdlp.OnCommandCompleted += (sender, args) =>
+        {
+            if (args.Success)
+                Console.WriteLine("Process completed successfully.");
+            else if (args.Message.Contains("cancelled", StringComparison.OrdinalIgnoreCase))
+                Console.WriteLine("Process was cancelled.");
+            else
+                Console.WriteLine($"Process failed: {args.Message}");
+        };
+
         ytdlp.OnProgressDownload += (sender, args) =>
             Console.WriteLine($"Progress: {args.Percent:F2}% - {args.Speed} - ETA {args.ETA} - Size {args.Size}");
 
         ytdlp.OnCompleteDownload += (sender, message) =>
             Console.WriteLine($"Download complete: {message}");
+
+        ytdlp.OnPostProcessingStart += (sender, message) =>
+            Console.WriteLine($"Post-processing started: {message}");
 
         ytdlp.OnPostProcessingComplete += (sender, message) =>
             Console.WriteLine($"Post-processing done: {message}");
@@ -379,6 +412,35 @@ internal class Program
             Console.WriteLine($"\r{message.PadRight(Console.BufferWidth - 1)}");
             _lastPercent = -1;
         }
+    }
+
+    static string ConvertToRegex(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return "// Empty line";
+
+        // Escape special regex characters
+        string escaped = Regex.Escape(line);
+
+        // Replace variable parts with capture groups
+        escaped = Regex.Replace(escaped, @"\\\[([^\\\]]+)\\\]", @"\\[(?<processor>$1)\\]"); // [ProcessorName]
+        escaped = Regex.Replace(escaped, @"(\d+\.\d+)%", @"(?<percent>\d+\.\d+)%");
+        escaped = Regex.Replace(escaped, @"of\s+~?\s*([\d\.]+\s*[A-Za-z]+B)", @"of ~?(?<size>[\d\.]+\s*[A-Za-z]+B)");
+        escaped = Regex.Replace(escaped, @"at\s+([\d\.]+\s*[A-Za-z]+/s)", @"at (?<speed>[\d\.]+\s*[A-Za-z]+/s)");
+        escaped = Regex.Replace(escaped, @"ETA\s+([\d:]+)", @"ETA (?<eta>[\d:]+)");
+        escaped = Regex.Replace(escaped, @"frag\s*(\d+/\d+)", @"frag (?<frag>\d+/\d+)");
+        escaped = Regex.Replace(escaped, @"(\d+/\d+)", @"(?<item>\d+)/(?<total>\d+)"); // for playlists etc.
+
+        // Common paths and filenames
+        escaped = Regex.Replace(escaped, @"(""[^""]+"")", @"(?<path>$1)");
+        escaped = Regex.Replace(escaped, @"'([^']+)'", @"(?<path>'$1')");
+
+        // Make it more flexible
+        escaped = escaped.Replace(@"\[download\]", @"\[download\]");
+        escaped = escaped.Replace(@"\[info\]", @"\[info\]");
+
+        // Add ^ and $ for full line match (recommended for yt-dlp)
+        return $"^{escaped}$";
     }
 
 }

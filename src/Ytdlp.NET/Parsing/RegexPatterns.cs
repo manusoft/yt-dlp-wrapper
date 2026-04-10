@@ -2,18 +2,7 @@
 
 internal static class RegexPatterns
 {
-    // ───────────── Core / Existing Patterns (unchanged) ─────────────
-    public const string ExtractingUrl = @"\[(?<source>[^\]]+)\]\s*Extracting URL:\s*(?<url>https?://\S+)";
-    public const string DownloadingWebpage = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*Downloading\s*(?<type>pc|mweb|ios|web)?\s*webpage";
-    public const string DownloadingJson = @"\[(?<source>[^\]]+)\]\s+(?<id>[^\s:]+):\s*Downloading\s*(?<type>ios|mweb|tv|android)?\s*player API JSON";
-    public const string DownloadingTvClientConfig = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*Downloading tv client config";
-    public const string DownloadingM3u8 = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*Downloading m3u8 information";
-    public const string DownloadingManifest = @"\[hlsnative\]\s*Downloading m3u8 manifest";
-    public const string TotalFragments = @"\[hlsnative\]\s*Total fragments:\s*(?<fragments>\d+)";
-    public const string TestingFormat = @"\[info\]\s*Testing format\s*(?<format>[^\s]+)";
-    public const string DownloadingFormat = @"\[info\]\s*(?<id>[^\s:]+):\s*(?:Downloading|Testing)\s*\d+\s*format\(s\):\s*(?<format>[^\s]+)";
-    public const string DownloadingThumbnail = @"\[info\]\s*Downloading video thumbnail\s*(?<number>\d+)\s*\.\.\.";
-    public const string WritingThumbnail = @"\[info\]\s*Writing video thumbnail\s*(?<number>\d+)\s*to:\s*(?<path>.+)";
+    // ───────────── Core ─────────────
     public const string DownloadDestination = @"\[download\]\s*Destination:\s*(?<path>.+)";
     public const string ResumeDownload = @"\[download\]\s*Resuming download at byte\s*(?<byte>\d+)";
     public const string DownloadAlreadyDownloaded = @"\[download\]\s*(?<path>[^\n]+?)\s*has already been downloaded";
@@ -28,29 +17,20 @@ internal static class RegexPatterns
     public const string SpecificError = @"\[(?<source>[^\]]+)\]\s*(?<id>[^\s:]+):\s*ERROR:\s*(?<error>.+)";
     public const string DownloadingSubtitles = @"\[info\]\s*Downloading subtitles:\s*(?<language>[^\s]+)";
 
-    // More reliable merger success detection (variation of "successfully merged")
-    public const string MergerSuccess = @"(?:has been successfully merged|merged formats successfully)";
-
-    // Post-processing generic step (helps count steps reliably)
-    public const string PostProcessGeneric = @"\[(?<processor>PostProcess|ffmpeg|Merger|ConvertSubs|SponsorBlock)\]\s*(?<action>.+)";
-
-    // SponsorBlock lines (very common now)
-    public const string SponsorBlockAction = @"\[sponsorblock\]\s*(?<action>.+?)(?::\s*(?<details>.+))?$";
-
-    // Concurrent fragments / DASH/HLS speed-up
-    public const string ConcurrentFragmentRange = @"\[download\]\s*Got server-side ranges for fragment\s*(?<frag>\d+)";
-    public const string ConcurrentFragmentDownloaded = @"\[download\]\s*Downloaded fragment\s*(?<frag>\d+)\s*(?:of\s*(?<total>\d+))?";
-
-    // Subtitle conversion (when using --convert-subs)
-    public const string ConvertSubs = @"\[ConvertSubs\]\s*Converting subtitle\s*(?<file>.+?)\s*to\s*(?<format>.+?)(?:\s|$)";
-
-    // FFmpeg post-processing actions (remux, recode, etc.)
-    public const string FFmpegAction = @"\[ffmpeg\]\s*(?<action>.+)";
-
     // Basic playlist item progress (when downloading playlists)
     public const string PlaylistItem = @"\[download\]\s*Downloading playlist:\s*(?<playlist>.+?)\s*;\s*Downloading\s*(?<item>\d+)\s*of\s*(?<total>\d+)";
 
     // Warning / debug lines (useful for better unknown classification)
     public const string WarningLine = @"\[warning\]\s*(?<message>.+)";
     public const string DebugLine = @"\[debug\]\s*(?<message>.+)";
+
+    public const string FixupM3u8 = @"\[FixupM3u8\]\s*(?<action>.+)";
+    public const string VideoRemuxer = @"\[VideoRemuxer\]\s*(?<action>.+)";
+    public const string Metadata = @"\[Metadata\]\s*(?<action>.+)";
+    public const string ThumbnailsConvertor = @"\[ThumbnailsConvertor\]\s*(?<action>.+)";
+    public const string EmbedThumbnail = @"\[EmbedThumbnail\]\s*(?<action>.+)";
+    public const string MoveFiles = @"\[MoveFiles\]\s*(?<action>.+)";
+
+    // Generic fallback for any unknown post-processor
+    public const string PostProcessorGeneric = @"\[(?<processor>FixupM3u8|VideoRemuxer|Metadata|ThumbnailsConvertor|EmbedThumbnail|MoveFiles|Merger|ffmpeg|ConvertSubs|SponsorBlock)\]\s*(?<action>.+)";
 }

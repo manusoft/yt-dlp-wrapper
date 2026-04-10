@@ -66,6 +66,7 @@ public sealed class Ytdlp : IAsyncDisposable
     public event EventHandler<string>? OnProgressMessage;
     public event EventHandler<string>? OnOutputMessage;
     public event EventHandler<string>? OnCompleteDownload;
+    public event EventHandler<string>? OnPostProcessingStart;
     public event EventHandler<string>? OnPostProcessingComplete;
     public event EventHandler<CommandCompletedEventArgs>? OnCommandCompleted;
     public event EventHandler<string>? OnErrorMessage;
@@ -178,10 +179,10 @@ public sealed class Ytdlp : IAsyncDisposable
     /// </summary>
     /// <param name="path"></param>
     /// <returns></returns>
-    public Ytdlp WithConfigLocations(string path) 
+    public Ytdlp WithConfigLocations(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Config folder path required");
-         return AddOption("--config-locations", Path.GetFullPath(path)); 
+        return AddOption("--config-locations", Path.GetFullPath(path));
     }
 
     /// <summary>
@@ -1306,7 +1307,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <param name="tuneProcess">Whether to tune the process for better performance (true by default). If false, the process will use the default buffer size and may have slower output processing.</param>
     /// <param name="bufferKb">Buffer size in KB.</param>
     /// <returns>List of extractor names</returns>
-    public async Task<List<string>> ExtractorsAsync(CancellationToken ct = default, bool tuneProcess= true, int bufferKb = 256)
+    public async Task<List<string>> ExtractorsAsync(CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
         try
         {
@@ -1367,7 +1368,7 @@ public sealed class Ytdlp : IAsyncDisposable
                 $"--no-warnings " +
                 $"{Quote(url)}";
 
-            if(ct.IsCancellationRequested)
+            if (ct.IsCancellationRequested)
                 Debug.WriteLine("Cancellation requested before starting the process.");
 
             var json = await Probe().RunAsync(arguments, ct, tuneProcess, bufferKb);
@@ -1467,7 +1468,7 @@ public sealed class Ytdlp : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(url))
             throw new ArgumentException("Video URL cannot be empty.", nameof(url));
 
-        var output = await Probe().RunAsync($"-F {Quote(url)}", ct,tuneProcess, bufferKb);
+        var output = await Probe().RunAsync($"-F {Quote(url)}", ct, tuneProcess, bufferKb);
 
         if (string.IsNullOrWhiteSpace(output))
         {
@@ -1626,7 +1627,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <exception cref="ArgumentException"></exception>
     public async Task<string> GetBestAudioFormatIdAsync(string url, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
-        var meta = await GetMetadataAsync(url, ct,tuneProcess, bufferKb);
+        var meta = await GetMetadataAsync(url, ct, tuneProcess, bufferKb);
         var best = meta?.Formats?
             .Where(f => f.IsAudio && (f.Abr > 0 || f.Tbr > 0))
             .OrderByDescending(f => f.Abr ?? f.Tbr ?? 0)
@@ -1650,7 +1651,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <exception cref="ArgumentException"></exception>
     public async Task<string> GetBestVideoFormatIdAsync(string url, int maxHeight = 1080, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
-        var meta = await GetMetadataAsync(url, ct,tuneProcess, bufferKb);
+        var meta = await GetMetadataAsync(url, ct, tuneProcess, bufferKb);
         var best = meta?.Formats?
             .Where(f => !f.IsAudio && f.Height.HasValue && f.Height <= maxHeight)
             .OrderByDescending(f => f.Height)
@@ -1704,24 +1705,27 @@ public sealed class Ytdlp : IAsyncDisposable
         var progressParser = new ProgressParser(_logger);
         var download = new DownloadRunner(factory, progressParser, _logger);
 
-        // Forward progress events locally inside this method
-        void OnProgressDownloadHandler(object? s, DownloadProgressEventArgs e)
-            => OnProgressDownload?.Invoke(this, e);
-
-        void OnProgressMessageHandler(object? s, string msg)
-            => OnProgressMessage?.Invoke(this, msg);
-
-        // Attach progress handlers
+        // Forward progress events
+        void OnProgressDownloadHandler(object? s, DownloadProgressEventArgs e) => OnProgressDownload?.Invoke(this, e);
+        void OnProgressMessageHandler(object? s, string msg) => OnProgressMessage?.Invoke(this, msg);
+        void OnCompleteDownloadHanlder(object? s, string msg) => OnCompleteDownload?.Invoke(this, msg);
         progressParser.OnProgressDownload += OnProgressDownloadHandler;
         progressParser.OnProgressMessage += OnProgressMessageHandler;
+        progressParser.OnCompleteDownload += OnCompleteDownloadHanlder;
 
         // Forward other events
-        progressParser.OnOutputMessage += (_, e) => OnOutputMessage?.Invoke(this, e);
-        progressParser.OnCompleteDownload += (_, e) => OnCompleteDownload?.Invoke(this, e);
-        progressParser.OnErrorMessage += (_, e) => OnErrorMessage?.Invoke(this, e);
-        progressParser.OnPostProcessingComplete += (_, e) => OnPostProcessingComplete?.Invoke(this, e);
-
-        download.OnCommandCompleted += (_, e) => OnCommandCompleted?.Invoke(this, e);
+        void OnOutputMessageHandler(object? s, string msg) => OnOutputMessage?.Invoke(this, msg);
+        void OnErrorMessageHandler(object? s, string msg) => OnErrorMessage?.Invoke(this, msg);
+        void OnPostProcessingStartHandler(object? s, string msg) => OnPostProcessingStart?.Invoke(this, msg);
+        void OnPostProcessingCompleteHandler(object? s, string msg) => OnPostProcessingComplete?.Invoke(this, msg);
+        progressParser.OnOutputMessage += OnOutputMessageHandler;
+        progressParser.OnErrorMessage += OnErrorMessageHandler;
+        progressParser.OnPostProcessingStart += OnPostProcessingStartHandler;
+        progressParser.OnPostProcessingComplete += OnPostProcessingCompleteHandler;
+      
+        // Command completion
+        void OnCommandCompletedHandler(object? s, CommandCompletedEventArgs e) => OnCommandCompleted?.Invoke(this, e);
+        download.OnCommandCompleted += OnCommandCompletedHandler;      
 
         try
         {
@@ -1732,6 +1736,12 @@ public sealed class Ytdlp : IAsyncDisposable
             // Unsubscribe immediately after execution to prevent memory leaks
             progressParser.OnProgressDownload -= OnProgressDownloadHandler;
             progressParser.OnProgressMessage -= OnProgressMessageHandler;
+            progressParser.OnCompleteDownload -= OnCompleteDownloadHanlder;
+            progressParser.OnOutputMessage -= OnOutputMessageHandler;
+            progressParser.OnErrorMessage -= OnErrorMessageHandler;
+            progressParser.OnPostProcessingStart -= OnPostProcessingStartHandler;
+            progressParser.OnPostProcessingComplete -= OnPostProcessingCompleteHandler;
+            download.OnCommandCompleted -= OnCommandCompletedHandler;
         }
     }
 
