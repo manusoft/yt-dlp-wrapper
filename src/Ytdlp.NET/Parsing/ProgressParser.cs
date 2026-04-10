@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace ManuHub.Ytdlp.NET;
 
@@ -7,9 +8,11 @@ public sealed class ProgressParser
     private readonly Dictionary<Regex, Action<Match>> _regexHandlers;
     private readonly ILogger _logger;
 
+    private readonly RegexOptions compiledIgnoreCase = RegexOptions.Compiled | RegexOptions.IgnoreCase;
+
     // State tracking
     private bool _isDownloadCompleted;
-    private bool _isMerging;
+    private bool _postProcessingStarted;
     private int _postProcessStepCount;
     private int _deleteCount;
 
@@ -19,51 +22,32 @@ public sealed class ProgressParser
 
         _regexHandlers = new Dictionary<Regex, Action<Match>>
         {
-            // ───────────── Existing Handlers ─────────────
-            { new Regex(RegexPatterns.ExtractingUrl, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleExtractingUrl },
-            { new Regex(RegexPatterns.DownloadingWebpage, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingWebpage },
-            { new Regex(RegexPatterns.DownloadingJson, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingJson },
-            { new Regex(RegexPatterns.DownloadingTvClientConfig, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingTvClientConfig },
-            { new Regex(RegexPatterns.DownloadingM3u8, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingM3u8 },
-            { new Regex(RegexPatterns.DownloadingManifest, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingManifest },
-            { new Regex(RegexPatterns.TotalFragments, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleTotalFragments },
-            { new Regex(RegexPatterns.TestingFormat, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleTestingFormat },
-            { new Regex(RegexPatterns.DownloadingFormat, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingFormat },
-            { new Regex(RegexPatterns.DownloadingThumbnail, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingThumbnail },
-            { new Regex(RegexPatterns.WritingThumbnail, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleWritingThumbnail },
-            { new Regex(RegexPatterns.DownloadDestination, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadDestination },
-            { new Regex(RegexPatterns.ResumeDownload, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleResumeDownload },
-            { new Regex(RegexPatterns.DownloadAlreadyDownloaded, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadAlreadyCompleted },
-            { new Regex(RegexPatterns.DownloadProgressComplete, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadProgressComplete },
-            { new Regex(RegexPatterns.DownloadProgressWithFrag, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadProgressWithFrag },
-            { new Regex(RegexPatterns.DownloadProgress, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadProgress },
-            { new Regex(RegexPatterns.UnknownError, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleUnknownError },
-            { new Regex(RegexPatterns.MergingFormats, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleMergingFormats },
-            { new Regex(RegexPatterns.ExtractingMetadata, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleExtractingMetadata },
-            { new Regex(RegexPatterns.SpecificError, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleSpecificError },
-            { new Regex(RegexPatterns.DownloadingSubtitles, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleDownloadingSubtitles },
+            // Begining
+            { new Regex(RegexPatterns.DownloadDestination, compiledIgnoreCase), HandleDownloadDestination },
+            { new Regex(RegexPatterns.ResumeDownload, compiledIgnoreCase), HandleResumeDownload },
+            { new Regex(RegexPatterns.DownloadAlreadyDownloaded, compiledIgnoreCase), HandleDownloadAlreadyCompleted },
 
-            // ───────────── Improved / New Handlers for v2.0 ─────────────
-            // Merging / deletion lines (multiple patterns to catch variations)
-            { new Regex(RegexPatterns.DeleteingOriginalFile, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandlePostProcessingStep },
-            { new Regex(RegexPatterns.MergerSuccess, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandlePostProcessingStep },
-            { new Regex(@"\[Merger\] Merging formats? into ""(?<path>[^""]+)""", RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleMergingFormats },
+            // Progress
+            { new Regex(RegexPatterns.DownloadProgressComplete, compiledIgnoreCase), HandleDownloadProgressComplete },
+            { new Regex(RegexPatterns.DownloadProgressWithFrag, compiledIgnoreCase), HandleDownloadProgressWithFrag },
+            { new Regex(RegexPatterns.DownloadProgress, compiledIgnoreCase), HandleDownloadProgress },
 
-            // SponsorBlock integration
-            { new Regex(RegexPatterns.SponsorBlockAction, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleSponsorBlock },
+            // Post-processing            
+            { new Regex(RegexPatterns.FixupM3u8, compiledIgnoreCase), HandlePostProcessingStep },
+            { new Regex(RegexPatterns.VideoRemuxer, compiledIgnoreCase), HandlePostProcessingStep },
+            { new Regex(RegexPatterns.Metadata, compiledIgnoreCase), HandlePostProcessingStep },
+            { new Regex(RegexPatterns.ThumbnailsConvertor, compiledIgnoreCase), HandlePostProcessingStep },
+            { new Regex(RegexPatterns.EmbedThumbnail, compiledIgnoreCase), HandlePostProcessingStep },
+            { new Regex(RegexPatterns.MoveFiles, compiledIgnoreCase), HandlePostProcessingStep },
+            { new Regex(RegexPatterns.PostProcessorGeneric, compiledIgnoreCase), HandlePostProcessingStep },
 
-            // Concurrent fragments progress
-            { new Regex(RegexPatterns.ConcurrentFragmentRange, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleConcurrentFragment },
+            { new Regex(RegexPatterns.DeleteingOriginalFile, compiledIgnoreCase), HandlePostProcessingStep },
 
-            // Subtitle / post-processor conversion
-            { new Regex(RegexPatterns.ConvertSubs, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleSubtitleConversion },
-            { new Regex(RegexPatterns.FFmpegAction, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleFFmpegPostProcess },
-
-            // Generic post-processing step (fallback)
-            { new Regex(RegexPatterns.PostProcessGeneric, RegexOptions.Compiled | RegexOptions.IgnoreCase), HandleGenericPostProcess },
+            { new Regex(RegexPatterns.UnknownError, compiledIgnoreCase), HandleUnknownError },
+            { new Regex(RegexPatterns.SpecificError, compiledIgnoreCase), HandleSpecificError },
 
             // Optional: add playlist awareness
-            { new Regex(RegexPatterns.PlaylistItem, RegexOptions.Compiled | RegexOptions.IgnoreCase), m =>
+            { new Regex(RegexPatterns.PlaylistItem, compiledIgnoreCase), m =>
                 LogAndNotify(LogType.Info, $"Playlist progress: item {m.Groups["item"].Value}/{m.Groups["total"].Value} - {m.Groups["playlist"].Value}") },
         };
     }
@@ -91,7 +75,7 @@ public sealed class ProgressParser
     public void Reset()
     {
         _isDownloadCompleted = false;
-        _isMerging = false;
+        _postProcessingStarted = false;
         _postProcessStepCount = 0;
         _deleteCount = 0;
         _logger.Log(LogType.Info, "Progress parser state reset.");
@@ -99,71 +83,6 @@ public sealed class ProgressParser
 
     // ───────────── Event Handlers (existing + improved) ─────────────
     #region Event Handlers
-
-    private void HandleExtractingUrl(Match match) => LogAndNotify(LogType.Info, $"Extracting URL: {match.Groups["url"].Value}");
-
-    private void HandleDownloadingWebpage(Match match)
-    {
-        var id = match.Groups["id"].Value;
-        var type = match.Groups["type"].Value;
-        LogAndNotify(LogType.Info, $"Downloading {type} webpage for {id}");
-    }
-
-    private void HandleDownloadingJson(Match match)
-    {
-        string id = match.Groups["id"].Value;
-        string type = match.Groups["type"].Value;
-        LogAndNotify(LogType.Info, $"Downloading {type} player API JSON for video ID: {id}");
-    }
-
-    private void HandleDownloadingTvClientConfig(Match match)
-    {
-        string id = match.Groups["id"].Value;
-        LogAndNotify(LogType.Info, $"Downloading tv client config for video ID: {id}");
-    }
-
-    private void HandleDownloadingM3u8(Match match)
-    {
-        string id = match.Groups["id"].Value;
-        LogAndNotify(LogType.Info, $"Downloading m3u8 information for video ID: {id}");
-    }
-
-    private void HandleDownloadingManifest(Match match)
-    {
-        LogAndNotify(LogType.Info, "Downloading manifest");
-    }
-
-    private void HandleTotalFragments(Match match)
-    {
-        string fragments = match.Groups["fragments"].Value;
-        LogAndNotify(LogType.Info, $"Total fragments: {fragments}");
-    }
-
-    private void HandleTestingFormat(Match match)
-    {
-        string format = match.Groups["format"].Value;
-        LogAndNotify(LogType.Info, $"Testing format {format}");
-    }
-
-    private void HandleDownloadingFormat(Match match)
-    {
-        string format = match.Groups["format"].Value;
-        string id = match.Groups["id"].Value;
-        LogAndNotify(LogType.Info, $"Downloading format {format} for video ID: {id}");
-    }
-
-    private void HandleDownloadingThumbnail(Match match)
-    {
-        string number = match.Groups["number"].Value;
-        LogAndNotify(LogType.Info, $"Downloading video thumbnail {number}");
-    }
-
-    private void HandleWritingThumbnail(Match match)
-    {
-        string number = match.Groups["number"].Value;
-        string path = match.Groups["path"].Value;
-        LogAndNotify(LogType.Info, $"Writing video thumbnail {number} to: {path}");
-    }
 
     private void HandleDownloadDestination(Match match)
     {
@@ -181,13 +100,21 @@ public sealed class ProgressParser
 
     private void HandleDownloadProgress(Match match)
     {
+        if (_isDownloadCompleted) return;
+
         // Existing logic unchanged
         string percentString = match.Groups["percent"].Value;
         string sizeString = match.Groups["total"].Value;
         string speedString = match.Groups["speed"].Value;
         string etaString = match.Groups["eta"].Value;
 
-        if (!double.TryParse(percentString.Replace("%", ""), out double percent)) percent = 0;
+        if (!double.TryParse(percentString.Replace("%", ""), out double percent))
+            percent = 0;
+
+        if (percent >= 99.0 && !_isDownloadCompleted)
+        {
+            HandleDownloadProgressComplete(match);
+        }
 
         var args = new DownloadProgressEventArgs
         {
@@ -204,6 +131,8 @@ public sealed class ProgressParser
 
     private void HandleDownloadProgressWithFrag(Match match)
     {
+        if (_isDownloadCompleted) return;
+
         // Existing + prevent premature complete if fragments remain
         string percentString = match.Groups["percent"].Value;
         string sizeString = match.Groups["size"].Value;
@@ -211,14 +140,8 @@ public sealed class ProgressParser
         string etaString = match.Groups["eta"].Value;
         string fragString = match.Groups["frag"].Value;
 
-        if (!double.TryParse(percentString.Replace("%", ""), out double percent)) percent = 0;
-
-        // Only trigger complete if really done (avoid false 100% on fragment level)
-        if (sizeString != "~" && percent >= 99.9 && !_isDownloadCompleted && !fragString.Contains("/"))
-        {
-            HandleDownloadProgressComplete(match);
-            return;
-        }
+        if (!double.TryParse(percentString.Replace("%", ""), out double percent))
+            percent = 0;
 
         var args = new DownloadProgressEventArgs
         {
@@ -232,6 +155,26 @@ public sealed class ProgressParser
 
         LogAndNotify(LogType.Info, args.Message);
         OnProgressDownload?.Invoke(this, args);
+
+        Debug.WriteLine($"DEBUG: Progress with frag → percent: {percent}, size: {sizeString}, speed: {speedString}, eta: {etaString}, frag: {fragString}");
+
+        // Only trigger complete if really done (avoid false 100% on fragment level)
+        if (percent >= 99.0 && IsFinalFragment(fragString) && !_isDownloadCompleted)
+        {
+            HandleDownloadProgressComplete(match);
+        }
+    }
+
+    private bool IsFinalFragment(string frag)
+    {
+        if (string.IsNullOrEmpty(frag) || !frag.Contains("/")) return true;
+
+        var parts = frag.Split('/');
+        if (parts.Length != 2) return false;
+
+        return int.TryParse(parts[0], out int current) &&
+               int.TryParse(parts[1], out int total) &&
+               current >= total - 1;        // allow last 1-2 fragments due to concurrency
     }
 
     private void HandleDownloadProgressComplete(Match match)
@@ -239,8 +182,14 @@ public sealed class ProgressParser
         if (_isDownloadCompleted) return;
 
         _isDownloadCompleted = true;
-        var message = $"Download finished: {match.Groups["percent"].Value} of {match.Groups["size"].Value}";
+
+        string percent = match.Groups["percent"]?.Value ?? "100";
+        string size = match.Groups["size"]?.Value ?? match.Groups["total"]?.Value ?? "unknown";
+
+        var message = $"Download finished: {percent}% of {size}";
+
         LogAndNotifyComplete(message);
+        _logger.Log(LogType.Info, "Download marked as completed.");
     }
 
     private void HandleDownloadAlreadyCompleted(Match match)
@@ -256,123 +205,67 @@ public sealed class ProgressParser
         LogAndNotify(LogType.Error, $"Unknown error: {match.Value}");
     }
 
-    private void HandleMergingFormats(Match match)
-    {
-        var path = match.Groups["path"].Value;
-        _isMerging = true;
-        _postProcessStepCount = 0;
-        _deleteCount = 0;
-        LogAndNotify(LogType.Info, $"Starting merge → {path}");
-    }
-
-    private void HandleMergingComplete(Match match)
-    {
-        if (_isMerging)
-        {
-            _postProcessStepCount++;
-            var message = $"Post-processing step: {match.Value}";
-            LogAndNotify(LogType.Info, message);
-
-            // More flexible trigger: complete after 2+ steps OR explicit "merged" phrase
-            if (_postProcessStepCount >= 2 || match.Value.Contains("successfully merged", StringComparison.OrdinalIgnoreCase))
-            {
-                _isMerging = false;
-                _postProcessStepCount = 0;
-                OnPostProcessingComplete?.Invoke(this, message);
-                _logger.Log(LogType.Info, "OnPostProcessingComplete event reliably triggered.");
-            }
-        }
-        else
-        {
-            // Fallback: treat as post-processing even if no merge start detected
-            LogAndNotify(LogType.Info, $"Post-processing detected: {match.Value}");
-            OnPostProcessingComplete?.Invoke(this, match.Value);
-        }
-    }
-
-    private void HandleExtractingMetadata(Match match)
-    {
-        string id = match.Groups["id"].Value;
-        LogAndNotify(LogType.Info, $"Extracting metadata for video ID: {id}");
-    }
-
     private void HandleSpecificError(Match match)
     {
         string error = match.Groups["error"].Value;
         LogAndNotify(LogType.Error, $"Error: {error}");
     }
 
-    private void HandleDownloadingSubtitles(Match match)
-    {
-        string language = match.Groups["language"].Value;
-        LogAndNotify(LogType.Info, $"Downloading subtitles for language: {language}");
-    }
-
-    // ───────────── v2.0 Enhanced Post-Processing Detection ─────────────
     private void HandlePostProcessingStep(Match match)
     {
-        if (!_isMerging && _postProcessStepCount == 0)
+        // Ensure download is marked completed
+        if (!_isDownloadCompleted)
+            _isDownloadCompleted = true;
+
+        // Start post-processing phase **only once** per download
+        if (!_postProcessingStarted)
         {
-            // Single-format or no-merge case — still fire event eventually
-            LogAndNotify(LogType.Info, "Post-processing detected (no prior merge)");
-        }
-
-        _postProcessStepCount++;
-        _deleteCount++; // still count deletions as steps
-
-        var line = match.Value.Trim();
-        var message = $"Post-processing [{_postProcessStepCount}]: {line}";
-
-        LogAndNotify(LogType.Info, message);
-
-        // Trigger completion if:
-        // - At least 2 steps completed, OR
-        // - Explicit success phrase found, OR
-        // - Multiple deletions happened
-        if (_postProcessStepCount >= 2 ||
-            line.Contains("successfully merged", StringComparison.OrdinalIgnoreCase) ||
-            _deleteCount >= 2)
-        {
-            _isMerging = false;
+            _postProcessingStarted = true;
             _postProcessStepCount = 0;
-            _deleteCount = 0;
-            OnPostProcessingComplete?.Invoke(this, message);
-            _logger.Log(LogType.Info, "Reliably triggered OnPostProcessingComplete");
+
+            LogAndNotify(LogType.Info, "Post-processing started");
+            OnPostProcessingStart?.Invoke(this, "Post-processing started");
+        }
+
+        _postProcessStepCount++;
+
+        // Better group extraction
+        string processor = match.Groups["processor"].Success
+            ? match.Groups["processor"].Value.Trim()
+            : "PostProcessor";
+
+        string action = match.Groups["action"].Success
+            ? match.Groups["action"].Value.Trim()
+            : match.Value.Trim();
+
+        var message = $"[{processor}] {action}";
+        LogAndNotify(LogType.Info, $"Post-processing [{_postProcessStepCount}]: {message}");
+
+        // === KEY CHANGE: Only complete on MoveFiles or after many steps ===
+        bool isFinalStep =
+            processor.Equals("MoveFiles", StringComparison.OrdinalIgnoreCase) ||
+            action.Contains("Moving file", StringComparison.OrdinalIgnoreCase) ||
+            _postProcessStepCount >= 8;   // safety net
+
+        if (isFinalStep)
+        {
+            var completeMsg = "Post-processing completed successfully";
+
+            LogAndNotify(LogType.Info, completeMsg);
+            OnPostProcessingComplete?.Invoke(this, completeMsg);
+
+            _logger.Log(LogType.Info, "OnPostProcessingComplete event triggered.");
+
+            // Reset flags so next download starts fresh
+            Reset();
         }
     }
 
-    private void HandleGenericPostProcess(Match match)
-    {
-        var action = match.Groups["action"].Value.Trim();
-        LogAndNotify(LogType.Info, $"Post-process: {action}");
-        _postProcessStepCount++;
-    }
-
-    // ───────────── New Handlers for modern features ─────────────
     private void HandleSponsorBlock(Match match)
     {
         var action = match.Groups["action"].Value.Trim();
         var details = match.Groups["details"].Success ? match.Groups["details"].Value.Trim() : "";
         LogAndNotify(LogType.Info, $"SponsorBlock {action}{(string.IsNullOrEmpty(details) ? "" : $": {details}")}");
-    }
-
-    private void HandleConcurrentFragment(Match match)
-    {
-        var frag = match.Groups["frag"].Value;
-        LogAndNotify(LogType.Info, $"Concurrent fragment processing: {frag}");
-    }
-
-    private void HandleSubtitleConversion(Match match)
-    {
-        var file = match.Groups["file"].Value.Trim();
-        var format = match.Groups["format"].Value.Trim();
-        LogAndNotify(LogType.Info, $"Converting subtitle → {file} to {format}");
-    }
-
-    private void HandleFFmpegPostProcess(Match match)
-    {
-        var action = match.Groups["action"].Value.Trim();
-        LogAndNotify(LogType.Info, $"FFmpeg: {action}");
     }
 
     private void HandleUnknownOutput(string output)
@@ -384,13 +277,7 @@ public sealed class ProgressParser
                           lower.Contains("[debug]") ? LogType.Debug :
                           LogType.Info;
 
-        string category = lower.Contains("[ffmpeg]") ? "FFmpeg" :
-                          lower.Contains("[extractor]") ? "Extractor" :
-                          lower.Contains("[sponsorblock]") ? "SponsorBlock" :
-                          lower.Contains("[download]") ? "Download" : "Unknown";
-
-        var message = $"[{category}] {output}";
-        LogAndNotify(logType, message);
+        LogAndNotify(logType, output);
     }
 
     #endregion
@@ -420,6 +307,7 @@ public sealed class ProgressParser
     public event EventHandler<string>? OnErrorMessage;
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
     public event EventHandler<string>? OnCompleteDownload;
+    public event EventHandler<string>? OnPostProcessingStart;
     public event EventHandler<string>? OnPostProcessingComplete;
     #endregion
 }
