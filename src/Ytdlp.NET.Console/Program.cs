@@ -7,24 +7,6 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        //Console.WriteLine("=== yt-dlp Output to Regex Converter ===\n");
-        //Console.WriteLine("Paste a yt-dlp output line below (or type 'exit' to quit):\n");
-
-        //while (true)
-        //{
-        //    Console.Write("> ");
-        //    string? input = Console.ReadLine();
-
-        //    if (string.IsNullOrWhiteSpace(input) || input.Trim().ToLower() == "exit")
-        //        break;
-
-        //    string regex = ConvertToRegex(input);
-        //    Console.WriteLine("\nGenerated Regex Pattern:");
-        //    Console.WriteLine(regex);
-        //    Console.WriteLine("\n" + new string('-', 60) + "\n");
-        //}
-
-
         // Must be the FIRST line — before any Console.WriteLine
         Console.OutputEncoding = Encoding.UTF8;
         Console.InputEncoding = Encoding.UTF8;
@@ -38,20 +20,20 @@ internal class Program
             .WithFFmpegLocation("tools");
 
         // Run all demos/tests sequentially
-        //await TestGetVersionAsync(baseYtdlp);
-        //await TestUpdateAsync(baseYtdlp);
+        await TestGetVersionAsync(baseYtdlp);
+        await TestUpdateAsync(baseYtdlp);
 
-        //await TestGetFormatsAsync(baseYtdlp);
-        //await TestGetMetadataAsync(baseYtdlp);
-        //await TestGetLiteMetadataAsync(baseYtdlp);
-        //await TestGetTitleAsync(baseYtdlp);
+        await TestGetFormatsAsync(baseYtdlp);
+        await TestGetMetadataAsync(baseYtdlp);
+        await TestGetLiteMetadataAsync(baseYtdlp);
+        await TestGetTitleAsync(baseYtdlp);
 
         await TestDownloadVideoAsync(baseYtdlp);
-        //await TestDownloadAudioAsync(baseYtdlp);
-        //await TestBatchDownloadAsync(baseYtdlp);
-        //await TestSponsorBlockAsync(baseYtdlp);
-        //await TestConcurrentFragmentsAsync(baseYtdlp);
-        //await TestCancellationAsync(baseYtdlp);
+        await TestDownloadAudioAsync(baseYtdlp);
+        await TestBatchDownloadAsync(baseYtdlp);
+        await TestSponsorBlockAsync(baseYtdlp);
+        await TestConcurrentFragmentsAsync(baseYtdlp);
+        await TestCancellationAsync(baseYtdlp);
 
         var lists = await baseYtdlp.ExtractorsAsync();
 
@@ -184,13 +166,12 @@ internal class Program
             .WithFormat("ba/b")
             .WithExtractAudio(AudioFormat.Mp3)
             .WithConcurrentFragments(8)
-            .WithOutputFolder("./downloads")
-            //.WithHomeFolder("./downloads")
-            //.WithTempFolder("./downloads/temp")
-            .WithOutputTemplate("%(title)s.%(ext)s");
-            //.WithEmbedMetadata()
-            //.WithEmbedThumbnail()
-            //.WithRemuxVideo(MediaFormat.Mp4);
+            .WithHomeFolder("./downloads")
+            .WithTempFolder("./downloads/temp")
+            .WithOutputTemplate("%(title)s.%(ext)s")
+            .WithEmbedMetadata()
+            .WithEmbedThumbnail()
+            .WithRemuxVideo("mp4");
 
         // Subscribe to events
         ytdlp.OnCommandCompleted += (sender, args) =>

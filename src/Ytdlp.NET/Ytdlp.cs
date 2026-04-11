@@ -41,6 +41,9 @@ namespace ManuHub.Ytdlp.NET;
 /// </remarks>
 public sealed class Ytdlp : IAsyncDisposable
 {
+    // ==================================================================================================================
+    // Immutable configuration fields events and flags and contructors
+    // ==================================================================================================================
     #region Frozen configuration
     private readonly string _ytdlpPath;
     private readonly ILogger _logger;
@@ -879,8 +882,12 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <param name="auto">Write automatically generated subtitle file</param>
     public Ytdlp WithSubtitles(string languages = "all", bool auto = false)
     {
-        var flags = new List<string> { "--write-subs" };
-        if (auto) flags.Add("--write-auto-subs");
+        var flags = new List<string>();
+
+        if (auto)
+            flags.Add("--write-auto-subs");
+        else
+            flags.Add("--write-subs");
 
         return new Ytdlp(this, extraFlags: flags, extraOptions: new[] { ("--sub-langs", languages) });
     }
@@ -936,7 +943,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <param name="format">(currently supported: avi, flv, gif, mkv, mov, mp4, webm, aac, aiff, alac, flac, m4a, mka, mp3, ogg, opus, vorbis, wav).</param>
     public Ytdlp WithRemuxVideo(string format)
     {
-        if(string.IsNullOrWhiteSpace(format))
+        if (string.IsNullOrWhiteSpace(format))
             throw new ArgumentException("Remux format cannot be empty", nameof(format));
         return this.AddOption("--remux-video", format.ToLowerInvariant());
     }
@@ -949,7 +956,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <param name="audioCodec"></param>
     public Ytdlp WithRecodeVideo(string format, string? videoCodec = null, string? audioCodec = null)
     {
-        if(string.IsNullOrWhiteSpace(format))
+        if (string.IsNullOrWhiteSpace(format))
             throw new ArgumentException("Recode format cannot be empty", nameof(format));
         var builder = AddOption("--recode-video", format.ToLowerInvariant());
         if (!string.IsNullOrWhiteSpace(videoCodec))
@@ -988,18 +995,7 @@ public sealed class Ytdlp : IAsyncDisposable
     /// <summary>
     /// Embed subtitles in the video (only for mp4, webm and mkv videos)
     /// </summary>
-    /// <param name="languages"></param>
-    /// <param name="convertTo"></param>
-    public Ytdlp WithEmbedSubtitles(string languages = "all", string? convertTo = null)
-    {
-        var builder = AddFlag("--sub-langs")
-            .AddOption("--write-sub", languages);
-        if (!string.IsNullOrWhiteSpace(convertTo))
-            builder = builder.AddOption("--convert-subs", convertTo);
-        if (convertTo?.Equals("embed", StringComparison.OrdinalIgnoreCase) == true)
-            builder = builder.AddFlag("--embed-subs");
-        return builder;
-    }
+    public Ytdlp WithEmbedSubtitles() => AddFlag("--embed-subs");
 
     /// <summary>
     /// Embed thumbnail in the video as cover art
@@ -1057,10 +1053,25 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     /// <summary>
+    /// Convert the subtitles to another format
+    /// </summary>
+    /// <param name="format">(currently supported: ass, lrc, srt, vtt)</param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithConvertSubtitles(string format = "none")
+    {
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Subtitle format cannot be empty", nameof(format));
+
+        return AddOption("--convert-subs", format.Trim().ToLowerInvariant());
+    }
+
+    /// <summary>
     /// Convert the thumbnails to another format. You can specify multiple rules using similar WithRemuxVideo().
     /// </summary>
     /// <param name="format">(currently supported: jpg, png, webp)</param>
     /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
     public Ytdlp WithConvertThumbnails(string format = "jpg")
     {
         // Supported: jpg, png, webp
@@ -1071,11 +1082,44 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     /// <summary>
+    /// Split video into multiple files based on internal chapters. The "chapter:" prefix can be used with the output filename for the split files.
+    /// </summary>
+    public Ytdlp WithSplitChapters() => AddFlag("--split-chapters");
+
+    /// <summary>
+    /// Remove chapters whose title matches the given regular expression. The syntax is the same as <see cref="WithDownloadSections(string)"/>. 
+    /// This option can be used multiple times to remove multiple sections"/>
+    /// </summary>
+    /// <param name="regex"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public Ytdlp WithRemoveChapters(string regex)
+    {
+        if (string.IsNullOrWhiteSpace(regex))
+            throw new ArgumentException("Regex cannot be empty", nameof(regex));
+        return AddOption("--remove-chapters", regex);
+    }
+
+    /// <summary>
     /// Force keyframes at cuts when downloading/splitting/removing sections. 
     /// This is slow due to needing a re-encode, but the resulting video may have fewer artifacts around the cuts
     /// </summary>
     /// <returns></returns>
     public Ytdlp WithForceKeyframesAtCuts() => AddFlag("--force-keyframes-at-cuts");
+
+    /// <summary>
+    /// The (case-sensitive) name of plugin postprocessors to be enabled
+    /// This option can be used multiple times to add different postprocessors
+    /// </summary>
+    /// <param name="postProcessor"></param>
+    /// <param name="postProcessorArgs"></param>
+    /// <returns></returns>
+    public Ytdlp WithUsePostProcessor(PostProcessors postProcessor, string? postProcessorArgs = null)
+    {
+        if (!string.IsNullOrWhiteSpace(postProcessorArgs))
+            return AddOption("--use-postprocessor", $"{postProcessor.ToString().Trim()}:{postProcessorArgs.Trim()}");
+        return AddOption("--use-postprocessor", postProcessor.ToString().Trim());
+    }
 
     #endregion
 
@@ -1781,10 +1825,10 @@ public sealed class Ytdlp : IAsyncDisposable
         progressParser.OnErrorMessage += OnErrorMessageHandler;
         progressParser.OnPostProcessingStart += OnPostProcessingStartHandler;
         progressParser.OnPostProcessingComplete += OnPostProcessingCompleteHandler;
-      
+
         // Command completion
         void OnCommandCompletedHandler(object? s, CommandCompletedEventArgs e) => OnCommandCompleted?.Invoke(this, e);
-        download.OnCommandCompleted += OnCommandCompletedHandler;      
+        download.OnCommandCompleted += OnCommandCompletedHandler;
 
         try
         {
@@ -1846,6 +1890,10 @@ public sealed class Ytdlp : IAsyncDisposable
     }
 
     #endregion
+
+    // ==================================================================================================================
+    // Internal Helpers and Utilities
+    // ==================================================================================================================
 
     #region Helpers
 

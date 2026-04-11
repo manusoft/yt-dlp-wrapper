@@ -347,7 +347,7 @@ await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 * `.WithPostprocessorArgs(PostProcessors postprocessor, string args)`
 * `.WithKeepVideo()`
 * `.WithNoPostOverwrites()`
-* `.WithEmbedSubtitles(string languages = "all", string? convertTo = null)`
+* `.WithEmbedSubtitles()`
 * `.WithEmbedThumbnail()`
 * `.WithEmbedMetadata()`
 * `.WithEmbedChapters()`
@@ -356,8 +356,12 @@ await ytdlp.DownloadBatchAsync(urls, maxConcurrency: 3);
 * `.WithReplaceInMetadata(string field, string regex, string replacement)`
 * `.WithConcatPlaylist(string policy = "always")`
 * `.WithFFmpegLocation(string? ffmpegPath)`
+* `.WithConvertSubtitles(string format = "none")`
 * `.WithConvertThumbnails(string format = "jpg")`
+* `.WithSplitChapters() => AddFlag("--split-chapters")`
+* `.WithRemoveChapters(string regex)`
 * `.WithForceKeyframesAtCuts()`
+* `.WithUsePostProcessor(PostProcessors postProcessor, string? postProcessorArgs = null)`
 
 ### SponsorBlock Options
 * `.WithSponsorblockMark(string categories = "all")`
