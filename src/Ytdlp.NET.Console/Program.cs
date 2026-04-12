@@ -160,7 +160,7 @@ internal class Program
     private static async Task TestDownloadVideoAsync(Ytdlp ytdlpBase)
     {
         Console.WriteLine("\nTest 6: Downloading a video...");
-        var url = "https://www.youtube.com/watch?v=89-i4aPOMrc"; //"https://www.dailymotion.com/video/xa3ron2"; 
+        var url = "https://www.youtube.com/watch?v=2vTkipUlhik"; //"https://www.dailymotion.com/video/xa3ron2"; 
 
         var ytdlp = ytdlpBase
             .WithFormat("ba/b")
@@ -184,6 +184,12 @@ internal class Program
                 Console.WriteLine($"Process failed: {args.Message}");
         };
 
+        ytdlp.OnOutputMessage += (s, msg) =>
+            Console.WriteLine(msg);
+
+        ytdlp.OnErrorMessage += (sender, msg) =>
+            Console.WriteLine(msg);
+
         ytdlp.OnProgressDownload += (sender, args) =>
             Console.WriteLine($"Progress: {args.Percent:F2}% - {args.Speed} - ETA {args.ETA} - Size {args.Size}");
 
@@ -195,8 +201,6 @@ internal class Program
 
         ytdlp.OnPostProcessingComplete += (sender, message) =>
             Console.WriteLine($"Post-processing done: {message}");
-
-        Console.WriteLine(ytdlp.Preview(url));
 
        await ytdlp.DownloadAsync(url);
     }
@@ -294,8 +298,6 @@ internal class Program
 
         try
         {
-
-
             await downloadTask;
         }
         catch (OperationCanceledException)

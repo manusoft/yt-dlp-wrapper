@@ -1816,18 +1816,18 @@ public sealed class Ytdlp : IAsyncDisposable
         progressParser.OnProgressMessage += OnProgressMessageHandler;
         progressParser.OnCompleteDownload += OnCompleteDownloadHanlder;
 
-        // Forward other events
-        void OnOutputMessageHandler(object? s, string msg) => OnOutputMessage?.Invoke(this, msg);
-        void OnErrorMessageHandler(object? s, string msg) => OnErrorMessage?.Invoke(this, msg);
+        // Forward other events        
         void OnPostProcessingStartHandler(object? s, string msg) => OnPostProcessingStart?.Invoke(this, msg);
-        void OnPostProcessingCompleteHandler(object? s, string msg) => OnPostProcessingComplete?.Invoke(this, msg);
-        progressParser.OnOutputMessage += OnOutputMessageHandler;
-        progressParser.OnErrorMessage += OnErrorMessageHandler;
+        void OnPostProcessingCompleteHandler(object? s, string msg) => OnPostProcessingComplete?.Invoke(this, msg);       
         progressParser.OnPostProcessingStart += OnPostProcessingStartHandler;
         progressParser.OnPostProcessingComplete += OnPostProcessingCompleteHandler;
 
-        // Command completion
+        // Process events
+        void OnOutputMessageHandler(object? s, string msg) => OnOutputMessage?.Invoke(this, msg);
+        void OnErrorMessageHandler(object? s, string msg) => OnErrorMessage?.Invoke(this, msg);
         void OnCommandCompletedHandler(object? s, CommandCompletedEventArgs e) => OnCommandCompleted?.Invoke(this, e);
+        download.OnOutput += OnOutputMessageHandler;
+        download.OnError += OnErrorMessageHandler;
         download.OnCommandCompleted += OnCommandCompletedHandler;
 
         try
@@ -1839,11 +1839,11 @@ public sealed class Ytdlp : IAsyncDisposable
             // Unsubscribe immediately after execution to prevent memory leaks
             progressParser.OnProgressDownload -= OnProgressDownloadHandler;
             progressParser.OnProgressMessage -= OnProgressMessageHandler;
-            progressParser.OnCompleteDownload -= OnCompleteDownloadHanlder;
-            progressParser.OnOutputMessage -= OnOutputMessageHandler;
-            progressParser.OnErrorMessage -= OnErrorMessageHandler;
+            progressParser.OnCompleteDownload -= OnCompleteDownloadHanlder;            
             progressParser.OnPostProcessingStart -= OnPostProcessingStartHandler;
             progressParser.OnPostProcessingComplete -= OnPostProcessingCompleteHandler;
+            download.OnOutput -= OnOutputMessageHandler;
+            download.OnError -= OnErrorMessageHandler;
             download.OnCommandCompleted -= OnCommandCompletedHandler;
         }
     }
