@@ -57,7 +57,7 @@ public sealed class ProgressParser
         if (string.IsNullOrWhiteSpace(output))
             return;
 
-        OnOutputMessage?.Invoke(this, output.TrimEnd());
+        //OnOutputMessage?.Invoke(this, output.TrimEnd());
 
         foreach (var (regex, handler) in _regexHandlers)
         {
@@ -108,7 +108,7 @@ public sealed class ProgressParser
         string etaString = match.Groups["eta"].Value;
 
         if (!double.TryParse(percentString.Replace("%", ""), out double percent))
-            percent = 0;       
+            percent = 0;
 
         var args = new DownloadProgressEventArgs
         {
@@ -276,10 +276,7 @@ public sealed class ProgressParser
     private void LogAndNotify(LogType logType, string message)
     {
         _logger.Log(logType, message);
-        if (logType == LogType.Error)
-            OnErrorMessage?.Invoke(this, message);
-        else
-            OnProgressMessage?.Invoke(this, message);
+        OnProgressMessage?.Invoke(this, message);
     }
 
     private void LogAndNotifyComplete(string message)
@@ -291,9 +288,7 @@ public sealed class ProgressParser
 
     // ───────────── Events (unchanged) ─────────────
     #region Events
-    public event EventHandler<string>? OnOutputMessage;
     public event EventHandler<string>? OnProgressMessage;
-    public event EventHandler<string>? OnErrorMessage;
     public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
     public event EventHandler<string>? OnCompleteDownload;
     public event EventHandler<string>? OnPostProcessingStart;
