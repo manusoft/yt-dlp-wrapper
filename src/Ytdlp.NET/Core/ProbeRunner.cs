@@ -7,7 +7,6 @@ public sealed class ProbeRunner
     private readonly ProcessFactory _factory;
     private readonly ILogger _logger;
 
-    public event EventHandler<string>? OnOutput;           // optional: for live output if needed
     public event EventHandler<string>? OnErrorMessage;
     public event EventHandler<CommandCompletedEventArgs>? OnCommandCompleted;
 
@@ -19,9 +18,6 @@ public sealed class ProbeRunner
 
     public async Task<string?> RunAsync(string args, CancellationToken ct = default, bool tuneProcess = true, int bufferKb = 256)
     {
-        if (string.IsNullOrWhiteSpace(args))
-            throw new ArgumentException("Arguments cannot be empty", nameof(args));
-
         // Reasonable buffer: 256 KB default (good for large JSON), min 64 KB
         if (bufferKb < 64) bufferKb = 64;
         int bufferSize = bufferKb * 1024;

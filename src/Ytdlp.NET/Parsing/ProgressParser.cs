@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace ManuHub.Ytdlp.NET;
 
@@ -15,6 +14,15 @@ public sealed class ProgressParser
     private bool _postProcessingStarted;
     private int _postProcessStepCount;
     private int _deleteCount;
+
+    // ───────────── Events (unchanged) ─────────────
+    #region Events
+    public event EventHandler<string>? OnProgressMessage;
+    public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
+    public event EventHandler<string>? OnCompleteDownload;
+    public event EventHandler<string>? OnPostProcessingStart;
+    public event EventHandler<string>? OnPostProcessingComplete;
+    #endregion
 
     public ProgressParser(ILogger? logger = null)
     {
@@ -56,8 +64,6 @@ public sealed class ProgressParser
     {
         if (string.IsNullOrWhiteSpace(output))
             return;
-
-        //OnOutputMessage?.Invoke(this, output.TrimEnd());
 
         foreach (var (regex, handler) in _regexHandlers)
         {
@@ -284,14 +290,5 @@ public sealed class ProgressParser
         _logger.Log(LogType.Info, message);
         OnCompleteDownload?.Invoke(this, message);
     }
-    #endregion
-
-    // ───────────── Events (unchanged) ─────────────
-    #region Events
-    public event EventHandler<string>? OnProgressMessage;
-    public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
-    public event EventHandler<string>? OnCompleteDownload;
-    public event EventHandler<string>? OnPostProcessingStart;
-    public event EventHandler<string>? OnPostProcessingComplete;
-    #endregion
+    #endregion   
 }
