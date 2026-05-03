@@ -20,20 +20,20 @@ internal class Program
             .WithFFmpegLocation("tools");
 
         // Run all demos/tests sequentially
-        await TestGetVersionAsync(baseYtdlp);
-        await TestUpdateAsync(baseYtdlp);
+        //await TestGetVersionAsync(baseYtdlp);
+        //await TestUpdateAsync(baseYtdlp);
 
-        await TestGetFormatsAsync(baseYtdlp);
-        await TestGetMetadataAsync(baseYtdlp);
-        await TestGetLiteMetadataAsync(baseYtdlp);
-        await TestGetTitleAsync(baseYtdlp);
+        //await TestGetFormatsAsync(baseYtdlp);
+        //await TestGetMetadataAsync(baseYtdlp);
+        //await TestGetLiteMetadataAsync(baseYtdlp);
+        //await TestGetTitleAsync(baseYtdlp);
 
         await TestDownloadVideoAsync(baseYtdlp);
-        await TestDownloadAudioAsync(baseYtdlp);
-        await TestBatchDownloadAsync(baseYtdlp);
-        await TestSponsorBlockAsync(baseYtdlp);
-        await TestConcurrentFragmentsAsync(baseYtdlp);
-        await TestCancellationAsync(baseYtdlp);
+        //await TestDownloadAudioAsync(baseYtdlp);
+        //await TestBatchDownloadAsync(baseYtdlp);
+        //await TestSponsorBlockAsync(baseYtdlp);
+        //await TestConcurrentFragmentsAsync(baseYtdlp);
+        //await TestCancellationAsync(baseYtdlp);
 
         var lists = await baseYtdlp.ExtractorsAsync();
 
@@ -164,7 +164,7 @@ internal class Program
 
         var ytdlp = ytdlpBase
             .WithFormat("ba/b")
-            .WithExtractAudio(AudioFormat.Mp3)
+            //.WithExtractAudio(AudioFormat.Mp3)
             .WithConcurrentFragments(8)
             .WithHomeFolder("./downloads")
             .WithTempFolder("./downloads/temp")

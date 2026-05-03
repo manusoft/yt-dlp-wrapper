@@ -15,6 +15,15 @@ public sealed class ProgressParser
     private int _postProcessStepCount;
     private int _deleteCount;
 
+    // ───────────── Events (unchanged) ─────────────
+    #region Events
+    public event EventHandler<string>? OnProgressMessage;
+    public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
+    public event EventHandler<string>? OnCompleteDownload;
+    public event EventHandler<string>? OnPostProcessingStart;
+    public event EventHandler<string>? OnPostProcessingComplete;
+    #endregion
+
     public ProgressParser(ILogger? logger = null)
     {
         _logger = logger ?? new DefaultLogger();
@@ -55,8 +64,6 @@ public sealed class ProgressParser
     {
         if (string.IsNullOrWhiteSpace(output))
             return;
-
-        //OnOutputMessage?.Invoke(this, output.TrimEnd());
 
         foreach (var (regex, handler) in _regexHandlers)
         {
@@ -283,14 +290,5 @@ public sealed class ProgressParser
         _logger.Log(LogType.Info, message);
         OnCompleteDownload?.Invoke(this, message);
     }
-    #endregion
-
-    // ───────────── Events (unchanged) ─────────────
-    #region Events
-    public event EventHandler<string>? OnProgressMessage;
-    public event EventHandler<DownloadProgressEventArgs>? OnProgressDownload;
-    public event EventHandler<string>? OnCompleteDownload;
-    public event EventHandler<string>? OnPostProcessingStart;
-    public event EventHandler<string>? OnPostProcessingComplete;
-    #endregion
+    #endregion   
 }
