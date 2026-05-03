@@ -9,37 +9,37 @@ public class MetadataLight
     /// <summary>
     /// Video ID (e.g. "Xt50Sodg7sA")
     /// </summary>
-    public string? Id { get; init; }
+    public string? Id { get; set; }
 
     /// <summary>
     /// Video title (supports Unicode / emoji / special characters)
     /// </summary>
-    public string? Title { get; init; }
+    public string? Title { get; set; }
 
     /// <summary>
     /// Video duration in seconds (null if not available)
     /// </summary>
-    public double? Duration { get; init; }
+    public double? Duration { get; set; }
 
     /// <summary>
     /// Primary thumbnail URL
     /// </summary>
-    public string? Thumbnail { get; init; }
+    public string? Thumbnail { get; set; }
 
     /// <summary>
     /// View count (null if not available)
     /// </summary>
-    public long? ViewCount { get; init; }
+    public long? ViewCount { get; set; }
 
     /// <summary>
     /// Approximate file size of best format (bytes, null if not available)
     /// </summary>
-    public long? FileSize { get; init; }
+    public long? FileSize { get; set; }
 
     /// <summary>
     /// Video description (first ~500 characters, supports Unicode)
     /// </summary>
-    public string? Description { get; init; }
+    public string? Description { get; set; }
 
     /// <summary>
     /// Convenience: Duration as TimeSpan

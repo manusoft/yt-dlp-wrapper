@@ -20,9 +20,9 @@ public sealed class DownloadRunner
         _logger = logger;
     }
 
-    public async Task RunAsync(string arguments, CancellationToken ct, bool tuneProcess = true)
+    public async Task RunAsync(string args, CancellationToken ct, bool tuneProcess = true)
     {
-        using var process = _factory.Create(arguments);
+        using var process = _factory.Create(args);
         int completed = 0;
 
         void Complete(bool success, string message)
