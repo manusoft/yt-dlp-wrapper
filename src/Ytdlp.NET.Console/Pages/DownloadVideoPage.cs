@@ -55,4 +55,3 @@ internal static class DownloadVideoPage
         Console.ReadKey();
     }
 }
-

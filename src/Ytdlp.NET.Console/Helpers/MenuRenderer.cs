@@ -14,6 +14,7 @@ internal static class MenuRenderer
         WriteItem("8", "Benchmarks");
         WriteItem("9", "Extractors List");
         WriteItem("10", "Subtitle List");
+        WriteItem("11", "Live Stream Download");
         WriteItem("0", "Exit");
 
         Console.WriteLine();
