@@ -46,6 +46,13 @@ public sealed class ProgressParser
             { new Regex(RegexPatterns.ResumeDownload, compiledIgnoreCase), HandleResumeDownload },
             { new Regex(RegexPatterns.DownloadAlreadyDownloaded, compiledIgnoreCase), HandleDownloadAlreadyCompleted },
 
+
+            // Live / no-total-size progress (livestreams)
+            // Matches both:
+            //   [download]    8.36MiB at  169.71KiB/s (00:01:07) (frag 244)
+            //   2: [download]    8.36MiB at  169.71KiB/s (00:01:07) (frag 244)
+            { new Regex(RegexPatterns.DownloadProgressLive, compiledIgnoreCase), HandleDownloadProgressLive },
+
             // Progress
             { new Regex(RegexPatterns.DownloadProgressComplete, compiledIgnoreCase), HandleDownloadProgressComplete },
             { new Regex(RegexPatterns.DownloadProgressWithFrag, compiledIgnoreCase), HandleDownloadProgressWithFrag },
@@ -68,6 +75,7 @@ public sealed class ProgressParser
             // Optional: add playlist awareness
             { new Regex(RegexPatterns.PlaylistItem, compiledIgnoreCase), m =>
                 LogAndNotify(LogType.Information, $"Playlist progress: item {m.Groups["item"].Value}/{m.Groups["total"].Value} - {m.Groups["playlist"].Value}") },
+           
         };
     }
 
@@ -188,6 +196,33 @@ public sealed class ProgressParser
         {
             HandleDownloadProgressComplete(match);
         }
+    }
+
+    private void HandleDownloadProgressLive(Match match)
+    {
+        string sizeString = match.Groups["size"].Value;
+        string speedString = match.Groups["speed"].Value;
+        string elapsedString = match.Groups["elapsed"].Value;
+        string fragString = match.Groups["frag"].Success ? match.Groups["frag"].Value : string.Empty;
+
+        var args = new DownloadProgressEventArgs
+        {
+            // No reliable percent for live streams
+            Percent = 0,
+            Size = sizeString,          // bytes downloaded so far
+            Speed = speedString,
+            ETA = null,                // or leave empty – we only have elapsed
+            Elapsed = elapsedString,
+            Fragments = fragString,
+            Message = string.IsNullOrEmpty(fragString)
+                ? $"Live: {sizeString} | {speedString} | elapsed {elapsedString}"
+                : $"Live: {sizeString} | {speedString} | elapsed {elapsedString} | frag {fragString}"
+        };
+
+        LogAndNotify(LogType.Information, args.Message);
+        ProgressDownload?.Invoke(this, args);
+
+        // Never mark download as completed from a live progress line
     }
 
     private static bool IsFinalFragment(string frag)

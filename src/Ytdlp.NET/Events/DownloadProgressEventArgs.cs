@@ -30,6 +30,12 @@ public class DownloadProgressEventArgs : EventArgs
     public string ETA { get; set; } = default!;
 
     /// <summary>
+    /// Gets or sets the elapsed time since the download started. 
+    /// Especially useful for livestreams where ETA may not be applicable.
+    /// </summary>
+    public string Elapsed { get; set; } = default!;
+
+    /// <summary>
     /// Gets or sets the number of fragments downloaded (if applicable).
     /// </summary>
     public string Fragments { get; set; } = default!;

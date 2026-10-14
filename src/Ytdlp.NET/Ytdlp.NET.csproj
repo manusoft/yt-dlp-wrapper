@@ -16,7 +16,7 @@
 		<BuildYear>$([System.DateTime]::UtcNow.Year)</BuildYear>
 		<BuildDay>$([System.DateTime]::UtcNow.DayOfYear)</BuildDay>		
 
-		<Version>4.0.0</Version>
+		<Version>4.3.0</Version>
 		<FileVersion>$(Version)</FileVersion>
 
 		<InformationalVersion>$(Version)+build.$(BuildYear).$(BuildDay)</InformationalVersion>	
