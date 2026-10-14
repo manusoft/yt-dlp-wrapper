@@ -11,6 +11,11 @@ internal static class RegexPatterns
     public const string DownloadProgress = @"\[download\]\s+(?:(?<percent>[\d\.]+)%(?:\s+of\s+\~?\s*(?<total>[\d\.\w]+))?\s+at\s+(?:(?<speed>[\d\.\w]+\/s)|[\w\s]+)\s+ETA\s(?<eta>[\d\:]+))?";
     //@"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(?<size>[^\s]+)\s*at\s*(?<speed>[^\s]+)\s*ETA\s*(?<eta>[^\s]+)";
     public const string DownloadProgressWithFrag = @"\[download\]\s*(?<percent>\d+\.\d+)%\s*of\s*(~?\s*(?<size>[^\s]+))\s*at\s*(?<speed>[^\s]+)\s*ETA\s*(?<eta>[^\s]+)\s*\(frag\s*(?<frag>\d+/\d+)\)";
+
+    // Live progress – no percent / total size
+    // Groups: size, speed, elapsed, frag (optional)
+    public const string DownloadProgressLive =
+        @"^(?:\d+:\s*)?\[download\]\s+(?<size>[\d.]+\s*[KMGT]?i?B)\s+at\s+(?<speed>[\d.]+\s*[KMGT]?i?B/s)\s+\((?<elapsed>[\d:]+)\)(?:\s+\(frag\s+(?<frag>\d+(?:/\d+)?)\))?";
     public const string DownloadProgressComplete = @"\[download\]\s*(?<percent>100(?:\.0)?)%\s*of\s*(?<size>[^\s]+)\s*at\s*(?<speed>[^\s]+|Unknown)\s*ETA\s*(?<eta>[^\s]+|Unknown)";
     public const string UnknownError = @"\[download\]\s*Unknown error";
     public const string MergingFormats = @"\[Merger\]\s*Merging formats into\s*""(?<path>.+)""";

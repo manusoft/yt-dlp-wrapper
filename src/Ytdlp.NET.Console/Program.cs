@@ -72,6 +72,10 @@ internal class Program
                         await SubtitlePage.ShowAsync(_ytdlp!);
                         break;
 
+                    case "11":
+                        await LivetreamDownloadPage.ShowAsync(_ytdlp!);
+                        break;
+
                     case "0":
                         return;
                 }
