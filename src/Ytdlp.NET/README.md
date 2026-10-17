@@ -21,8 +21,9 @@
 
 ---
 
-## 🚀 New in v4.1.0
+## 🚀 New in v4.x.x
 
+- **Livestream Progress** - Implements livestream progress support.
 - **Source-generated JSON** — Switched to `System.Text.Json` source generation via `YtdlpJsonContext` for faster metadata deserialization and full Native AOT support
 - **Expanded Fluent API** — Dozens of new methods covering network, playlist, error handling, retry, fragment, and downloader options
 - **Partial Class Refactor** — Split the large fluent builder into logical partial classes (General, Authentication, Download, etc.) for better maintainability and IntelliSense
