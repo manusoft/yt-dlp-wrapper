@@ -42,14 +42,9 @@
 			Ytdlp.NET
 
 			✨ Features
-			- Lifecycle Refinement: No disposal required. The library no longer implements IDisposable or IAsyncDisposable. Instances are plain configuration objects.
-			- Advanced Execution: New `ExecuteRawAsync()` for power users who need to execute custom commands that bypass the fluent builder.
-			- Deep Metadata Support: New GetDeepMetadataAsync() and GetDeepMetadataRawAsync() for full hierarchical structure (playlists → seasons → episodes).
-			- Traverse Helper: New Traverse() method for easy iteration over nested playlist entries.
-			- Improved Auth: Enhanced WithAdobePassAuthentication() and WithAuthentication() handling.
-			- Subtitle Extraction: New GetSubtitlesAsync() for streamlined subtitle retrieval.
-			- MSO Listing: New GetAdobePassListAsync() for Adobe Pass mso listing.
-			- Robust Core: Modernized ProcessRunner and ProcessFactory for efficient, isolated execution
+			- Add yt-dlp livestream progress support
+			Parse and report livestream progress with elapsed time and optional fragment information. 
+			Add live-progress handling without ETA or completion status, and bump the version to 4.3.0.
 
 			🛠 Notes
 			- Companion packages recommended: ManuHub.Ytdlp, ManuHub.FFmpeg, ManuHub.FFprobe, ManuHub.Deno.
